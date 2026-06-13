@@ -347,7 +347,13 @@
                 sourceLocSelect.innerHTML = `<option value="Default-Shelf">Default-Shelf (0 available)</option>`;
             }
 
-            let systemStock = parseInt(systemData['Stock']) || 0;
+            // این تغییر باعث می‌شود برنامه هم به حروف بزرگ و هم کوچک حساس نباشد و دیتای واقعی را بکشد
+            let systemStock = 0;
+            if (systemData) {
+            systemStock = parseInt(systemData['Stock']) || 
+                  parseInt(systemData['stock']) || 
+                  parseInt(systemData['STOCK']) || 0;
+            }
             currentShowroomQty = showData ? (parseInt(showData.showroom_qty) || 0) : 0;
             let variance = (totalWarehouseQty + currentShowroomQty) - systemStock;
 
