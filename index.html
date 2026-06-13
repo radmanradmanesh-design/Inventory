@@ -232,6 +232,7 @@
         </div>
         
         <button id="submit-btn" onclick="submitTransfer()">Confirm Stock Movement</button>
+        <button id="clear-btn" onclick="resetPage()" style="margin-top: 10px; background-color: #718096;">Clear & Reset</button>
     </div>
 </div>
 
@@ -398,12 +399,12 @@
         const qty = parseInt(transferQtyInput.value);
         const txType = typeSelect.value;
         const barcode = currentProduct['Barcode'];
+        const itemName = currentProduct['Item Name'] || 'Unknown Item';
         
         let selectedLoc = sourceLocSelect.value;
 
         if (!qty || qty <= 0) { alert('Enter valid quantity'); return; }
 
-        // اولویت با نام قفسه جدید دست‌نویس است
         if (txType === 'intake' && newLocInput.value.trim() !== '') {
             selectedLoc = newLocInput.value.trim();
         }
@@ -414,6 +415,22 @@
             alert('Error: Not enough stock in this specific location!');
             return;
         }
+
+        // --- بخش جدید: پیام تاییدیه قبل از اعمال در دیتابیس ---
+        let actionMessage = "";
+        if (txType === 'intake') {
+            actionMessage = `🔹 TRANSACTION TYPE: Direct Stock Intake\n📦 ITEM: ${itemName}\n🔢 QTY TO ADD: +${qty} pcs\n📍 TARGET SHELF: [ ${selectedLoc} ]`;
+        } else if (txType === 'out') {
+            actionMessage = `🔹 TRANSACTION TYPE: Move to Showroom\n📦 ITEM: ${itemName}\n🔢 QTY TO REMOVE FROM WHSE: -${qty} pcs\n📍 FROM SHELF: [ ${selectedLoc} ]`;
+        } else if (txType === 'in') {
+            actionMessage = `🔹 TRANSACTION TYPE: Return to Warehouse\n📦 ITEM: ${itemName}\n🔢 QTY TO ADD BACK TO WHSE: +${qty} pcs\n📍 TARGET SHELF: [ ${selectedLoc} ]`;
+        }
+
+        const confirmAction = confirm(`${actionMessage}\n\nAre you sure you want to update the database?`);
+        if (!confirmAction) {
+            return; // اگر دکمه لغو را زد، تابع اینجا متوقف می‌شود
+        }
+        // ----------------------------------------------------
 
         statusDiv.className = 'status loading';
         statusDiv.textContent = 'Processing transaction...';
@@ -431,7 +448,6 @@
             newLocQty = currentLocQty + qty; 
         }
 
-        // ۱. بروزرسانی قفسه انبار
         const { error: whseError } = await _supabase
             .from('warehouse_inventory')
             .upsert(
@@ -445,12 +461,10 @@
             return;
         }
 
-        // ۲. بروزرسانی دیتابیس شوروم (فقط برای جابجایی‌های داخلی کالا)
         if (txType !== 'intake') {
             await _supabase.from('showroom_inventory').upsert({ Barcode: barcode, showroom_qty: newShowroomQty }, { onConflict: 'Barcode' });
         }
 
-        // ۳. درج گزارش در لاگ دیتابیس
         let logWorkerName = `Direct Intake to ${selectedLoc}`;
         let logQty = qty;
         if (txType === 'out') { logWorkerName = `Shelf ${selectedLoc} -> Showroom`; logQty = qty; }
@@ -465,10 +479,18 @@
         statusDiv.className = 'status success';
         statusDiv.textContent = txType === 'intake' ? 'Warehouse physical stock increased successfully!' : 'Stock updated successfully!';
         
+        setTimeout(resetPage, 1500);
+    }
+
+    function resetPage() {
         barcodeInput.value = '';
-        productInfoDiv.style.display = 'none';
-        transferQtyInput.value = '';
         newLocInput.value = '';
+        document.getElementById('transfer-qty').value = '';
+        productInfoDiv.style.display = 'none';
+        statusDiv.style.display = 'none';
+        statusDiv.textContent = '';
+        statusDiv.className = 'status';
+        barcodeInput.focus();
     }
 </script>
 </body>
