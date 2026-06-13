@@ -353,8 +353,11 @@
             systemStock = parseInt(systemData['Stock']) || 
                   parseInt(systemData['stock']) || 
                   parseInt(systemData['STOCK']) || 0;
+            if (systemData && systemData['Stock']) {
+                let cleanStock = systemData['Stock'].toString().replace(/,/g, '');
+                systemStock = parseInt(cleanStock) || 0;    
             }
-            currentShowroomQty = showData ? (parseInt(showData.showroom_qty) || 0) : 0;
+            currentShowroomQty = showData ? (parseInt(showData.showroom_qty.toString().replace(/,/g,")) || 0) : 0;
             let variance = (totalWarehouseQty + currentShowroomQty) - systemStock;
 
             document.getElementById('p-name').textContent = systemData['Item Name'] || '---';
