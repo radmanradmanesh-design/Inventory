@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Stock Control & Live Location Finder</title>
+    <title>Live Camera Stock Control & Location Finder</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
@@ -29,12 +30,19 @@
             color: #1e293b;
             font-size: 22px;
         }
-        .scan-box {
+        /* باکس اختصاصی دوربین */
+        .camera-box {
             background-color: #f8fafc;
             border: 2px solid #3182ce;
-            padding: 16px;
-            border-radius: 8px;
+            padding: 10px;
+            border-radius: 12px;
             margin-bottom: 16px;
+            overflow: hidden;
+        }
+        #reader {
+            width: 100%;
+            background: #000;
+            border-radius: 8px;
         }
         .form-group {
             margin-bottom: 16px;
@@ -53,11 +61,6 @@
             border-radius: 8px;
             box-sizing: border-box;
             font-size: 16px;
-        }
-        input:focus, select:focus {
-            outline: none;
-            border-color: #3182ce;
-            box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.15);
         }
         .status {
             padding: 12px;
@@ -153,17 +156,26 @@
             cursor: pointer;
             font-weight: 700;
         }
+        
+        #manual-box {
+            margin-top: 10px;
+            display: flex;
+            gap: 6px;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Stock Control & Location Finder</h2>
+    <h2>Live Scanner & Location Finder</h2>
     
-    <div class="scan-box">
-        <div class="form-group" style="margin-bottom: 0;">
-            <label for="barcode-input" style="color: #2b6cb0; font-size: 15px;">👉 Scan or Enter Barcode Here:</label>
-            <input type="text" id="barcode-input" placeholder="Click here and scan..." autofocus autocomplete="off">
+    <div class="camera-box">
+        <label style="color: #2b6cb0; font-size: 15px; margin-bottom: 10px;">📷 Align Barcode Inside Frame:</label>
+        <div id="reader"></div>
+        
+        <div id="manual-box">
+            <input type="text" id="barcode-input" placeholder="Or enter barcode manually..." autocomplete="off">
+            <button onclick="handleManualSubmit()" style="width: auto; padding: 0 20px; background-color: #4a5568;">Find</button>
         </div>
     </div>
 
@@ -235,17 +247,43 @@
     let currentProduct = null;
     let locBalances = {};
     let currentShowroomQty = 0;
+    let html5QrcodeScanner = null;
 
-    // فکوس نگه داشتن همیشگی روی کادر اسکن
+    // راه‌اندازی خودکار دوربین به محض باز شدن صفحه روی گوشی
     window.onload = function() {
-        if(barcodeInput) barcodeInput.focus();
+        startCameraScanner();
     };
 
-    barcodeInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            const barcode = barcodeInput.value.trim();
-            if (barcode) handleScannedBarcode(barcode);
+    function startCameraScanner() {
+        // تنظیمات اسکنر برای بارکدهای خطی استاندارد (انبار)
+        html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
+            fps: 15, 
+            qrbox: { width: 280, height: 150 }, // کادر افقی مناسب برای بارکد کالاها
+            aspectRatio: 1.0
+        }, false);
+        
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+        if (decodedText) {
+            // پخش صدای بوق کوچک در صورت تمایل مرورگر
+            try { new AudioContext().createOscillator().connect(new AudioContext().destination); } catch(e){}
+            handleScannedBarcode(decodedText.trim());
         }
+    }
+
+    function onScanFailure(error) {
+        // خطاهای عدم انطباق فریم چشمی در پس‌زمینه نادیده گرفته می‌شوند
+    }
+
+    function handleManualSubmit() {
+        const barcode = barcodeInput.value.trim();
+        if (barcode) handleScannedBarcode(barcode);
+    }
+
+    barcodeInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') handleManualSubmit();
     });
 
     function handleTypeChange() {
@@ -262,12 +300,11 @@
 
     async function handleScannedBarcode(barcode) {
         statusDiv.className = 'status loading';
-        statusDiv.textContent = 'Searching database shelves...';
+        statusDiv.textContent = `Searching database for [ ${barcode} ]...`;
         statusDiv.style.display = 'block';
         productInfoDiv.style.display = 'none';
         
         try {
-            // 1. Fetch from system_inventory
             const { data: systemData, error: err1 } = await _supabase.from('system_inventory').select('*').eq('Barcode', barcode).maybeSingle();
             if (err1 || !systemData) {
                 statusDiv.className = 'status error';
@@ -275,10 +312,7 @@
                 return;
             }
 
-            // 2. Fetch from warehouse_inventory
             const { data: whseRows, error: err2 } = await _supabase.from('warehouse_inventory').select('*').eq('Row Labels', barcode);
-            
-            // 3. Fetch showroom
             const { data: showData } = await _supabase.from('showroom_inventory').select('showroom_qty').eq('Barcode', barcode).maybeSingle();
 
             currentProduct = systemData;
@@ -330,7 +364,7 @@
             else { varianceBox.className = "stock-box diff-surplus"; varianceElement.textContent = `Surplus (+${variance})`; }
 
             statusDiv.className = 'status success';
-            statusDiv.textContent = 'Product found!';
+            statusDiv.textContent = 'Product successfully located!';
             productInfoDiv.style.display = 'block';
             typeSelect.value = 'out';
             handleTypeChange();
@@ -338,7 +372,7 @@
 
         } catch (e) {
             statusDiv.className = 'status error';
-            statusDiv.textContent = 'An unexpected loop error occurred. Resetting...';
+            statusDiv.textContent = 'Database linkage temporary issue. Try again.';
         }
     }
 
@@ -364,7 +398,6 @@
         let newLocQty = txType === 'out' ? (currentLocQty - qty) : (currentLocQty + qty);
         let newShowroomQty = txType === 'out' ? (currentShowroomQty + qty) : (currentShowroomQty - qty);
 
-        // اصلاح اصلی: مشخص کردن دقیق ستون‌های هدف برای ویرایش ردیف موجود
         const { error: whseError } = await _supabase
             .from('warehouse_inventory')
             .upsert(
@@ -373,24 +406,19 @@
             );
 
         if (whseError) {
-            console.error("Warehouse Update Error:", whseError);
             statusDiv.className = 'status error';
             statusDiv.textContent = 'Error updating warehouse shelf!';
             return;
         }
 
-        // آپدیت موجودی شو روم
         await _supabase.from('showroom_inventory').upsert({ Barcode: barcode, showroom_qty: newShowroomQty }, { onConflict: 'Barcode' });
-        
-        // ثبت در لاگ انتقال
         await _supabase.from('transfer_log').insert([{ Barcode: barcode, qty_transferred: txType==='out'?qty:-qty, worker_name: `Shelf ${selectedLoc}` }]);
 
         statusDiv.className = 'status success';
-        statusDiv.textContent = 'Stock moved successfully!';
+        statusDiv.textContent = 'Stock updated successfully!';
         barcodeInput.value = '';
         productInfoDiv.style.display = 'none';
         transferQtyInput.value = '';
-        barcodeInput.focus();
     }
 </script>
 </body>
