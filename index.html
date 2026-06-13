@@ -206,8 +206,7 @@
         </div>
 
         <label style="margin-top: 15px; display: block; font-weight: bold; color: #2b6cb0;">📍 Physical Locations inside Warehouse:</label>
-        <div id="location-list" class="location-container">
-            </div>
+        <div id="location-list" class="location-container"></div>
         
         <div class="form-group" style="margin-top: 20px;">
             <label for="transaction-type">Transaction Type:</label>
@@ -325,7 +324,7 @@
 
             if (whseRows && whseRows.length > 0) {
                 whseRows.forEach(row => {
-                    // اصلاح بخش وایرهوس: حذف کاما در صورت وجود عدد بالای ۱۰۰۰ در قفسه‌ها
+                    // حذف کاما در صورت وجود عدد بالای ۱۰۰۰ در مقادیر قفسه‌ها
                     let rawVal = row['Value'] ? row['Value'].toString().replace(/,/g, '') : '0';
                     let qty = parseInt(rawVal) || 0;
                     let locName = row['Attribute'];
@@ -349,14 +348,14 @@
                 sourceLocSelect.innerHTML = `<option value="Default-Shelf">Default-Shelf (0 available)</option>`;
             }
 
-            // پاک‌سازی کاماهای تفکیک سه رقمی سیستم انبار
+            // پاک‌سازی کاماهای تفکیک سه رقمی سیستم انبار اکسل
             let systemStock = 0;
             if (systemData) {
                 let rawStock = systemData['Stock'] || systemData['stock'] || systemData['STOCK'] || '0';
                 systemStock = parseInt(rawStock.toString().replace(/,/g, '')) || 0;
             }
             
-            // اصلاح خطای تایپی شوروم و پاک‌سازی کاما
+            // پاک‌سازی کاما در صورت وجود در مقادیر دیتابیس شوروم
             currentShowroomQty = (showData && showData.showroom_qty) ? (parseInt(showData.showroom_qty.toString().replace(/,/g, '')) || 0) : 0;
             
             let variance = (totalWarehouseQty + currentShowroomQty) - systemStock;
@@ -430,3 +429,6 @@
         productInfoDiv.style.display = 'none';
         transferQtyInput.value = '';
     }
+</script>
+</body>
+</html>
