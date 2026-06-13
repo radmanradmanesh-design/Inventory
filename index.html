@@ -30,7 +30,6 @@
             color: #1e293b;
             font-size: 22px;
         }
-        /* باکس اختصاصی دوربین */
         .camera-box {
             background-color: #f8fafc;
             border: 2px solid #3182ce;
@@ -213,12 +212,18 @@
             <select id="transaction-type" onchange="handleTypeChange()">
                 <option value="out">Move to Showroom (Whse -> Showroom)</option>
                 <option value="in">Return to Warehouse (Showroom -> Whse)</option>
+                <option value="intake">➕ Direct Stock Intake (Add New Qty to Whse Shelf)</option>
             </select>
         </div>
 
         <div class="form-group" id="loc-select-group">
             <label for="source-location">Select Warehouse Location for Action:</label>
             <select id="source-location"></select>
+        </div>
+
+        <div class="form-group" id="new-loc-group" style="display: none;">
+            <label for="new-location-input">Or Enter New Location Name (e.g. Shelf-C5):</label>
+            <input type="text" id="new-location-input" placeholder="Type new shelf name...">
         </div>
 
         <div class="form-group">
@@ -241,6 +246,8 @@
     const productInfoDiv = document.getElementById('product-info');
     const typeSelect = document.getElementById('transaction-type');
     const sourceLocSelect = document.getElementById('source-location');
+    const newLocGroup = document.getElementById('new-loc-group');
+    const newLocInput = document.getElementById('new-location-input');
     const submitBtn = document.getElementById('submit-btn');
     
     let currentProduct = null;
@@ -248,16 +255,14 @@
     let currentShowroomQty = 0;
     let html5QrcodeScanner = null;
 
-    // راه‌اندازی خودکار دوربین به محض باز شدن صفحه روی گوشی
     window.onload = function() {
         startCameraScanner();
     };
 
     function startCameraScanner() {
-        // تنظیمات اسکنر برای بارکدهای خطی استاندارد (انبار)
         html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
             fps: 15, 
-            qrbox: { width: 280, height: 150 }, // کادر افقی مناسب برای بارکد کالاها
+            qrbox: { width: 280, height: 150 }, 
             aspectRatio: 1.0
         }, false);
         
@@ -266,15 +271,12 @@
 
     function onScanSuccess(decodedText, decodedResult) {
         if (decodedText) {
-            // پخش صدای بوق کوچک در صورت تمایل مرورگر
             try { new AudioContext().createOscillator().connect(new AudioContext().destination); } catch(e){}
             handleScannedBarcode(decodedText.trim());
         }
     }
 
-    function onScanFailure(error) {
-        // خطاهای عدم انطباق فریم چشمی در پس‌زمینه نادیده گرفته می‌شوند
-    }
+    function onScanFailure(error) {}
 
     function handleManualSubmit() {
         const barcode = barcodeInput.value.trim();
@@ -286,14 +288,22 @@
     });
 
     function handleTypeChange() {
-        if (typeSelect.value === 'out') {
+        const txType = typeSelect.value;
+        newLocGroup.style.display = 'none';
+
+        if (txType === 'out') {
             submitBtn.textContent = 'Confirm Stock Movement';
             submitBtn.style.backgroundColor = '#38a169';
             document.getElementById('loc-select-group').querySelector('label').textContent = "Select Source Location (Deduct from):";
-        } else {
+        } else if (txType === 'in') {
             submitBtn.textContent = 'Confirm & Return Stock';
             submitBtn.style.backgroundColor = '#3182ce';
             document.getElementById('loc-select-group').querySelector('label').textContent = "Select Target Location (Add to):";
+        } else if (txType === 'intake') {
+            submitBtn.textContent = '➕ Add New Physical Stock to Warehouse';
+            submitBtn.style.backgroundColor = '#d97706'; 
+            document.getElementById('loc-select-group').querySelector('label').textContent = "Select Existing Shelf:";
+            newLocGroup.style.display = 'block'; 
         }
     }
 
@@ -302,6 +312,7 @@
         statusDiv.textContent = `Searching database for [ ${barcode} ]...`;
         statusDiv.style.display = 'block';
         productInfoDiv.style.display = 'none';
+        newLocInput.value = '';
         
         try {
             const { data: systemData, error: err1 } = await _supabase.from('system_inventory').select('*').eq('Barcode', barcode).maybeSingle();
@@ -324,7 +335,6 @@
 
             if (whseRows && whseRows.length > 0) {
                 whseRows.forEach(row => {
-                    // حذف کاما در صورت وجود عدد بالای ۱۰۰۰ در مقادیر قفسه‌ها
                     let rawVal = row['Value'] ? row['Value'].toString().replace(/,/g, '') : '0';
                     let qty = parseInt(rawVal) || 0;
                     let locName = row['Attribute'];
@@ -348,14 +358,12 @@
                 sourceLocSelect.innerHTML = `<option value="Default-Shelf">Default-Shelf (0 available)</option>`;
             }
 
-            // پاک‌سازی کاماهای تفکیک سه رقمی سیستم انبار اکسل
             let systemStock = 0;
             if (systemData) {
                 let rawStock = systemData['Stock'] || systemData['stock'] || systemData['STOCK'] || '0';
                 systemStock = parseInt(rawStock.toString().replace(/,/g, '')) || 0;
             }
             
-            // پاک‌سازی کاما در صورت وجود در مقادیر دیتابیس شوروم
             currentShowroomQty = (showData && showData.showroom_qty) ? (parseInt(showData.showroom_qty.toString().replace(/,/g, '')) || 0) : 0;
             
             let variance = (totalWarehouseQty + currentShowroomQty) - systemStock;
@@ -389,10 +397,16 @@
         const transferQtyInput = document.getElementById('transfer-qty');
         const qty = parseInt(transferQtyInput.value);
         const txType = typeSelect.value;
-        const selectedLoc = sourceLocSelect.value;
         const barcode = currentProduct['Barcode'];
+        
+        let selectedLoc = sourceLocSelect.value;
 
         if (!qty || qty <= 0) { alert('Enter valid quantity'); return; }
+
+        // اولویت با نام قفسه جدید دست‌نویس است
+        if (txType === 'intake' && newLocInput.value.trim() !== '') {
+            selectedLoc = newLocInput.value.trim();
+        }
 
         let currentLocQty = locBalances[selectedLoc] || 0;
 
@@ -404,9 +418,20 @@
         statusDiv.className = 'status loading';
         statusDiv.textContent = 'Processing transaction...';
 
-        let newLocQty = txType === 'out' ? (currentLocQty - qty) : (currentLocQty + qty);
-        let newShowroomQty = txType === 'out' ? (currentShowroomQty + qty) : (currentShowroomQty - qty);
+        let newLocQty = currentLocQty;
+        let newShowroomQty = currentShowroomQty;
 
+        if (txType === 'out') {
+            newLocQty = currentLocQty - qty;
+            newShowroomQty = currentShowroomQty + qty;
+        } else if (txType === 'in') {
+            newLocQty = currentLocQty + qty;
+            newShowroomQty = currentShowroomQty - qty;
+        } else if (txType === 'intake') {
+            newLocQty = currentLocQty + qty; 
+        }
+
+        // ۱. بروزرسانی قفسه انبار
         const { error: whseError } = await _supabase
             .from('warehouse_inventory')
             .upsert(
@@ -420,14 +445,30 @@
             return;
         }
 
-        await _supabase.from('showroom_inventory').upsert({ Barcode: barcode, showroom_qty: newShowroomQty }, { onConflict: 'Barcode' });
-        await _supabase.from('transfer_log').insert([{ Barcode: barcode, qty_transferred: txType==='out'?qty:-qty, worker_name: `Shelf ${selectedLoc}` }]);
+        // ۲. بروزرسانی دیتابیس شوروم (فقط برای جابجایی‌های داخلی کالا)
+        if (txType !== 'intake') {
+            await _supabase.from('showroom_inventory').upsert({ Barcode: barcode, showroom_qty: newShowroomQty }, { onConflict: 'Barcode' });
+        }
+
+        // ۳. درج گزارش در لاگ دیتابیس
+        let logWorkerName = `Direct Intake to ${selectedLoc}`;
+        let logQty = qty;
+        if (txType === 'out') { logWorkerName = `Shelf ${selectedLoc} -> Showroom`; logQty = qty; }
+        if (txType === 'in') { logWorkerName = `Showroom -> Shelf ${selectedLoc}`; logQty = -qty; }
+        
+        await _supabase.from('transfer_log').insert([{ 
+            Barcode: barcode, 
+            qty_transferred: logQty, 
+            worker_name: logWorkerName 
+        }]);
 
         statusDiv.className = 'status success';
-        statusDiv.textContent = 'Stock updated successfully!';
+        statusDiv.textContent = txType === 'intake' ? 'Warehouse physical stock increased successfully!' : 'Stock updated successfully!';
+        
         barcodeInput.value = '';
         productInfoDiv.style.display = 'none';
         transferQtyInput.value = '';
+        newLocInput.value = '';
     }
 </script>
 </body>
