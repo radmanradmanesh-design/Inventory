@@ -325,7 +325,9 @@
 
             if (whseRows && whseRows.length > 0) {
                 whseRows.forEach(row => {
-                    let qty = parseInt(row['Value']) || 0;
+                    // اصلاح بخش وایرهوس: حذف کاما در صورت وجود عدد بالای ۱۰۰۰ در قفسه‌ها
+                    let rawVal = row['Value'] ? row['Value'].toString().replace(/,/g, '') : '0';
+                    let qty = parseInt(rawVal) || 0;
                     let locName = row['Attribute'];
                     
                     if(qty > 0 && locName && locName !== 'Grand Total' && locName.trim() !== '') {
@@ -347,17 +349,16 @@
                 sourceLocSelect.innerHTML = `<option value="Default-Shelf">Default-Shelf (0 available)</option>`;
             }
 
-            // این تغییر باعث می‌شود برنامه هم به حروف بزرگ و هم کوچک حساس نباشد و دیتای واقعی را بکشد
+            // پاک‌سازی کاماهای تفکیک سه رقمی سیستم انبار
             let systemStock = 0;
             if (systemData) {
-            systemStock = parseInt(systemData['Stock']) || 
-                  parseInt(systemData['stock']) || 
-                  parseInt(systemData['STOCK']) || 0;
-            if (systemData && systemData['Stock']) {
-                let cleanStock = systemData['Stock'].toString().replace(/,/g, '');
-                systemStock = parseInt(cleanStock) || 0;    
+                let rawStock = systemData['Stock'] || systemData['stock'] || systemData['STOCK'] || '0';
+                systemStock = parseInt(rawStock.toString().replace(/,/g, '')) || 0;
             }
-            currentShowroomQty = showData ? (parseInt(showData.showroom_qty.toString().replace(/,/g,")) || 0) : 0;
+            
+            // اصلاح خطای تایپی شوروم و پاک‌سازی کاما
+            currentShowroomQty = (showData && showData.showroom_qty) ? (parseInt(showData.showroom_qty.toString().replace(/,/g, '')) || 0) : 0;
+            
             let variance = (totalWarehouseQty + currentShowroomQty) - systemStock;
 
             document.getElementById('p-name').textContent = systemData['Item Name'] || '---';
@@ -429,6 +430,3 @@
         productInfoDiv.style.display = 'none';
         transferQtyInput.value = '';
     }
-</script>
-</body>
-</html>
