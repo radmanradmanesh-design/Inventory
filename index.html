@@ -398,20 +398,96 @@
         }
     }
 
-    async function submitTransfer() {
+   async function submitTransfer() {
         const transferQtyInput = document.getElementById('transfer-qty');
         const qty = parseInt(transferQtyInput.value);
         const txType = typeSelect.value;
+        const selectedLoc = sourceLocSelect.value;
         const barcode = currentProduct['Barcode'];
-        const itemName = currentProduct['Item Name'] || 'Unknown Item';
-        
-        let selectedLoc = sourceLocSelect.value;
 
         if (!qty || qty <= 0) { alert('Enter valid quantity'); return; }
 
-        if (txType === 'intake' && newLocInput.value.trim() !== '') {
-            selectedLoc = newLocInput.value.trim();
+        let currentLocQty = locBalances[selectedLoc] || 0;
+
+        if (txType === 'out' && qty > currentLocQty) {
+            alert('Error: Not enough stock in this specific location!');
+            return;
         }
+
+        // پاپ‌آپ تاییدیه مدیریتی قبل از ثبت
+        const itemName = currentProduct['Item Name'] || 'Unknown Item';
+        let actionMessage = `🔹 Type: ${txType.toUpperCase()}\n📦 Item: ${itemName}\n🔢 Qty: ${qty}\n📍 Location: [ ${selectedLoc} ]`;
+        const confirmAction = confirm(`${actionMessage}\n\nAre you sure you want to update?`);
+        if (!confirmAction) return;
+
+        statusDiv.className = 'status loading';
+        statusDiv.textContent = 'Processing transaction...';
+        statusDiv.style.display = 'block';
+
+        let newLocQty = currentLocQty;
+        let newShowroomQty = currentShowroomQty;
+
+        if (txType === 'out') {
+            newLocQty = currentLocQty - qty;
+            newShowroomQty = currentShowroomQty + qty;
+        } else if (txType === 'in') {
+            newLocQty = currentLocQty + qty;
+            newShowroomQty = currentShowroomQty - qty;
+        } else if (txType === 'intake') {
+            newLocQty = currentLocQty + qty; 
+        }
+
+        // ۱. آپدیت جدول انبار اصلی
+        const { error: whseError } = await _supabase
+            .from('warehouse_inventory')
+            .upsert(
+                { "Row Labels": barcode, "Attribute": selectedLoc, "Value": newLocQty }, 
+                { onConflict: 'Row Labels,Attribute' }
+            );
+
+        if (whseError) {
+            alert(`Warehouse Update Error: ${whseError.message}`);
+            statusDiv.className = 'status error';
+            statusDiv.textContent = 'Error updating warehouse shelf!';
+            return;
+        }
+
+        // ۲. آپدیت جدول شوروم (اگر اینتیک نباشد)
+        if (txType !== 'intake') {
+            await _supabase.from('showroom_inventory').upsert({ Barcode: barcode, showroom_qty: newShowroomQty }, { onConflict: 'Barcode' });
+        }
+
+        // تعیین نام و جهت مقدار لاگ
+        let logWorkerName = `Direct Intake to ${selectedLoc}`;
+        let logQty = qty;
+        if (txType === 'out') { logWorkerName = `Shelf ${selectedLoc} -> Showroom`; logQty = qty; }
+        if (txType === 'in') { logWorkerName = `Showroom -> Shelf ${selectedLoc}`; logQty = -qty; }
+
+        // ====================================================
+        // 📥 بخش جدید: ثبت لاگ هوشمند با بررسی و نمایش خطا
+        // ====================================================
+        const { error: logError } = await _supabase
+            .from('transfer_log')
+            .insert([{ 
+                Barcode: barcode, 
+                qty_transferred: logQty, 
+                worker_name: logWorkerName 
+            }]);
+
+        if (logError) {
+            console.error("Log Error Details:", logError);
+            alert(`⚠️ Log Saving Failed!\nError: ${logError.message}\n\n(The stock was updated, but log wasn't saved)`);
+            statusDiv.className = 'status error';
+            statusDiv.textContent = `Stock updated but log failed: ${logError.message}`;
+            return;
+        }
+        // ====================================================
+
+        statusDiv.className = 'status success';
+        statusDiv.textContent = 'Stock & Logs updated successfully!';
+        
+        setTimeout(resetPage, 1500);
+}
 
         let currentLocQty = locBalances[selectedLoc] || 0;
 
