@@ -1,542 +1,473 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Live Camera Stock Control & Location Finder</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            margin: 0;
-            padding: 12px;
-            background-color: #f4f6f9;
-            color: #333;
-            direction: ltr;
-        }
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        }
-        h2 {
-            text-align: center;
-            margin-top: 0;
-            margin-bottom: 20px;
-            color: #1e293b;
-            font-size: 22px;
-        }
-        .camera-box {
-            background-color: #f8fafc;
-            border: 2px solid #3182ce;
-            padding: 10px;
-            border-radius: 12px;
-            margin-bottom: 16px;
-            overflow: hidden;
-        }
-        #reader {
-            width: 100%;
-            background: #000;
-            border-radius: 8px;
-        }
-        .form-group {
-            margin-bottom: 16px;
-        }
-        label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: 600;
-            color: #4a5568;
-            font-size: 14px;
-        }
-        input[type="text"], input[type="number"], select {
-            width: 100%;
-            padding: 14px;
-            border: 1.5px solid #cbd5e1;
-            border-radius: 8px;
-            box-sizing: border-box;
-            font-size: 16px;
-        }
-        .status {
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 16px;
-            font-weight: 600;
-            font-size: 14px;
-            display: none;
-            line-height: 1.4;
-        }
-        .status.loading { display: block; background-color: #ebf8ff; color: #2b6cb0; border-left: 4px solid #3182ce; }
-        .status.success { display: block; background-color: #f0fff4; color: #2f855a; border-left: 4px solid #38a169; }
-        .status.error { display: block; background-color: #fff5f5; color: #c53030; border-left: 4px solid #e53e3e; }
-         
-        #product-info {
-            display: none;
-            background: #f8fafc;
-            padding: 16px;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-            margin-bottom: 16px;
-        }
-        #product-info p {
-            margin: 10px 0;
-            font-size: 15px;
-            color: #4a5568;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px dashed #e2e8f0;
-            padding-bottom: 8px;
-        }
-        .value { font-weight: 700; color: #1a202c; }
-         
-        .location-container {
-            background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 10px;
-            margin-top: 8px;
-        }
-        .location-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 0;
-            border-bottom: 1px solid #f1f5f9;
-        }
-        .location-row:last-child { border-bottom: none; }
-        .loc-badge {
-            background: #edf2f7;
-            color: #2d3748;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-weight: 700;
-            font-size: 13px;
-        }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Live Camera Stock Control & Location Finder</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            margin: 0;
+            padding: 12px;
+            background-color: #f4f6f9;
+            color: #333;
+            direction: ltr;
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        h2 {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: #1e293b;
+            font-size: 22px;
+        }
+        .camera-box {
+            background-color: #f8fafc;
+            border: 2px solid #3182ce;
+            padding: 10px;
+            border-radius: 12px;
+            margin-bottom: 16px;
+            overflow: hidden;
+        }
+        #reader {
+            width: 100%;
+            background: #000;
+            border-radius: 8px;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 14px;
+        }
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 14px;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        .status {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            font-size: 14px;
+            display: none;
+            line-height: 1.4;
+        }
+        .status.loading { display: block; background-color: #ebf8ff; color: #2b6cb0; border-left: 4px solid #3182ce; }
+        .status.success { display: block; background-color: #f0fff4; color: #2f855a; border-left: 4px solid #38a169; }
+        .status.error { display: block; background-color: #fff5f5; color: #c53030; border-left: 4px solid #e53e3e; }
+         
+        #product-info {
+            display: none;
+            background: #f8fafc;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            margin-bottom: 16px;
+        }
+        #product-info p {
+            margin: 10px 0;
+            font-size: 15px;
+            color: #4a5568;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px dashed #e2e8f0;
+            padding-bottom: 8px;
+        }
+        .value { font-weight: 700; color: #1a202c; }
+         
+        .location-container {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 8px;
+        }
+        .location-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .location-row:last-child { border-bottom: none; }
+        .loc-badge {
+            background: #edf2f7;
+            color: #2d3748;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 13px;
+        }
 
-        .stock-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 8px;
-            margin-top: 12px;
-            margin-bottom: 12px;
-        }
-        .stock-box {
-            background: #fff;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-            text-align: center;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .stock-title { font-size: 13px; color: #475569; font-weight: 600; }
-        .stock-count { font-size: 16px; font-weight: 700; padding: 3px 10px; border-radius: 6px; }
-        .c-system { color: #b45309; background-color: #fef3c7; }
-        .c-showroom { color: #1e40af; background-color: #dbeafe; border: 1.5px solid #bfdbfe; }
-        .c-warehouse { color: #047857; background-color: #d1fae5; }
-         
-        .diff-neutral { color: #4b5563; background-color: #f3f4f6; }
-        .diff-shortage { color: #991b1b; background-color: #fee2e2; border: 1.5px solid #fca5a5; }
-        .diff-surplus { color: #065f46; background-color: #d1fae5; border: 1.5px solid #a7f3d0; }
+        .stock-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 8px;
+            margin-top: 12px;
+            margin-bottom: 12px;
+        }
+        .stock-box {
+            background: #fff;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .stock-title { font-size: 13px; color: #475569; font-weight: 600; }
+        .stock-count { font-size: 16px; font-weight: 700; padding: 3px 10px; border-radius: 6px; }
+        .c-system { color: #b45309; background-color: #fef3c7; }
+        .c-showroom { color: #1e40af; background-color: #dbeafe; border: 1.5px solid #bfdbfe; }
+        .c-warehouse { color: #047857; background-color: #d1fae5; }
+         
+        .diff-neutral { color: #4b5563; background-color: #f3f4f6; }
+        .diff-shortage { color: #991b1b; background-color: #fee2e2; border: 1.5px solid #fca5a5; }
+        .diff-surplus { color: #065f46; background-color: #d1fae5; border: 1.5px solid #a7f3d0; }
 
-        button {
-            width: 100%;
-            padding: 14px;
-            background-color: #38a169;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            font-weight: 700;
-        }
-         
-        #manual-box {
-            margin-top: 10px;
-            display: flex;
-            gap: 6px;
-        }
-    </style>
+        button {
+            width: 100%;
+            padding: 14px;
+            background-color: #38a169;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: 700;
+        }
+         
+        #manual-box {
+            margin-top: 10px;
+            display: flex;
+            gap: 6px;
+        }
+    </style>
 </head>
 <body>
 
 <div style="text-align: center; margin-bottom: 15px;">
-    <a href="dashboard.html" style="text-decoration: none; display: inline-block; padding: 8px 16px; background-color: #1e293b; color: white; border-radius: 6px; font-weight: 600; font-size: 13px;">
-        📊 View Management Reports
-    </a>
+    <a href="dashboard.html" style="text-decoration: none; display: inline-block; padding: 8px 16px; background-color: #1e293b; color: white; border-radius: 6px; font-weight: 600; font-size: 13px;">
+        📊 View Management Reports
+    </a>
 </div>
 
 <div class="container">
-    <div id="operator-selection-box" style="background: #ffffff; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
-        <label for="operator-name-input" style="font-weight: 600; display: block; margin-bottom: 8px; color: #334155; font-family: sans-serif;">Operator Name / ID:</label>
-        <input type="text" id="operator-name-input" oninput="saveCurrentOperator()" placeholder="Enter your name or ID" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 16px; box-sizing: border-box;">
-    </div>
+    <div id="operator-selection-box" style="background: #ffffff; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+        <label for="operator-name-input" style="font-weight: 600; display: block; margin-bottom: 8px; color: #334155; font-family: sans-serif;">Operator Name / ID:</label>
+        <input type="text" id="operator-name-input" oninput="saveCurrentOperator()" placeholder="Enter your name or ID" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 16px; box-sizing: border-box;">
+    </div>
 
-    <h2>Live Scanner & Location Finder</h2>
-     
-    <div class="camera-box">
-        <label style="color: #2b6cb0; font-size: 15px; margin-bottom: 10px;">📷 Align Barcode Inside Frame:</label>
-        <div id="reader"></div>
-         
-        <div id="manual-box">
-            <input type="text" id="barcode-input" placeholder="Or enter barcode manually..." autocomplete="off">
-            <button onclick="handleManualSubmit()" style="width: auto; padding: 0 20px; background-color: #4a5568;">Find</button>
-        </div>
-    </div>
+    <h2>Live Scanner & Location Finder</h2>
+     
+    <div class="camera-box">
+        <label style="color: #2b6cb0; font-size: 15px; margin-bottom: 10px;">📷 Align Barcode Inside Frame:</label>
+        <div id="reader"></div>
+         
+        <div id="manual-box">
+            <input type="text" id="barcode-input" placeholder="Or enter barcode manually..." autocomplete="off">
+            <button onclick="handleManualSubmit()" style="width: auto; padding: 0 20px; background-color: #4a5568;">Find</button>
+        </div>
+    </div>
 
-    <div id="status-div" class="status"></div>
+    <div id="status-div" class="status"></div>
 
-    <div id="product-info">
-        <p><strong>Item Name:</strong> <span id="p-name" class="value">---</span></p>
-        <p><strong>Item Code:</strong> <span id="p-code" class="value">---</span></p>
-         
-        <label style="margin-top: 15px; display: block; font-weight: bold; color: #4a5568;">Stock Allocations:</label>
-        <div class="stock-grid">
-            <div class="stock-box">
-                <span class="stock-title">System Stock</span>
-                <span id="stock-system" class="stock-count c-system">0</span>
-            </div>
-            <div class="stock-box">
-                <span class="stock-title">Warehouse Total Stock</span>
-                <span id="stock-warehouse" class="stock-count c-warehouse">0</span>
-            </div>
-            <div class="stock-box">
-                <span class="stock-title">Showroom Stock (LIVE)</span>
-                <span id="stock-showroom" class="stock-count c-showroom">0</span>
-            </div>
-            <div id="variance-box" class="stock-box" style="margin-top: 4px; border: 1.5px solid #cbd5e1;">
-                <span class="stock-title" style="font-weight: 700;">Total Discrepancy</span>
-                <span id="stock-variance" class="stock-count" style="font-size: 18px;">0</span>
-            </div>
-        </div>
+    <div id="product-info">
+        <p><strong>Item Name:</strong> <span id="p-name" class="value">---</span></p>
+        <p><strong>Item Code:</strong> <span id="p-code" class="value">---</span></p>
+         
+        <label style="margin-top: 15px; display: block; font-weight: bold; color: #4a5568;">Stock Allocations:</label>
+        <div class="stock-grid">
+            <div class="stock-box">
+                <span class="stock-title">System Stock</span>
+                <span id="stock-system" class="stock-count c-system">0</span>
+            </div>
+            <div class="stock-box">
+                <span class="stock-title">Warehouse Total Stock</span>
+                <span id="stock-warehouse" class="stock-count c-warehouse">0</span>
+            </div>
+            <div class="stock-box">
+                <span class="stock-title">Showroom Stock (LIVE)</span>
+                <span id="stock-showroom" class="stock-count c-showroom">0</span>
+            </div>
+            <div id="variance-box" class="stock-box" style="margin-top: 4px; border: 1.5px solid #cbd5e1;">
+                <span class="stock-title" style="font-weight: 700;">Total Discrepancy</span>
+                <span id="stock-variance" class="stock-count" style="font-size: 18px;">0</span>
+            </div>
+        </div>
 
-        <label style="margin-top: 15px; display: block; font-weight: bold; color: #2b6cb0;">📍 Physical Locations inside Warehouse:</label>
-        <div id="location-list" class="location-container"></div>
-         
-        <div class="form-group" style="margin-top: 20px;">
-            <label for="transaction-type">Transaction Type:</label>
-            <select id="transaction-type" onchange="handleTypeChange()">
-                <option value="out">Move to Showroom (Whse -> Showroom)</option>
-                <option value="in">Return to Warehouse (Showroom -> Whse)</option>
-                <option value="intake">➕ Direct Stock Intake (Add New Qty to Whse Shelf)</option>
-            </select>
-        </div>
+        <label style="margin-top: 15px; display: block; font-weight: bold; color: #2b6cb0;">📍 Physical Locations inside Warehouse:</label>
+        <div id="location-list" class="location-container"></div>
+         
+        <div class="form-group" style="margin-top: 20px;">
+            <label for="transaction-type">Transaction Type:</label>
+            <select id="transaction-type" onchange="handleTypeChange()">
+                <option value="out">Move to Showroom (Whse -> Showroom)</option>
+                <option value="in">Return to Warehouse (Showroom -> Whse)</option>
+                <option value="intake">➕ Direct Stock Intake (Add New Qty to Whse Shelf)</option>
+            </select>
+        </div>
 
-        <div class="form-group" id="loc-select-group">
-            <label for="source-location">Select Warehouse Location for Action:</label>
-            <select id="source-location"></select>
-        </div>
+        <div class="form-group" id="loc-select-group">
+            <label for="source-location">Select Warehouse Location for Action:</label>
+            <select id="source-location"></select>
+        </div>
 
-        <div class="form-group" id="new-loc-group" style="display: none;">
-            <label for="new-location-input">Or Enter New Location Name (e.g. Shelf-C5):</label>
-            <input type="text" id="new-location-input" placeholder="Type new shelf name...">
-        </div>
+        <div class="form-group" id="new-loc-group" style="display: none;">
+            <label for="new-location-input">Or Enter New Location Name (e.g. Shelf-C5):</label>
+            <input type="text" id="new-location-input" placeholder="Type new shelf name...">
+        </div>
 
-        <div class="form-group">
-            <label for="transfer-qty">Quantity:</label>
-            <input type="number" id="transfer-qty" min="1" inputmode="numeric" placeholder="Enter quantity">
-        </div>
-         
-        <button id="submit-btn" onclick="submitTransfer()">Confirm Stock Movement</button>
-        <button id="clear-btn" onclick="resetPage()" style="margin-top: 10px; background-color: #718096;">Clear & Reset</button>
-    </div>
+        <div class="form-group">
+            <label for="transfer-qty">Quantity:</label>
+            <input type="number" id="transfer-qty" min="1" inputmode="numeric" placeholder="Enter quantity">
+        </div>
+         
+        <button id="submit-btn" onclick="submitTransfer()">Confirm Stock Movement</button>
+        <button id="clear-btn" onclick="resetPage()" style="margin-top: 10px; background-color: #718096;">Clear & Reset</button>
+    </div>
 </div>
 
 <script>
-    const SUPABASE_URL = 'https://qmurpnbrnmyjdxqjhybz.supabase.co'; 
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'; 
-     
-    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const SUPABASE_URL = 'https://qmurpnbrnmyjdxqjhybz.supabase.co'; 
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'; 
+     
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const barcodeInput = document.getElementById('barcode-input');
-    const statusDiv = document.getElementById('status-div');
-    const productInfoDiv = document.getElementById('product-info');
-    const typeSelect = document.getElementById('transaction-type');
-    const sourceLocSelect = document.getElementById('source-location');
-    const newLocGroup = document.getElementById('new-loc-group');
-    const newLocInput = document.getElementById('new-location-input');
-    const submitBtn = document.getElementById('submit-btn');
-     
-    let currentProduct = null;
-    let locBalances = {};
-    let currentShowroomQty = 0;
-    let html5QrcodeScanner = null;
+    const barcodeInput = document.getElementById('barcode-input');
+    const statusDiv = document.getElementById('status-div');
+    const productInfoDiv = document.getElementById('product-info');
+    const typeSelect = document.getElementById('transaction-type');
+    const sourceLocSelect = document.getElementById('source-location');
+    const newLocGroup = document.getElementById('new-loc-group');
+    const newLocInput = document.getElementById('new-location-input');
+    const submitBtn = document.getElementById('submit-btn');
+     
+    let currentProduct = null;
+    let locBalances = {};
+    let currentShowroomQty = 0;
+    let html5QrcodeScanner = null;
 
-    window.onload = function() {
-        startCameraScanner();
-    };
+    window.onload = function() {
+        startCameraScanner();
+    };
 
-    // 1. Auto-save operator name to localStorage on typing
-    function saveCurrentOperator() {
-        const operatorName = document.getElementById('operator-name-input').value.trim();
-        localStorage.setItem('sc_operator_name', operatorName);
-    }
+    function saveCurrentOperator() {
+        const operatorName = document.getElementById('operator-name-input').value.trim();
+        localStorage.setItem('sc_operator_name', operatorName);
+    }
 
-    function startCameraScanner() {
-        html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
-            fps: 15, 
-            qrbox: { width: 280, height: 150 }, 
-            aspectRatio: 1.0
-        }, false);
-         
-        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
-    }
+    function startCameraScanner() {
+        html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
+            fps: 15, 
+            qrbox: { width: 280, height: 150 }, 
+            aspectRatio: 1.0
+        }, false);
+         
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    }
 
-    function onScanSuccess(decodedText, decodedResult) {
-        if (decodedText) {
-            try { new AudioContext().createOscillator().connect(new AudioContext().destination); } catch(e){}
-            handleScannedBarcode(decodedText.trim());
-        }
-    }
+    function onScanSuccess(decodedText, decodedResult) {
+        if (decodedText) {
+            try { new AudioContext().createOscillator().connect(new AudioContext().destination); } catch(e){}
+            handleScannedBarcode(decodedText.trim());
+        }
+    }
 
-    function onScanFailure(error) {}
+    function onScanFailure(error) {}
 
-    function handleManualSubmit() {
-        const barcode = barcodeInput.value.trim();
-        if (barcode) handleScannedBarcode(barcode);
-    }
+    function handleManualSubmit() {
+        const barcode = barcodeInput.value.trim();
+        if (barcode) handleScannedBarcode(barcode);
+    }
 
-    barcodeInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') handleManualSubmit();
-    });
+    barcodeInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') handleManualSubmit();
+    });
 
-    function handleTypeChange() {
-        const txType = typeSelect.value;
-        newLocGroup.style.display = 'none';
+    function handleTypeChange() {
+        const txType = typeSelect.value;
+        newLocGroup.style.display = 'none';
 
-        if (txType === 'out') {
-            submitBtn.textContent = 'Confirm Stock Movement';
-            submitBtn.style.backgroundColor = '#38a169';
-            document.getElementById('loc-select-group').querySelector('label').textContent = "Select Source Location (Deduct from):";
-        } else if (txType === 'in') {
-            submitBtn.textContent = 'Confirm & Return Stock';
-            submitBtn.style.backgroundColor = '#3182ce';
-            document.getElementById('loc-select-group').querySelector('label').textContent = "Select Target Location (Add to):";
-        } else if (txType === 'intake') {
-            submitBtn.textContent = '➕ Add New Physical Stock to Warehouse';
-            submitBtn.style.backgroundColor = '#d97706'; 
-            document.getElementById('loc-select-group').querySelector('label').textContent = "Select Existing Shelf:";
-            newLocGroup.style.display = 'block'; 
-        }
-    }
+        if (txType === 'out') {
+            submitBtn.textContent = 'Confirm Stock Movement';
+            submitBtn.style.backgroundColor = '#38a169';
+            document.getElementById('loc-select-group').querySelector('label').textContent = "Select Source Location (Deduct from):";
+        } else if (txType === 'in') {
+            submitBtn.textContent = 'Confirm & Return Stock';
+            submitBtn.style.backgroundColor = '#3182ce';
+            document.getElementById('loc-select-group').querySelector('label').textContent = "Select Target Location (Add to):";
+        } else if (txType === 'intake') {
+            submitBtn.textContent = '➕ Add New Physical Stock to Warehouse';
+            submitBtn.style.backgroundColor = '#d97706'; 
+            document.getElementById('loc-select-group').querySelector('label').textContent = "Select Existing Shelf:";
+            newLocGroup.style.display = 'block'; 
+        }
+    }
 
-    async function handleScannedBarcode(barcode) {
-        statusDiv.className = 'status loading';
-        statusDiv.textContent = `Searching database for [ ${barcode} ]...`;
-        statusDiv.style.display = 'block';
-        productInfoDiv.style.display = 'none';
-        newLocInput.value = '';
-         
-        // Auto-load operator name when a product is scanned (ensuring it's filled)
-        const savedOperator = localStorage.getItem('sc_operator_name');
-        if (savedOperator) {
-            document.getElementById('operator-name-input').value = savedOperator;
-        }
+    // مکانیزم جستجوی بارکد مجهز به فیلترهای اصلاحی و لایه آفلاین حفاظتی
+    async function handleScannedBarcode(barcode) {
+        // الف) پاکسازی پیشرفته بارکد از فضاها و کاراکترهای پنهان اسکنر
+        let cleanedBarcode = barcode.toString().trim().replace(/[\r\n\t]/g, "");
+        
+        if (!cleanedBarcode) {
+            statusDiv.className = 'status error';
+            statusDiv.textContent = '❌ Scanned barcode is empty!';
+            return;
+        }
 
-        try {
-            const { data: systemData, error: err1 } = await _supabase.from('system_inventory').select('*').eq('Barcode', barcode).maybeSingle();
-            if (err1 || !systemData) {
-                statusDiv.className = 'status error';
-                statusDiv.textContent = `Barcode [ ${barcode} ] not found in system table.`;
-                return;
-            }
+        statusDiv.className = 'status loading';
+        statusDiv.textContent = `Searching database for [ ${cleanedBarcode} ]...`;
+        statusDiv.style.display = 'block';
+        productInfoDiv.style.display = 'none';
+        newLocInput.value = '';
+         
+        const savedOperator = localStorage.getItem('sc_operator_name');
+        if (savedOperator) {
+            document.getElementById('operator-name-input').value = savedOperator;
+        }
 
-            const { data: whseRows, error: err2 } = await _supabase.from('warehouse_inventory').select('*').eq('Row Labels', barcode);
-            const { data: showData } = await _supabase.from('showroom_inventory').select('showroom_qty').eq('Barcode', barcode).maybeSingle();
+        // بررسی آنلاین بودن برای برقراری ارتباط با دیتابیس اصلی
+        if (navigator.onLine) {
+            try {
+                // ب) تلاش اول: جستجو بر اساس فرمت متنی (رشته)
+                let { data: systemData, error: err1 } = await _supabase
+                    .from('system_inventory')
+                    .select('*')
+                    .eq('Barcode', cleanedBarcode)
+                    .maybeSingle();
 
-            currentProduct = systemData;
-            locBalances = {};
-            let totalWarehouseQty = 0;
+                // ج) تلاش دوم: اگر پیدا نشد، شاید فرمت ستون در Supabase عددی است و صفرهای پشت عدد حذف شده‌اند
+                if (!systemData) {
+                    let numericBarcode = parseInt(cleanedBarcode, 10);
+                    if (!isNaN(numericBarcode)) {
+                        let { data: retryData } = await _supabase
+                            .from('system_inventory')
+                            .select('*')
+                            .eq('Barcode', numericBarcode)
+                            .maybeSingle();
+                        
+                        if (retryData) {
+                            systemData = retryData;
+                            cleanedBarcode = retryData.Barcode.toString(); 
+                        }
+                    }
+                }
 
-            const locContainer = document.getElementById('location-list');
-            locContainer.innerHTML = '';
-            sourceLocSelect.innerHTML = '';
+                // د) اگر کالا در دیتابیس کلا یافت نشد
+                if (!systemData) {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = `⚠️ Barcode [ ${cleanedBarcode} ] not found in system table. Check Supabase records.`;
+                    return;
+                }
 
-            if (whseRows && whseRows.length > 0) {
-                whseRows.forEach(row => {
-                    let rawVal = row['Value'] ? row['Value'].toString().replace(/,/g, '') : '0';
-                    let qty = parseInt(rawVal) || 0;
-                    let locName = row['Attribute'];
-                     
-                    if(qty > 0 && locName && locName !== 'Grand Total' && locName.trim() !== '') {
-                        totalWarehouseQty += qty;
-                        locBalances[locName] = (locBalances[locName] || 0) + qty;
-                    }
-                });
-            }
+                // هـ) واکشی سایر جداول مرتبط
+                const { data: whseRows } = await _supabase.from('warehouse_inventory').select('*').eq('Row Labels', cleanedBarcode);
+                const { data: showData } = await _supabase.from('showroom_inventory').select('showroom_qty').eq('Barcode', cleanedBarcode).maybeSingle();
 
-            const dynamicLocs = Object.keys(locBalances);
-            if (dynamicLocs.length > 0) {
-                dynamicLocs.forEach(loc => {
-                    let qty = locBalances[loc];
-                    locContainer.innerHTML += `<div class="location-row"><span class="loc-badge">${loc}</span><span class="value">${qty} pcs</span></div>`;
-                    sourceLocSelect.innerHTML += `<option value="${loc}">${loc} (${qty} available)</option>`;
-                });
-            } else {
-                locContainer.innerHTML = `<div style="color:#718096; font-size:14px; text-align:center; padding:10px;">⚠️ Not found on any warehouse shelf.</div>`;
-                sourceLocSelect.innerHTML = `<option value="Default-Shelf">Default-Shelf (0 available)</option>`;
-            }
+                // ذخیره در کش محلی مرورگر جهت پایداری سیستم در مواقع قطعی
+                const payloadToCache = { barcode: cleanedBarcode, systemData, whseRows, showData };
+                cacheProductLocally(payloadToCache);
 
-            let systemStock = 0;
-            if (systemData) {
-                let rawStock = systemData['Stock'] || systemData['stock'] || systemData['STOCK'] || '0';
-                systemStock = parseInt(rawStock.toString().replace(/,/g, '')) || 0;
-            }
-             
-            currentShowroomQty = (showData && showData.showroom_qty) ? (parseInt(showData.showroom_qty.toString().replace(/,/g, '')) || 0) : 0;
-             
-            let variance = (totalWarehouseQty + currentShowroomQty) - systemStock;
+                renderProductDataHTML(systemData, whseRows, showData);
 
-            document.getElementById('p-name').textContent = systemData['Item Name'] || '---';
-            document.getElementById('p-code').textContent = systemData['Item Code'] || '---';
-            document.getElementById('stock-system').textContent = systemStock;
-            document.getElementById('stock-warehouse').textContent = totalWarehouseQty;
-            document.getElementById('stock-showroom').textContent = currentShowroomQty;
+            } catch (e) {
+                console.error("Database linkage error:", e);
+                statusDiv.className = 'status error';
+                statusDiv.textContent = 'Database linkage temporary issue. Trying local cache...';
+                loadProductFromCache(cleanedBarcode);
+            }
+        } else {
+            // بارگذاری مستقیم از کش محلی در صورت قطع بودن اینترنت
+            loadProductFromCache(cleanedBarcode);
+        }
+    }
 
-            const varianceElement = document.getElementById('stock-variance');
-            const varianceBox = document.getElementById('variance-box');
-            if (variance === 0) { varianceBox.className = "stock-box diff-neutral"; varianceElement.textContent = "Matched (0)"; }
-            else if (variance < 0) { varianceBox.className = "stock-box diff-shortage"; varianceElement.textContent = `Shortage (${variance})`; }
-            else { varianceBox.className = "stock-box diff-surplus"; varianceElement.textContent = `Surplus (+${variance})`; }
+    // تابع رندر داده‌ها در UI المنت‌ها
+    function renderProductDataHTML(systemData, whseRows, showData) {
+        currentProduct = systemData;
+        locBalances = {};
+        let totalWarehouseQty = 0;
 
-            statusDiv.className = 'status success';
-            statusDiv.textContent = 'Product successfully located!';
-            productInfoDiv.style.display = 'block';
-            typeSelect.value = 'out';
-            handleTypeChange();
-            document.getElementById('transfer-qty').focus();
+        const locContainer = document.getElementById('location-list');
+        locContainer.innerHTML = '';
+        sourceLocSelect.innerHTML = '';
 
-        } catch (e) {
-            statusDiv.className = 'status error';
-            statusDiv.textContent = 'Database linkage temporary issue. Try again.';
-        }
-    }
+        if (whseRows && whseRows.length > 0) {
+            whseRows.forEach(row => {
+                let rawVal = row['Value'] ? row['Value'].toString().replace(/,/g, '') : '0';
+                let qty = parseInt(rawVal) || 0;
+                let locName = row['Attribute'];
+                 
+                if(qty > 0 && locName && locName !== 'Grand Total' && locName.trim() !== '') {
+                    totalWarehouseQty += qty;
+                    locBalances[locName] = (locBalances[locName] || 0) + qty;
+                }
+            });
+        }
 
-    async function submitTransfer() {
-        const operatorName = document.getElementById('operator-name-input').value.trim();
-        
-        // Block transaction if Operator Name field is empty
-        if (!operatorName) {
-            alert("Action Denied: Please enter your Operator Name/ID at the top of the page before scanning!");
-            return;
-        }
+        const dynamicLocs = Object.keys(locBalances);
+        if (dynamicLocs.length > 0) {
+            dynamicLocs.forEach(loc => {
+                let qty = locBalances[loc];
+                locContainer.innerHTML += `<div class="location-row"><span class="loc-badge">${loc}</span><span class="value">${qty} pcs</span></div>`;
+                sourceLocSelect.innerHTML += `<option value="${loc}">${loc} (${qty} available)</option>`;
+            });
+        } else {
+            locContainer.innerHTML = `<div style="color:#718096; font-size:14px; text-align:center; padding:10px;">⚠️ Not found on any warehouse shelf.</div>`;
+            sourceLocSelect.innerHTML = `<option value="Default-Shelf">Default-Shelf (0 available)</option>`;
+        }
 
-        const transferQtyInput = document.getElementById('transfer-qty');
-        const qty = parseInt(transferQtyInput.value);
-        const txType = typeSelect.value;
-        const barcode = currentProduct['Barcode'];
-        const itemName = currentProduct['Item Name'] || 'Unknown Item';
-         
-        let selectedLoc = sourceLocSelect.value;
+        let systemStock = 0;
+        if (systemData) {
+            let rawStock = systemData['Stock'] || systemData['stock'] || systemData['STOCK'] || '0';
+            systemStock = parseInt(rawStock.toString().replace(/,/g, '')) || 0;
+        }
+         
+        currentShowroomQty = (showData && showData.showroom_qty) ? (parseInt(showData.showroom_qty.toString().replace(/,/g, '')) || 0) : 0;
+         
+        let variance = (totalWarehouseQty + currentShowroomQty) - systemStock;
 
-        if (!qty || qty <= 0) { alert('Enter valid quantity'); return; }
+        document.getElementById('p-name').textContent = systemData['Item Name'] || '---';
+        document.getElementById('p-code').textContent = systemData['Item Code'] || '---';
+        document.getElementById('stock-system').textContent = systemStock;
+        document.getElementById('stock-warehouse').textContent = totalWarehouseQty;
+        document.getElementById('stock-showroom').textContent = currentShowroomQty;
 
-        if (txType === 'intake' && newLocInput.value.trim() !== '') {
-            selectedLoc = newLocInput.value.trim();
-        }
+        const varianceElement = document.getElementById('stock-variance');
+        const varianceBox = document.getElementById('variance-box');
+        if (variance === 0) { varianceBox.className = "stock-box diff-neutral"; varianceElement.textContent = "Matched (0)"; }
+        else if (variance < 0) { varianceBox.className = "stock-box diff-shortage"; varianceElement.textContent = `Shortage (${variance})`; }
+        else { varianceBox.className = "stock-box diff-surplus"; varianceElement.textContent = `Surplus (+${variance})`; }
 
-        let currentLocQty = locBalances[selectedLoc] || 0;
+        statusDiv.className = 'status success';
+        statusDiv.textContent = 'Product successfully located!';
+        productInfoDiv.style.display = 'block';
+        typeSelect.value = 'out';
+        handleTypeChange();
+        document.getElementById('transfer-qty').focus();
+    }
 
-        if (txType === 'out' && qty > currentLocQty) {
-            alert('Error: Not enough stock in this specific location!');
-            return;
-        }
-
-        let actionMessage = "";
-        if (txType === 'intake') {
-            actionMessage = `🔹 TRANSACTION TYPE: Direct Stock Intake\n📦 ITEM: ${itemName}\n🔢 QTY TO ADD: +${qty} pcs\n📍 TARGET SHELF: [ ${selectedLoc} ]`;
-        } else if (txType === 'out') {
-            actionMessage = `🔹 TRANSACTION TYPE: Move to Showroom\n📦 ITEM: ${itemName}\n🔢 QTY TO REMOVE FROM WHSE: -${qty} pcs\n📍 FROM SHELF: [ ${selectedLoc} ]`;
-        } else if (txType === 'in') {
-            actionMessage = `🔹 TRANSACTION TYPE: Return to Warehouse\n📦 ITEM: ${itemName}\n🔢 QTY TO ADD BACK TO WHSE: +${qty} pcs\n📍 TARGET SHELF: [ ${selectedLoc} ]`;
-        }
-
-        const confirmAction = confirm(`${actionMessage}\n\nAre you sure you want to update the database?`);
-        if (!confirmAction) return; 
-
-        statusDiv.className = 'status loading';
-        statusDiv.textContent = 'Processing transaction...';
-
-        let newLocQty = currentLocQty;
-        let newShowroomQty = currentShowroomQty;
-
-        if (txType === 'out') {
-            newLocQty = currentLocQty - qty;
-            newShowroomQty = currentShowroomQty + qty;
-        } else if (txType === 'in') {
-            newLocQty = currentLocQty + qty;
-            newShowroomQty = currentShowroomQty - qty;
-        } else if (txType === 'intake') {
-            newLocQty = currentLocQty + qty; 
-        }
-
-        const { error: whseError } = await _supabase
-            .from('warehouse_inventory')
-            .upsert(
-                { "Row Labels": barcode, "Attribute": selectedLoc, "Value": newLocQty }, 
-                { onConflict: 'Row Labels,Attribute' }
-            );
-
-        if (whseError) {
-            alert(`Warehouse Update Error: ${whseError.message}`);
-            statusDiv.className = 'status error';
-            statusDiv.textContent = 'Error updating warehouse shelf!';
-            return;
-        }
-
-        if (txType !== 'intake') {
-            await _supabase.from('showroom_inventory').upsert({ Barcode: barcode, showroom_qty: newShowroomQty }, { onConflict: 'Barcode' });
-        }
-
-        // Construct standard English dynamic descriptions for the log table
-        let logWorkerName = `${operatorName} (Direct Intake to ${selectedLoc})`;
-        let logQty = qty;
-        if (txType === 'out') { logWorkerName = `${operatorName} (Shelf ${selectedLoc} -> Showroom)`; logQty = qty; }
-        if (txType === 'in') { logWorkerName = `${operatorName} (Showroom -> Shelf ${selectedLoc})`; logQty = -qty; }
-         
-        const { error: logError } = await _supabase
-            .from('transfer_log')
-            .insert([{ 
-                Barcode: barcode, 
-                qty_transferred: logQty, 
-                worker_name: logWorkerName 
-            }]);
-
-        if (logError) {
-            console.error("Log Error Details:", logError);
-            alert(`⚠️ Log Saving Failed!\nError: ${logError.message}\n\n(Stock was updated, but log wasn't saved)`);
-            statusDiv.className = 'status error';
-            statusDiv.textContent = `Stock updated but log failed: ${logError.message}`;
-            return;
-        }
-
-        statusDiv.className = 'status success';
-        statusDiv.textContent = 'Stock & Logs updated successfully!';
-         
-        setTimeout(resetPage, 1500);
-    }
-
-    function resetPage() {
-        barcodeInput.value = '';
-        newLocInput.value = '';
-        document.getElementById('transfer-qty').value = '';
-        productInfoDiv.style.display = 'none';
-        statusDiv.style.display = 'none';
-        statusDiv.textContent = '';
-        statusDiv.className = 'status';
-        barcodeInput.focus();
-        
-        // Maintain operator input persistence on reset
-        const savedOperator = localStorage.getItem('sc_operator_name');
-        if (savedOperator) {
-            document.getElementById('operator-name-input').value = savedOperator;
-        }
-    }
-</script>
-</body>
-</html>
+    // مدیریت توابع کنترل آفلاین و کش LocalStorage
+    function cacheProductLocally(payload) {
+        try {
+            localStorage.setItem(`cache_bc_${payload.barcode}`, JSON.stringify(payload));
