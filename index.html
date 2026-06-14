@@ -164,11 +164,13 @@
     </style>
 </head>
 <body>
+
 <div style="text-align: center; margin-bottom: 15px;">
-    <a href="dashboard.html" style="text-decoration: none; display: inline-block; padding: 8px 16px; background-color: #1e293b; color: white; border-radius: 6px; font-weight: 600; font-size: 14px;">
-        📊 Go to Management Dashboard
+    <a href="dashboard.html" style="text-decoration: none; display: inline-block; padding: 8px 16px; background-color: #1e293b; color: white; border-radius: 6px; font-weight: 600; font-size: 13px;">
+        📊 View Management Reports
     </a>
 </div>
+
 <div class="container">
     <h2>Live Scanner & Location Finder</h2>
     
@@ -398,14 +400,20 @@
         }
     }
 
-   async function submitTransfer() {
+    async function submitTransfer() {
         const transferQtyInput = document.getElementById('transfer-qty');
         const qty = parseInt(transferQtyInput.value);
         const txType = typeSelect.value;
-        const selectedLoc = sourceLocSelect.value;
         const barcode = currentProduct['Barcode'];
+        const itemName = currentProduct['Item Name'] || 'Unknown Item';
+        
+        let selectedLoc = sourceLocSelect.value;
 
         if (!qty || qty <= 0) { alert('Enter valid quantity'); return; }
+
+        if (txType === 'intake' && newLocInput.value.trim() !== '') {
+            selectedLoc = newLocInput.value.trim();
+        }
 
         let currentLocQty = locBalances[selectedLoc] || 0;
 
@@ -414,15 +422,21 @@
             return;
         }
 
-        // پاپ‌آپ تاییدیه مدیریتی قبل از ثبت
-        const itemName = currentProduct['Item Name'] || 'Unknown Item';
-        let actionMessage = `🔹 Type: ${txType.toUpperCase()}\n📦 Item: ${itemName}\n🔢 Qty: ${qty}\n📍 Location: [ ${selectedLoc} ]`;
-        const confirmAction = confirm(`${actionMessage}\n\nAre you sure you want to update?`);
-        if (!confirmAction) return;
+        // نمایش پاپ‌آپ تاییدیه قبل از اعمال تغییرات انبار
+        let actionMessage = "";
+        if (txType === 'intake') {
+            actionMessage = `🔹 TRANSACTION TYPE: Direct Stock Intake\n📦 ITEM: ${itemName}\n🔢 QTY TO ADD: +${qty} pcs\n📍 TARGET SHELF: [ ${selectedLoc} ]`;
+        } else if (txType === 'out') {
+            actionMessage = `🔹 TRANSACTION TYPE: Move to Showroom\n📦 ITEM: ${itemName}\n🔢 QTY TO REMOVE FROM WHSE: -${qty} pcs\n📍 FROM SHELF: [ ${selectedLoc} ]`;
+        } else if (txType === 'in') {
+            actionMessage = `🔹 TRANSACTION TYPE: Return to Warehouse\n📦 ITEM: ${itemName}\n🔢 QTY TO ADD BACK TO WHSE: +${qty} pcs\n📍 TARGET SHELF: [ ${selectedLoc} ]`;
+        }
+
+        const confirmAction = confirm(`${actionMessage}\n\nAre you sure you want to update the database?`);
+        if (!confirmAction) return; 
 
         statusDiv.className = 'status loading';
         statusDiv.textContent = 'Processing transaction...';
-        statusDiv.style.display = 'block';
 
         let newLocQty = currentLocQty;
         let newShowroomQty = currentShowroomQty;
@@ -437,7 +451,6 @@
             newLocQty = currentLocQty + qty; 
         }
 
-        // ۱. آپدیت جدول انبار اصلی
         const { error: whseError } = await _supabase
             .from('warehouse_inventory')
             .upsert(
@@ -452,20 +465,16 @@
             return;
         }
 
-        // ۲. آپدیت جدول شوروم (اگر اینتیک نباشد)
         if (txType !== 'intake') {
             await _supabase.from('showroom_inventory').upsert({ Barcode: barcode, showroom_qty: newShowroomQty }, { onConflict: 'Barcode' });
         }
 
-        // تعیین نام و جهت مقدار لاگ
         let logWorkerName = `Direct Intake to ${selectedLoc}`;
         let logQty = qty;
         if (txType === 'out') { logWorkerName = `Shelf ${selectedLoc} -> Showroom`; logQty = qty; }
         if (txType === 'in') { logWorkerName = `Showroom -> Shelf ${selectedLoc}`; logQty = -qty; }
-
-        // ====================================================
-        // 📥 بخش جدید: ثبت لاگ هوشمند با بررسی و نمایش خطا
-        // ====================================================
+        
+        // فرستادن لاگ به دیتابیس سوپابیس با بررسی خطا
         const { error: logError } = await _supabase
             .from('transfer_log')
             .insert([{ 
@@ -476,88 +485,14 @@
 
         if (logError) {
             console.error("Log Error Details:", logError);
-            alert(`⚠️ Log Saving Failed!\nError: ${logError.message}\n\n(The stock was updated, but log wasn't saved)`);
+            alert(`⚠️ Log Saving Failed!\nError: ${logError.message}\n\n(Stock was updated, but log wasn't saved)`);
             statusDiv.className = 'status error';
             statusDiv.textContent = `Stock updated but log failed: ${logError.message}`;
             return;
         }
-        // ====================================================
 
         statusDiv.className = 'status success';
         statusDiv.textContent = 'Stock & Logs updated successfully!';
-        
-        setTimeout(resetPage, 1500);
-}
-
-        let currentLocQty = locBalances[selectedLoc] || 0;
-
-        if (txType === 'out' && qty > currentLocQty) {
-            alert('Error: Not enough stock in this specific location!');
-            return;
-        }
-
-        // --- بخش جدید: پیام تاییدیه قبل از اعمال در دیتابیس ---
-        let actionMessage = "";
-        if (txType === 'intake') {
-            actionMessage = `🔹 TRANSACTION TYPE: Direct Stock Intake\n📦 ITEM: ${itemName}\n🔢 QTY TO ADD: +${qty} pcs\n📍 TARGET SHELF: [ ${selectedLoc} ]`;
-        } else if (txType === 'out') {
-            actionMessage = `🔹 TRANSACTION TYPE: Move to Showroom\n📦 ITEM: ${itemName}\n🔢 QTY TO REMOVE FROM WHSE: -${qty} pcs\n📍 FROM SHELF: [ ${selectedLoc} ]`;
-        } else if (txType === 'in') {
-            actionMessage = `🔹 TRANSACTION TYPE: Return to Warehouse\n📦 ITEM: ${itemName}\n🔢 QTY TO ADD BACK TO WHSE: +${qty} pcs\n📍 TARGET SHELF: [ ${selectedLoc} ]`;
-        }
-
-        const confirmAction = confirm(`${actionMessage}\n\nAre you sure you want to update the database?`);
-        if (!confirmAction) {
-            return; // اگر دکمه لغو را زد، تابع اینجا متوقف می‌شود
-        }
-        // ----------------------------------------------------
-
-        statusDiv.className = 'status loading';
-        statusDiv.textContent = 'Processing transaction...';
-
-        let newLocQty = currentLocQty;
-        let newShowroomQty = currentShowroomQty;
-
-        if (txType === 'out') {
-            newLocQty = currentLocQty - qty;
-            newShowroomQty = currentShowroomQty + qty;
-        } else if (txType === 'in') {
-            newLocQty = currentLocQty + qty;
-            newShowroomQty = currentShowroomQty - qty;
-        } else if (txType === 'intake') {
-            newLocQty = currentLocQty + qty; 
-        }
-
-        const { error: whseError } = await _supabase
-            .from('warehouse_inventory')
-            .upsert(
-                { "Row Labels": barcode, "Attribute": selectedLoc, "Value": newLocQty }, 
-                { onConflict: 'Row Labels,Attribute' }
-            );
-
-        if (whseError) {
-            statusDiv.className = 'status error';
-            statusDiv.textContent = 'Error updating warehouse shelf!';
-            return;
-        }
-
-        if (txType !== 'intake') {
-            await _supabase.from('showroom_inventory').upsert({ Barcode: barcode, showroom_qty: newShowroomQty }, { onConflict: 'Barcode' });
-        }
-
-        let logWorkerName = `Direct Intake to ${selectedLoc}`;
-        let logQty = qty;
-        if (txType === 'out') { logWorkerName = `Shelf ${selectedLoc} -> Showroom`; logQty = qty; }
-        if (txType === 'in') { logWorkerName = `Showroom -> Shelf ${selectedLoc}`; logQty = -qty; }
-        
-        await _supabase.from('transfer_log').insert([{ 
-            Barcode: barcode, 
-            qty_transferred: logQty, 
-            worker_name: logWorkerName 
-        }]);
-
-        statusDiv.className = 'status success';
-        statusDiv.textContent = txType === 'intake' ? 'Warehouse physical stock increased successfully!' : 'Stock updated successfully!';
         
         setTimeout(resetPage, 1500);
     }
