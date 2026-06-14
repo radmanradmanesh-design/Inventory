@@ -53,13 +53,38 @@
             border: 1px solid #f1f5f9;
         }
         h1 { margin: 0; font-size: 22px; color: #0f172a; font-weight: 700; }
+        
+        /* استایل‌های مربوط به وضعیت اتصال */
+        .status-badges {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
         .live-badge {
-            background: #f1f5f9;
+            background: #e2e8f0;
             color: #64748b;
             padding: 6px 12px;
             border-radius: 20px;
             font-size: 13px;
             font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .live-badge.online {
+            background-color: #dcfce7;
+            color: #15803d;
+        }
+        .live-badge.offline {
+            background-color: #fee2e2;
+            color: #b91c1c;
+        }
+        .queue-badge {
+            background-color: #fef3c7;
+            color: #d97706;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            display: none; /* فقط وقتی دیتای آفلاین هست نشان داده می‌شود */
         }
         
         .filter-box {
@@ -179,7 +204,14 @@
         .badge.intake { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
         .badge.movement { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
         .badge.voided { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; text-decoration: line-through; }
+        .badge.pending-sync { background: #ffedd5; color: #ea580c; border: 1px solid #fed7aa; animation: pulse 2s infinite; }
         
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
         .void-btn {
             background-color: #ef4444;
             color: white;
@@ -226,7 +258,10 @@
 <div class="dashboard-container">
     <div class="header">
         <h1>📊 Warehouse Control Panel & Reports</h1>
-        <span class="live-badge">Live Sync</span>
+        <div class="status-badges">
+            <span id="offline-queue-count" class="queue-badge">⏳ 0 Unsynced Items</span>
+            <span id="network-status" class="live-badge">Checking Connection...</span>
+        </div>
     </div>
 
     <div id="error-display" class="error-box"></div>
@@ -234,11 +269,11 @@
     <div class="filter-box">
         <div class="form-group">
             <label for="start-date">Start Date</label>
-            <input type="date" id="start-date">
+            <input type="date" id="date-start-picker">
         </div>
         <div class="form-group">
             <label for="end-date">End Date</label>
-            <input type="date" id="end-date">
+            <input type="date" id="date-end-picker">
         </div>
         <button class="generate-btn" onclick="loadManagerialReport()">Generate Report</button>
     </div>
@@ -284,55 +319,138 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'; 
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // لاین ۲۸۷: پسورد مدیریتی شما
     const ADMIN_PASSWORD = "RadmanAdmin2026"; 
 
+    let db;
+    let cachedLogs = []; // نگهدارنده محلی گزارش‌ها برای ادغام دیتای آفلاین
+
+    // ۱. مقداردهی اولیه دیتابیس محلی مرورگر (IndexedDB)
+    function initOfflineStorage() {
+        const request = indexedDB.open("WarehouseOfflineDB", 1);
+        
+        request.onupgradeneeded = function(e) {
+            let dbInstance = e.target.result;
+            if (!dbInstance.objectStoreNames.contains("void_queue")) {
+                dbInstance.createObjectStore("void_queue", { keyPath: "id", autoIncrement: true });
+            }
+        };
+
+        request.onsuccess = function(e) {
+            db = e.target.result;
+            updateOfflineBadgeCount();
+            // تلاش برای سینک خودکار زمان بالا آمدن صفحه در صورت آنلاین بودن
+            if (navigator.onLine) {
+                syncOfflineQueue();
+            }
+        };
+
+        request.onerror = function() {
+            console.error("IndexedDB initialization failed.");
+        };
+    }
+
+    // ۲. پایش مداوم وضعیت شبکه اینترنت
+    function updateNetworkStatus() {
+        const badge = document.getElementById('network-status');
+        if (navigator.onLine) {
+            badge.textContent = "🟢 Online";
+            badge.className = "live-badge online";
+            syncOfflineQueue(); // به محض آنلاین شدن، صف را خالی کن
+        } else {
+            badge.textContent = "🔴 Offline Mode (Queue Active)";
+            badge.className = "live-badge offline";
+        }
+    }
+
+    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
+
     window.onload = function() {
+        initOfflineStorage();
+        updateNetworkStatus();
+
         const now = new Date();
         const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
         const today = now.toISOString().split('T')[0];
         
-        document.getElementById('start-date').value = firstDay;
-        document.getElementById('end-date').value = today;
+        document.getElementById('date-start-picker').value = firstDay;
+        document.getElementById('date-end-picker').value = today;
         loadManagerialReport();
     };
 
+    // ۳. خواندن اطلاعات از دیتابیس با ادغام صف محلی آفلاین
     async function loadManagerialReport() {
-        const startDate = document.getElementById('start-date').value;
-        const endDate = document.getElementById('end-date').value;
+        const startDate = document.getElementById('date-start-picker').value;
+        const endDate = document.getElementById('date-end-picker').value;
         const tbody = document.getElementById('report-tbody');
         const errDisplay = document.getElementById('error-display');
         
         errDisplay.style.display = 'none';
         tbody.innerHTML = '<tr><td colspan="6" class="loading-text">🔄 Fetching logs and analyzing activities...</td></tr>';
 
-        try {
-            const startISO = `${startDate}T00:00:00.000Z`;
-            const endISO = `${endDate}T23:59:59.999Z`;
+        let onlineLogs = [];
 
-            const { data: logs, error: logError } = await _supabase
-                .from('transfer_log')
-                .select('*')
-                .gte('created_at', startISO)
-                .lte('created_at', endISO)
-                .order('created_at', { ascending: false });
+        // الف) اگر آنلاین بودیم، آخرین دیتا را از Supabase بگیر
+        if (navigator.onLine) {
+            try {
+                const startISO = `${startDate}T00:00:00.000Z`;
+                const endISO = `${endDate}T23:59:59.999Z`;
 
-            if (logError) throw logError;
+                const { data, error: logError } = await _supabase
+                    .from('transfer_log')
+                    .select('*')
+                    .gte('created_at', startISO)
+                    .lte('created_at', endISO)
+                    .order('created_at', { ascending: false });
 
-            if (!logs || logs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="loading-text">ℹ️ No activities found for this date range.</td></tr>';
+                if (logError) throw logError;
+                onlineLogs = data || [];
+                cachedLogs = onlineLogs; // کش کردن در حافظه موقت
+            } catch (e) {
+                console.error("Could not fetch fresh data, using cache:", e);
+                onlineLogs = cachedLogs;
+            }
+        } else {
+            // ب) اگر آفلاین بودیم، از دیتای کش‌شده قبلی استفاده کن
+            onlineLogs = cachedLogs;
+        }
+
+        // ج) دیتای محلی آفلاین که هنوز سینک نشده را بیرون بکش تا در جدول نشان دهیم
+        getOfflineQueueItems(async (offlineItems) => {
+            // ادغام دیتای آنلاین و آفلاین برای نمایش یکپارچه به رادمان
+            let mergedLogs = [...offlineItems.map(item => ({
+                id: `offline-${item.id}`,
+                isOfflinePending: true,
+                Barcode: item.barcode,
+                qty_transferred: item.qtyTransferred,
+                worker_name: "Admin (Offline Correction)",
+                status: "Voided", // تراکنش والد شده است اما لوکال
+                created_at: item.timestamp
+            })), ...onlineLogs];
+
+            // اعمال فیلتر ابطال روی رکوردهای آنلاینی که در صف آفلاین منتظر اعمال هستند
+            offlineItems.forEach(off => {
+                let target = mergedLogs.find(l => l.id === off.logId);
+                if (target) {
+                    target.status = 'Voided';
+                }
+            });
+
+            if (mergedLogs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="loading-text">ℹ️ No activities found for this range.</td></tr>';
                 updateKPIs(0, 0, 0);
                 return;
             }
 
-            const uniqueBarcodes = [...new Set(logs.map(l => l.Barcode || l.barcode))].filter(Boolean);
+            const uniqueBarcodes = [...new Set(mergedLogs.map(l => l.Barcode || l.barcode))].filter(Boolean);
             
             let productMap = {};
-            if (uniqueBarcodes.length > 0) {
+            if (navigator.onLine && uniqueBarcodes.length > 0) {
                 const { data: products } = await _supabase
                     .from('system_inventory')
                     .select('Barcode, "Item Name"')
                     .in('Barcode', uniqueBarcodes);
-                
                 if (products) {
                     products.forEach(p => { productMap[p.Barcode] = p['Item Name']; });
                 }
@@ -344,18 +462,19 @@
 
             tbody.innerHTML = '';
 
-            logs.forEach(log => {
+            mergedLogs.forEach(log => {
                 const currentBarcode = log.Barcode || log.barcode || '---';
                 const itemName = productMap[currentBarcode] || 'System Item';
                 const qty = Math.abs(log.qty_transferred || 0);
                 const worker = log.worker_name || '';
                 const logDate = new Date(log.created_at).toLocaleString('en-GB', { timeZone: 'Asia/Muscat' });
                 
-                // بررسی امن وجود فیلد وضعیت جهت جلوگیری از کرش صفحه
                 const isVoided = log.status && log.status === 'Voided';
 
                 let badgeClass = 'badge movement';
-                if (isVoided) {
+                if (log.isOfflinePending) {
+                    badgeClass = 'badge pending-sync';
+                } else if (isVoided) {
                     badgeClass = 'badge voided';
                 } else if (worker.includes('Direct Intake')) {
                     badgeClass = 'badge intake';
@@ -366,9 +485,13 @@
                     totalRequests++;
                 }
 
-                const actionButton = isVoided 
+                let actionButton = isVoided 
                     ? `<span style="color: #94a3b8; font-size: 12px;">❌ Voided</span>`
                     : `<button class="void-btn" onclick="voidTransaction(${log.id}, '${currentBarcode}', ${log.qty_transferred})">🚫 Void</button>`;
+                
+                if (log.isOfflinePending) {
+                    actionButton = `<span style="color: #ea580c; font-size: 12px; font-weight:600;">⏳ Syncing...</span>`;
+                }
 
                 tbody.innerHTML += `
                     <tr style="${isVoided ? 'opacity: 0.6; background-color: #f8fafc;' : ''}">
@@ -385,14 +508,10 @@
             });
 
             updateKPIs(totalRequests, totalIntakeQty, totalMovementQty);
-
-        } catch (e) {
-            console.error(e);
-            errDisplay.innerText = `❌ Connection Error: ${e.message || JSON.stringify(e)}`;
-            errDisplay.style.display = 'block';
-        }
+        });
     }
 
+    // ۴. منطق بهینه‌شده VoidTransaction با مدیریت حالت آفلاین
     async function voidTransaction(logId, barcode, qtyTransferred) {
         const password = prompt("🔒 Admin Access Required.\nPlease enter the Manager Password to void this record:");
         
@@ -403,43 +522,125 @@
             return;
         }
 
-        if (!confirm(`Are you sure you want to void this transaction? This will automatically reverse [ ${qtyTransferred} Pcs ] from the warehouse inventory to correct the mistake.`)) {
+        if (!confirm(`Are you sure you want to void this transaction? This will automatically reverse [ ${qtyTransferred} Pcs ] to correct the mistake.`)) {
             return;
         }
 
-        try {
-            const { data: itemData, error: fetchError } = await _supabase
-                .from('system_inventory')
-                .select('Quantity')
-                .eq('Barcode', barcode)
-                .single();
+        // ایجاد پکیج دیتا جهت ارسال به دیتابیس یا ذخیره در صف آفلاین
+        const txPayload = {
+            logId: logId,
+            barcode: barcode,
+            qtyTransferred: qtyTransferred,
+            timestamp: new Date().toISOString()
+        };
 
-            if (fetchError) throw new Error("Could not find item inventory to update.");
-
-            const currentQty = itemData.Quantity || 0;
-            const correctedQty = currentQty - qtyTransferred; 
-
-            const { error: updateInvError } = await _supabase
-                .from('system_inventory')
-                .update({ Quantity: correctedQty })
-                .eq('Barcode', barcode);
-
-            if (updateInvError) throw updateInvError;
-
-            const { error: updateLogError } = await _supabase
-                .from('transfer_log')
-                .update({ status: 'Voided' })
-                .eq('id', logId);
-
-            if (updateLogError) throw updateLogError;
-
-            alert("✅ Success! Transaction successfully voided and inventory reversed.");
-            loadManagerialReport(); 
-
-        } catch (error) {
-            alert(`❌ Error during reversal operation: ${error.message}`);
-            console.error(error);
+        if (navigator.onLine) {
+            // مسیر آنلاین استاندارد - مستقیم در Supabase اعمال کن
+            try {
+                await executeVoidOnServer(txPayload);
+                alert("✅ Success! Transaction successfully voided on server.");
+                loadManagerialReport();
+            } catch (error) {
+                alert(`❌ Server update failed, saving to offline queue instead: ${error.message}`);
+                pushToOfflineQueue(txPayload);
+            }
+        } else {
+            // مسیر آفلاین هوشمند - در صف مرورگر ذخیره کن
+            pushToOfflineQueue(txPayload);
+            alert("📡 Device is Offline! The correction has been securely queued locally. It will auto-sync the millisecond you reconnect.");
+            loadManagerialReport();
         }
+    }
+
+    // اجرای نهایی کالیبراسیون روی سرور
+    async function executeVoidOnServer(payload) {
+        const { data: itemData, error: fetchError } = await _supabase
+            .from('system_inventory')
+            .select('Quantity')
+            .eq('Barcode', payload.barcode)
+            .single();
+
+        if (fetchError) throw new Error("Item not found on database.");
+
+        const currentQty = itemData.Quantity || 0;
+        const correctedQty = currentQty - payload.qtyTransferred; 
+
+        const { error: updateInvError } = await _supabase
+            .from('system_inventory')
+            .update({ Quantity: correctedQty })
+            .eq('Barcode', payload.barcode);
+
+        if (updateInvError) throw updateInvError;
+
+        const { error: updateLogError } = await _supabase
+            .from('transfer_log')
+            .update({ status: 'Voided' })
+            .eq('id', payload.logId);
+
+        if (updateLogError) throw updateLogError;
+    }
+
+    // ۵. توابع کمکی کار با IndexedDB (مدیریت صف آفلاین)
+    function pushToOfflineQueue(item) {
+        if (!db) return;
+        const transaction = db.transaction(["void_queue"], "readwrite");
+        const store = transaction.objectStore("void_queue");
+        store.add(item);
+
+        transaction.oncomplete = function() {
+            updateOfflineBadgeCount();
+        };
+    }
+
+    function getOfflineQueueItems(callback) {
+        if (!db) { callback([]); return; }
+        const transaction = db.transaction(["void_queue"], "readonly");
+        const store = transaction.objectStore("void_queue");
+        const request = store.getAll();
+        request.onsuccess = function() {
+            callback(request.result || []);
+        };
+    }
+
+    function updateOfflineBadgeCount() {
+        getOfflineQueueItems((items) => {
+            const badge = document.getElementById("offline-queue-count");
+            if (items.length > 0) {
+                badge.textContent = `⏳ ${items.length} Unsynced Fixes`;
+                badge.style.display = "inline-block";
+            } else {
+                badge.style.display = "none";
+            }
+        });
+    }
+
+    // ۶. همگام‌ساز خودکار دیتا (Sync Engine) به محض وصل شدن اینترنت
+    async function syncOfflineQueue() {
+        getOfflineQueueItems(async (items) => {
+            if (items.length === 0) return;
+
+            console.log(`Starting background sync for ${items.length} pending corrections...`);
+            
+            const transaction = db.transaction(["void_queue"], "readwrite");
+            const store = transaction.objectStore("void_queue");
+
+            for (const item of items) {
+                try {
+                    // تک تک پکیج‌های انبارداری ذخیره شده در زمان قطعی شبکه را روی سرور اعمال کن
+                    await executeVoidOnServer(item);
+                    // حذف از صف مرورگر پس از ارسال موفق
+                    store.delete(item.id);
+                    console.log(`Successfully synced local ID: ${item.id}`);
+                } catch (err) {
+                    console.error(`Failed to sync item ${item.id}, will retry next time:`, err);
+                }
+            }
+
+            transaction.oncomplete = function() {
+                updateOfflineBadgeCount();
+                loadManagerialReport(); // جدول را با دیتای تازه سرور بازنشانی کن
+            };
+        });
     }
 
     function updateKPIs(reqs, intake, move) {
