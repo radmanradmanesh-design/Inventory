@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warehouse Management Control Panel</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f1f5f9;
+            color: #1e293b;
+        }
+        .dashboard-container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        h1 { margin: 0; font-size: 24px; color: #0f172a; }
+        
+        /* بخش فیلتر تاریخ */
+        .filter-box {
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        label { font-size: 14px; font-weight: 600; color: #475569; }
+        input[type="date"] {
+            padding: 10px;
+            border: 1.5px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+        button {
+            padding: 11px 24px;
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #1d4ed8; }
+
+        /* کارت‌های وضعیت */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border-left: 5px solid #cbd5e1;
+        }
+        .stat-card.total-req { border-left-color: #2563eb; }
+        .stat-card.total-intake { border-left-color: #d97706; }
+        .stat-card.total-move { border-left-color: #10b981; }
+        
+        .stat-title { font-size: 14px; color: #64748b; font-weight: 600; text-transform: uppercase; }
+        .stat-value { font-size: 28px; font-weight: 700; margin-top: 8px; color: #0f172a; }
+
+        /* جدول گزارشات */
+        .report-table-box {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 15px;
+        }
+        th {
+            background-color: #f8fafc;
+            color: #475569;
+            padding: 14px 16px;
+            font-weight: 600;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #334155;
+        }
+        tr:hover { background-color: #f8fafc; }
+        
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        .badge.intake { background: #fef3c7; color: #d97706; }
+        .badge.movement { background: #dcfce7; color: #15803d; }
+        
+        .loading-text {
+            padding: 40px;
+            text-align: center;
+            color: #64748b;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-container">
+    <div class="header">
+        <h1>📊 Warehouse Control Panel & Reports</h1>
+        <span style="font-weight: 600; color: #64748b;">Live Dashboard</span>
+    </div>
+
+    <div class="filter-box">
+        <div class="form-group">
+            <label for="start-date">Start Date:</label>
+            <input type="date" id="start-date">
+        </div>
+        <div class="form-group">
+            <label for="end-date">End Date:</label>
+            <input type="date" id="end-date">
+        </div>
+        <button onclick="loadManagerialReport()">Generate Report</button>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card total-req">
+            <div class="stat-title">Total Requests Executed</div>
+            <div id="stat-count" class="stat-value">0</div>
+        </div>
+        <div class="stat-card total-intake">
+            <div class="stat-title">Total Units Added (Intake)</div>
+            <div id="stat-intake" class="stat-value">0 Units</div>
+        </div>
+        <div class="stat-card total-move">
+            <div class="stat-title">Total Showroom Movements</div>
+            <div id="stat-move" class="stat-value">0 Units</div>
+        </div>
+    </div>
+
+    <div class="report-table-box">
+        <table id="report-table">
+            <thead>
+                <tr>
+                    <th>Date & Time</th>
+                    <th>Barcode</th>
+                    <th>Item Name</th>
+                    <th>Activity / Route</th>
+                    <th>Qty Change</th>
+                </tr>
+            </thead>
+            <tbody id="report-tbody">
+                <tr>
+                    <td colspan="5" class="loading-text">Select a date range and click "Generate Report"</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // اتصال به دیتابیس سوپابیس شما
+    const SUPABASE_URL = 'https://qmurpnbrnmyjdxqjhybz.supabase.co'; 
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'; 
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // تنظیم تاریخ پیش‌فرض روی امروز به صورت خودکار
+    window.onload = function() {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('start-date').value = today;
+        document.getElementById('end-date').value = today;
+        loadManagerialReport();
+    };
+
+    async function loadManagerialReport() {
+        const startDate = document.getElementById('start-date').value;
+        const endDate = document.getElementById('end-date').value;
+        const tbody = document.getElementById('report-tbody');
+        
+        if (!startDate || !endDate) {
+            alert('Please select both start and end dates.');
+            return;
+        }
+
+        tbody.innerHTML = '<tr><td colspan="5" class="loading-text">🔄 Fetching logs and analyzing activities...</td></tr>';
+
+        try {
+            // تنظیم انتهای روز پایانی روی ساعت ۲۳:۵۹:۵۹ برای نگه‌داشتن کل روز در فیلتر
+            const startISO = `${startDate}T00:00:00.000Z`;
+            const endISO = `${endDate}T23:59:59.999Z`;
+
+            // ۱. دریافت لاگ‌ها از جدول تراکنش‌ها بر اساس تاریخ
+            const { data: logs, error: logError } = await _supabase
+                .from('transfer_log')
+                .select('*')
+                .gte('created_at', startISO)
+                .lte('created_at', endISO)
+                .order('created_at', { ascending: false });
+
+            if (logError) throw logError;
+
+            if (!logs || logs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="loading-text">ℹ️ No activities found for this date range.</td></tr>';
+                updateKPIs(0, 0, 0);
+                return;
+            }
+
+            // ۲. دریافت اطلاعات سیستم کالاها برای نشان دادن نام محصول به جای بارکد خالی
+            const uniqueBarcodes = [...new Set(logs.map(l => l.Barcode))];
+            const { data: products } = await _supabase
+                .from('system_inventory')
+                .select('Barcode, "Item Name"')
+                .in('Barcode', uniqueBarcodes);
+
+            // ساخت یک مپ سریع برای دسترسی به نام کالاها
+            const productMap = {};
+            if (products) {
+                products.forEach(p => {
+                    productMap[p.Barcode] = p['Item Name'];
+                });
+            }
+
+            // ۳. پردازش و محاسبه آمارها
+            let totalRequests = logs.length;
+            let totalIntakeQty = 0;
+            let totalMovementQty = 0;
+
+            tbody.innerHTML = '';
+
+            logs.forEach(log => {
+                const itemName = productMap[log.Barcode] || 'Unknown Item';
+                const qty = Math.abs(log.qty_transferred);
+                const worker = log.worker_name || '';
+                
+                // فرمت کردن زمان به شکل خوانا
+                const logDate = new Date(log.created_at).toLocaleString('en-GB', { timeZone: 'Asia/Muscat' });
+
+                let badgeClass = 'badge movement';
+                if (worker.includes('Direct Intake')) {
+                    badgeClass = 'badge intake';
+                    totalIntakeQty += qty;
+                } else {
+                    totalMovementQty += qty;
+                }
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="font-size: 13px; font-weight: 600;">${logDate}</td>
+                        <td><code>${log.Barcode}</code></td>
+                        <td style="font-weight: 600;">${itemName}</td>
+                        <td><span class="${badgeClass}">${worker}</span></td>
+                        <td style="font-weight: 700; color: ${log.qty_transferred >= 0 ? '#16a34a' : '#dc2626'}">
+                            ${log.qty_transferred > 0 ? '+' : ''}${log.qty_transferred}
+                        </td>
+                    </tr>
+                `;
+            });
+
+            updateKPIs(totalRequests, totalIntakeQty, totalMovementQty);
+
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="5" class="loading-text" style="color: red;">❌ Connection failed while loading reports.</td></tr>';
+        }
+    }
+
+    function updateKPIs(reqs, intake, move) {
+        document.getElementById('stat-count').textContent = reqs;
+        document.getElementById('stat-intake').textContent = `${intake} Pcs`;
+        document.getElementById('stat-move').textContent = `${move} Pcs`;
+    }
+</script>
+</body>
+</html>
