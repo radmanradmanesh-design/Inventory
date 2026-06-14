@@ -29,7 +29,6 @@
         }
         h1 { margin: 0; font-size: 24px; color: #0f172a; }
         
-        /* بخش فیلتر تاریخ */
         .filter-box {
             background: #fff;
             padding: 20px;
@@ -62,11 +61,8 @@
             font-size: 15px;
             font-weight: 600;
             cursor: pointer;
-            transition: background 0.2s;
         }
-        button:hover { background-color: #1d4ed8; }
 
-        /* کارت‌های وضعیت */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -84,10 +80,9 @@
         .stat-card.total-intake { border-left-color: #d97706; }
         .stat-card.total-move { border-left-color: #10b981; }
         
-        .stat-title { font-size: 14px; color: #64748b; font-weight: 600; text-transform: uppercase; }
+        .stat-title { font-size: 14px; color: #64748b; font-weight: 600; }
         .stat-value { font-size: 28px; font-weight: 700; margin-top: 8px; color: #0f172a; }
 
-        /* جدول گزارشات */
         .report-table-box {
             background: #fff;
             border-radius: 12px;
@@ -129,6 +124,16 @@
             color: #64748b;
             font-size: 16px;
         }
+        .error-box {
+            background-color: #fef2f2;
+            color: #991b1b;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #fca5a5;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -138,6 +143,8 @@
         <h1>📊 Warehouse Control Panel & Reports</h1>
         <span style="font-weight: 600; color: #64748b;">Live Dashboard</span>
     </div>
+
+    <div id="error-display" class="error-box"></div>
 
     <div class="filter-box">
         <div class="form-group">
@@ -158,11 +165,11 @@
         </div>
         <div class="stat-card total-intake">
             <div class="stat-title">Total Units Added (Intake)</div>
-            <div id="stat-intake" class="stat-value">0 Units</div>
+            <div id="stat-intake" class="stat-value">0 Pcs</div>
         </div>
         <div class="stat-card total-move">
             <div class="stat-title">Total Showroom Movements</div>
-            <div id="stat-move" class="stat-value">0 Units</div>
+            <div id="stat-move" class="stat-value">0 Pcs</div>
         </div>
     </div>
 
@@ -187,15 +194,17 @@
 </div>
 
 <script>
-    // اتصال به دیتابیس سوپابیس شما
     const SUPABASE_URL = 'https://qmurpnbrnmyjdxqjhybz.supabase.co'; 
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'; 
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWjoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'; 
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // تنظیم تاریخ پیش‌فرض روی امروز به صورت خودکار
     window.onload = function() {
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('start-date').value = today;
+        // فیلتر خودکار از ابتدای ماه جاری میلادی تا امروز برای لود شدن ۱۰۰٪ دیتاها
+        const now = new Date();
+        const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        const today = now.toISOString().split('T')[0];
+        
+        document.getElementById('start-date').value = firstDay;
         document.getElementById('end-date').value = today;
         loadManagerialReport();
     };
@@ -204,20 +213,15 @@
         const startDate = document.getElementById('start-date').value;
         const endDate = document.getElementById('end-date').value;
         const tbody = document.getElementById('report-tbody');
+        const errDisplay = document.getElementById('error-display');
         
-        if (!startDate || !endDate) {
-            alert('Please select both start and end dates.');
-            return;
-        }
-
+        errDisplay.style.display = 'none';
         tbody.innerHTML = '<tr><td colspan="5" class="loading-text">🔄 Fetching logs and analyzing activities...</td></tr>';
 
         try {
-            // تنظیم انتهای روز پایانی روی ساعت ۲۳:۵۹:۵۹ برای نگه‌داشتن کل روز در فیلتر
             const startISO = `${startDate}T00:00:00.000Z`;
             const endISO = `${endDate}T23:59:59.999Z`;
 
-            // ۱. دریافت لاگ‌ها از جدول تراکنش‌ها بر اساس تاریخ
             const { data: logs, error: logError } = await _supabase
                 .from('transfer_log')
                 .select('*')
@@ -228,27 +232,26 @@
             if (logError) throw logError;
 
             if (!logs || logs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="loading-text">ℹ️ No activities found for this date range.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="loading-text">ℹ️ No activities found for this date range. Try widening the dates.</td></tr>';
                 updateKPIs(0, 0, 0);
                 return;
             }
 
-            // ۲. دریافت اطلاعات سیستم کالاها برای نشان دادن نام محصول به جای بارکد خالی
-            const uniqueBarcodes = [...new Set(logs.map(l => l.Barcode))];
-            const { data: products } = await _supabase
-                .from('system_inventory')
-                .select('Barcode, "Item Name"')
-                .in('Barcode', uniqueBarcodes);
-
-            // ساخت یک مپ سریع برای دسترسی به نام کالاها
-            const productMap = {};
-            if (products) {
-                products.forEach(p => {
-                    productMap[p.Barcode] = p['Item Name'];
-                });
+            // خواندن هوشمند بارکد چه با B بزرگ چه کوچک
+            const uniqueBarcodes = [...new Set(logs.map(l => l.Barcode || l.barcode))].filter(Boolean);
+            
+            let productMap = {};
+            if (uniqueBarcodes.length > 0) {
+                const { data: products } = await _supabase
+                    .from('system_inventory')
+                    .select('Barcode, "Item Name"')
+                    .in('Barcode', uniqueBarcodes);
+                
+                if (products) {
+                    products.forEach(p => { productMap[p.Barcode] = p['Item Name']; });
+                }
             }
 
-            // ۳. پردازش و محاسبه آمارها
             let totalRequests = logs.length;
             let totalIntakeQty = 0;
             let totalMovementQty = 0;
@@ -256,11 +259,10 @@
             tbody.innerHTML = '';
 
             logs.forEach(log => {
-                const itemName = productMap[log.Barcode] || 'Unknown Item';
-                const qty = Math.abs(log.qty_transferred);
+                const currentBarcode = log.Barcode || log.barcode || '---';
+                const itemName = productMap[currentBarcode] || 'System Item';
+                const qty = Math.abs(log.qty_transferred || 0);
                 const worker = log.worker_name || '';
-                
-                // فرمت کردن زمان به شکل خوانا
                 const logDate = new Date(log.created_at).toLocaleString('en-GB', { timeZone: 'Asia/Muscat' });
 
                 let badgeClass = 'badge movement';
@@ -274,11 +276,11 @@
                 tbody.innerHTML += `
                     <tr>
                         <td style="font-size: 13px; font-weight: 600;">${logDate}</td>
-                        <td><code>${log.Barcode}</code></td>
+                        <td><code>${currentBarcode}</code></td>
                         <td style="font-weight: 600;">${itemName}</td>
                         <td><span class="${badgeClass}">${worker}</span></td>
-                        <td style="font-weight: 700; color: ${log.qty_transferred >= 0 ? '#16a34a' : '#dc2626'}">
-                            ${log.qty_transferred > 0 ? '+' : ''}${log.qty_transferred}
+                        <td style="font-weight: 700; color: ${(log.qty_transferred || 0) >= 0 ? '#16a34a' : '#dc2626'}">
+                            ${(log.qty_transferred || 0) > 0 ? '+' : ''}${log.qty_transferred || 0}
                         </td>
                     </tr>
                 `;
@@ -287,7 +289,10 @@
             updateKPIs(totalRequests, totalIntakeQty, totalMovementQty);
 
         } catch (e) {
-            tbody.innerHTML = '<tr><td colspan="5" class="loading-text" style="color: red;">❌ Connection failed while loading reports.</td></tr>';
+            console.error(e);
+            errDisplay.innerText = `❌ Connection Error Details: ${e.message || e.details || JSON.stringify(e)}`;
+            errDisplay.style.display = 'block';
+            tbody.innerHTML = '<tr><td colspan="5" class="loading-text" style="color: red;">❌ Load aborted due to database structural mismatch. See red error box above.</td></tr>';
         }
     }
 
