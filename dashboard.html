@@ -696,11 +696,11 @@
     }
 
     // فیلتراسیون کلاینت و رندر نهایی جدول بر اساس بند ۱ و ۲ و ۳
-    // اصلاح شده برای جداول دوگانه
-async function applyClientSideFilters() {
+  async function applyClientSideFilters() {
     const tbody = document.getElementById('report-tbody');
     let logsToRender = window.currentMergedLogs || [];
     
+    // ۱. پاکسازی جدول و نمایش حالت پیش‌فرض
     if (logsToRender.length === 0) {
         tbody.innerHTML = '<tr><td colspan="7" class="loading-text">ℹ️ No activities found.</td></tr>';
         updateKPIs(0, 0, 0);
@@ -710,51 +710,94 @@ async function applyClientSideFilters() {
     const selectedCategory = document.getElementById('category-dropdown').value;
     const uniqueBarcodes = [...new Set(logsToRender.map(l => l.Barcode || l.barcode))].filter(Boolean);
     
+    // این متغیر نگهدارنده اطلاعات ترکیبی است
     let productMap = {};
 
-   // ... داخل تابع applyClientSideFilters
-
+    // ۲. دریافت اطلاعات از دیتابیس (فقط اگر آنلاین هستیم)
     if (navigator.onLine && uniqueBarcodes.length > 0) {
-        // ۱. دریافت اطلاعات پایه از سیستم اینونتوری
-        const { data: baseProducts } = await _supabase
-            .from('system_inventory')
-            .select('Barcode, "Item Name", Category')
-            .in('Barcode', uniqueBarcodes);
+        try {
+            // دریافت نام و دسته‌بندی
+            const { data: baseProducts, error: baseError } = await _supabase
+                .from('system_inventory')
+                .select('Barcode, "Item Name", Category')
+                .in('Barcode', uniqueBarcodes);
+            
+            // دریافت موجودی شوروم (با ستون اختصاصی شما: showroom_qty)
+            const { data: showroomStocks, error: showroomError } = await _supabase
+                .from('showroom_inventory')
+                .select('Barcode, showroom_qty')
+                .in('Barcode', uniqueBarcodes);
 
-        // ۲. دریافت موجودی از جدول شوروم (با نام ستون صحیح: showroom_qty)
-        const { data: showroomStocks } = await _supabase
-            .from('showroom_inventory')
-            .select('Barcode, showroom_qty') // تغییر نام ستون اینجا انجام شد
-            .in('Barcode', uniqueBarcodes);
+            if (baseError) console.error("Error fetching system_inventory:", baseError);
+            if (showroomError) console.error("Error fetching showroom_inventory:", showroomError);
 
-        // ۳. ساخت نقشه ترکیبی
-        if (baseProducts) {
-            baseProducts.forEach(p => {
-                productMap[p.Barcode] = {
-                    name: p['Item Name'],
-                    category: p.Category || 'Uncategorized',
-                    liveStock: 0 
-                };
-            });
-        }
-        
-        // ۴. اختصاص موجودی به بارکد مربوطه
-        if (showroomStocks) {
-            showroomStocks.forEach(s => {
-                // اگر قبلا در سیستم بوده، فقط مقدار استوک را آپدیت کن
-                if (productMap[s.Barcode]) {
-                    productMap[s.Barcode].liveStock = s.showroom_qty || 0; // استفاده از نام ستون جدید
-                } else {
-                    // اگر در سیستم نیست ولی در شوروم هست
-                    productMap[s.Barcode] = {
-                        name: 'Unknown Item',
-                        category: 'N/A',
-                        liveStock: s.showroom_qty || 0 // استفاده از نام ستون جدید
+            // ۳. پر کردن نقشه (Map)
+            if (baseProducts) {
+                baseProducts.forEach(p => {
+                    productMap[p.Barcode] = {
+                        name: p['Item Name'],
+                        category: p.Category || 'Uncategorized',
+                        liveStock: 0 // مقدار پیش‌فرض
                     };
-                }
-            });
+                });
+            }
+            
+            // ۴. اعمال موجودی شوروم روی نقشه
+            if (showroomStocks) {
+                showroomStocks.forEach(s => {
+                    if (productMap[s.Barcode]) {
+                        productMap[s.Barcode].liveStock = s.showroom_qty || 0;
+                    } else {
+                        // اگر کالا در سیستم اصلی نیست ولی در شوروم هست
+                        productMap[s.Barcode] = {
+                            name: 'Unknown Item',
+                            category: 'N/A',
+                            liveStock: s.showroom_qty || 0
+                        };
+                    }
+                });
+            }
+        } catch (e) {
+            console.error("Critical error in data fetch:", e);
         }
     }
+
+    // ۵. فیلتر کردن لاگ‌ها (اعمال فیلتر دسته‌بندی)
+    const filteredLogs = logsToRender.filter(log => {
+        const barcode = log.Barcode || log.barcode;
+        const itemInfo = productMap[barcode] || { category: 'Uncategorized' };
+        
+        if (selectedCategory !== "All" && itemInfo.category !== selectedCategory) {
+            return false;
+        }
+        return true;
+    });
+
+    // ۶. نمایش در جدول
+    tbody.innerHTML = '';
+    filteredLogs.forEach(log => {
+        const barcode = log.Barcode || log.barcode;
+        const itemInfo = productMap[barcode] || { name: 'Loading...', category: '-', liveStock: 0 };
+        
+        const row = `
+            <tr>
+                <td>${barcode}</td>
+                <td>${itemInfo.name}</td>
+                <td>${itemInfo.category}</td>
+                <td>${log.Date}</td>
+                <td>${log.Action}</td>
+                <td>${log.Quantity}</td>
+                <td style="font-weight:bold; color: ${itemInfo.liveStock > 0 ? 'green' : 'red'}">
+                    ${itemInfo.liveStock}
+                </td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+    });
+
+    // ۷. آپدیت کردن KPIها
+    updateKPIs(filteredLogs.length, 0, 0); 
+}
     
     // ... ادامه تابع که از متغیر productMap استفاده می‌کند (نیازی به تغییر ندارد)
         
