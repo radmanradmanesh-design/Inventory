@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-color=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Live Camera Stock Control & Location Finder</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -144,6 +144,12 @@
         .diff-shortage { color: #991b1b; background-color: #fee2e2; border: 1.5px solid #fca5a5; }
         .diff-surplus { color: #065f46; background-color: #d1fae5; border: 1.5px solid #a7f3d0; }
 
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 15px;
+        }
         button {
             width: 100%;
             padding: 14px;
@@ -238,18 +244,20 @@
         </div>
 
         <div class="form-group">
-            <label for="transfer-qty">Quantity:</label>
+            <label for="transfer-qty">Quantity (For Movement or Sale):</label>
             <input type="number" id="transfer-qty" min="1" inputmode="numeric" placeholder="Enter quantity">
         </div>
          
-        <button id="submit-btn" onclick="submitTransfer()">Confirm Stock Movement</button>
-        <button id="clear-btn" onclick="resetPage()" style="margin-top: 10px; background-color: #718096;">Clear & Reset</button>
+        <div class="btn-group">
+            <button id="submit-btn" onclick="submitTransfer()">Confirm Stock Movement</button>
+            <button id="sales-btn" onclick="submitSalesDeduction()" style="background-color: #e11d48;">🔴 Record Sale (Deduct from Showroom)</button>
+            <button id="clear-btn" onclick="resetPage()" style="background-color: #718096;">Clear & Reset</button>
+        </div>
     </div>
 </div>
 <script>
-    // تنظیمات متصل‌کننده اصلی دیتابیس هوشمند
     const SUPABASE_URL = 'https://qmurpnbrnmyjdxqjhybz.supabase.co'; 
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'; 
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWjoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'; 
      
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -267,7 +275,6 @@
     let currentShowroomQty = 0;
     let html5QrcodeScanner = null;
 
-    // استارت اولیه کامپوننت‌ها به محض لود مرورگر
     window.onload = function() {
         startCameraScanner();
     };
@@ -325,7 +332,6 @@
         }
     }
 
-    // متد اصلاح کاراکترهای اسکنر و کوئری دوگانه متن/عدد به Supabase
     async function handleScannedBarcode(barcode) {
         let cleanedBarcode = barcode.toString().trim().replace(/[\r\n\t]/g, "");
         
@@ -346,60 +352,47 @@
             document.getElementById('operator-name-input').value = savedOperator;
         }
 
-        if (navigator.onLine) {
-            try {
-                // تست اول: بررسی انطباق با مقدار متنی برچسب دیتابیس
-                let { data: systemData, error: err1 } = await _supabase
-                    .from('system_inventory')
-                    .select('*')
-                    .eq('Barcode', cleanedBarcode)
-                    .maybeSingle();
+        try {
+            let { data: systemData, error: err1 } = await _supabase
+                .from('system_inventory')
+                .select('*')
+                .eq('Barcode', cleanedBarcode)
+                .maybeSingle();
 
-                // تست دوم: در صورت لزوم، حذف صفرهای پشت عدد و بررسی ساختار عددی
-                if (!systemData) {
-                    let numericBarcode = parseInt(cleanedBarcode, 10);
-                    if (!isNaN(numericBarcode)) {
-                        let { data: retryData } = await _supabase
-                            .from('system_inventory')
-                            .select('*')
-                            .eq('Barcode', numericBarcode)
-                            .maybeSingle();
-                        
-                        if (retryData) {
-                            systemData = retryData;
-                            cleanedBarcode = retryData.Barcode.toString(); 
-                        }
+            if (!systemData) {
+                let numericBarcode = parseInt(cleanedBarcode, 10);
+                if (!isNaN(numericBarcode)) {
+                    let { data: retryData } = await _supabase
+                        .from('system_inventory')
+                        .select('*')
+                        .eq('Barcode', numericBarcode)
+                        .maybeSingle();
+                    
+                    if (retryData) {
+                        systemData = retryData;
+                        cleanedBarcode = retryData.Barcode.toString(); 
                     }
                 }
-
-                if (!systemData) {
-                    statusDiv.className = 'status error';
-                    statusDiv.textContent = `⚠️ Barcode [ ${cleanedBarcode} ] not found in system table. Check Supabase records.`;
-                    return;
-                }
-
-                // دریافت مقادیر انبار پالت‌ها و شورووم لایو
-                const { data: whseRows } = await _supabase.from('warehouse_inventory').select('*').eq('Row Labels', cleanedBarcode);
-                const { data: showData } = await _supabase.from('showroom_inventory').select('showroom_qty').eq('Barcode', cleanedBarcode).maybeSingle();
-
-                // کَش اطلاعات جهت لایه حافظه حمایتی آفلاین
-                const payloadToCache = { barcode: cleanedBarcode, systemData, whseRows, showData };
-                cacheProductLocally(payloadToCache);
-
-                renderProductDataHTML(systemData, whseRows, showData);
-
-            } catch (e) {
-                console.error("Database linkage error:", e);
-                statusDiv.className = 'status error';
-                statusDiv.textContent = 'Database linkage temporary issue. Trying local cache...';
-                loadProductFromCache(cleanedBarcode);
             }
-        } else {
-            loadProductFromCache(cleanedBarcode);
+
+            if (!systemData) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `⚠️ Barcode [ ${cleanedBarcode} ] not found in system table. Check Supabase records.`;
+                return;
+            }
+
+            const { data: whseRows } = await _supabase.from('warehouse_inventory').select('*').eq('Row Labels', cleanedBarcode);
+            const { data: showData } = await _supabase.from('showroom_inventory').select('showroom_qty').eq('Barcode', cleanedBarcode).maybeSingle();
+
+            renderProductDataHTML(systemData, whseRows, showData);
+
+        } catch (e) {
+            console.error("Database linkage error:", e);
+            statusDiv.className = 'status error';
+            statusDiv.textContent = 'Database linkage temporary issue.';
         }
     }
 
-    // رندر خروجی دیتابیس و نمایش مغایرت‌ها در قالب HTML اختصاصی
     function renderProductDataHTML(systemData, whseRows, showData) {
         currentProduct = systemData;
         locBalances = {};
@@ -464,27 +457,64 @@
         document.getElementById('transfer-qty').focus();
     }
 
-    // متدهای لایه مدیریتی ذخیره‌سازی آفلاین مرورگر
-    function cacheProductLocally(payload) {
-        try {
-            localStorage.setItem(`cache_bc_${payload.barcode}`, JSON.stringify(payload));
-        } catch (e) { console.error("Cache saving failed", e); }
-    }
-
-    function loadProductFromCache(barcode) {
-        const cachedData = localStorage.getItem(`cache_bc_${barcode}`);
-        if (cachedData) {
-            const parsed = JSON.parse(cachedData);
-            statusDiv.className = 'status success';
-            statusDiv.textContent = '⚠️ Loaded from local cache (OFFLINE MODE)';
-            renderProductDataHTML(parsed.systemData, parsed.whseRows, parsed.showData);
-        } else {
-            statusDiv.className = 'status error';
-            statusDiv.textContent = `❌ Offline: Barcode [ ${barcode} ] not found in local memory cache.`;
+    // الگوریتم ثبت فروش مستقیم و کسر مستقیم از شورووم
+    async function submitSalesDeduction() {
+        const operatorName = document.getElementById('operator-name-input').value.trim();
+        
+        if (!operatorName) {
+            alert("Action Denied: Please enter your Operator Name/ID at the top of the page before recording sales!");
+            return;
         }
+
+        const qtyInput = document.getElementById('transfer-qty');
+        const qty = parseInt(qtyInput.value);
+        if (!qty || qty <= 0) { alert('Enter a valid sales quantity'); return; }
+
+        const barcode = currentProduct['Barcode'];
+        const itemName = currentProduct['Item Name'] || 'Unknown Item';
+
+        const confirmAction = confirm(`🔴 Record Live Sale:\n📦 Item: ${itemName}\n🔢 Qty Sold: ${qty} pcs\n\nThis will deduct directly from Showroom stock.`);
+        if (!confirmAction) return; 
+
+        statusDiv.className = 'status loading';
+        statusDiv.textContent = 'Deducting from showroom live...';
+
+        // فرمول کسر موجودی زنده شورووم بدون سقف (مجاز به منفی شدن مقادیر)
+        let newShowroomQty = currentShowroomQty - qty;
+
+        // ۱. به‌روزرسانی جدول شورووم
+        const { error: showErr } = await _supabase
+            .from('showroom_inventory')
+            .upsert({ Barcode: barcode, showroom_qty: newShowroomQty }, { onConflict: 'Barcode' });
+
+        if (showErr) {
+            alert(`Showroom Update Error: ${showErr.message}`);
+            statusDiv.className = 'status error';
+            statusDiv.textContent = 'Error updating showroom live stock!';
+            return;
+        }
+
+        // ۲. ثبت لاگ خروجی منفی بابت فروش در جدول لاگ‌ها
+        const { error: logError } = await _supabase
+            .from('transfer_log')
+            .insert([{ 
+                Barcode: barcode, 
+                qty_transferred: -qty, 
+                worker_name: `${operatorName} (POS Sale Deduction)` 
+            }]);
+
+        if (logError) {
+            console.error("Log Error Details:", logError);
+            alert(`⚠️ Log Saving Failed! (Stock updated but log lost): ${logError.message}`);
+        }
+
+        statusDiv.className = 'status success';
+        statusDiv.textContent = 'Sale registered and live showroom updated!';
+        
+        // به‌روزرسانی در لحظه فیلدهای صفحه بعد از تغییر دیتابیس
+        setTimeout(() => { handleScannedBarcode(barcode); }, 1200);
     }
 
-    // بدنه اصلی ثبت تغییرات و ارسال داده به ترنسفر لاگ Supabase
     async function submitTransfer() {
         const operatorName = document.getElementById('operator-name-input').value.trim();
         
@@ -584,7 +614,7 @@
         statusDiv.className = 'status success';
         statusDiv.textContent = 'Stock & Logs updated successfully!';
          
-        setTimeout(resetPage, 1500);
+        setTimeout(() => { handleScannedBarcode(barcode); }, 1200);
     }
 
     function resetPage() {
