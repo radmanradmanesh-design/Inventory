@@ -239,7 +239,7 @@
             border-collapse: collapse;
             text-align: left;
             font-size: 14px;
-            min-width: 850px;
+            min-width: 950px; /* افزایش طول به دلیل اضافه شدن ستون جدید */
         }
         th {
             background-color: #f8fafc;
@@ -270,6 +270,22 @@
         .badge.voided { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; text-decoration: line-through; }
         .badge.pending-sync { background: #ffedd5; color: #ea580c; border: 1px solid #fed7aa; animation: pulse 2s infinite; }
         
+        /* استایل اختصاصی برای نمایشگر وضعیت موجودی شووروم */
+        .showroom-live-indicator {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 13px;
+            background-color: #f1f5f9;
+            color: #334155;
+        }
+        .showroom-live-indicator.low-stock {
+            background-color: #fee2e2;
+            color: #b91c1c;
+            border: 1px dashed #fca5a5;
+        }
+
         @keyframes pulse {
             0% { opacity: 0.6; }
             50% { opacity: 1; }
@@ -377,12 +393,12 @@
                     <th>Item Name</th>
                     <th>Activity / Operator</th>
                     <th>Qty Change</th>
-                    <th>Actions</th>
+                    <th>Showroom Live Qty</th> <th>Actions</th>
                 </tr>
             </thead>
             <tbody id="report-tbody">
                 <tr>
-                    <td colspan="6" class="loading-text">Select a date range and click "Generate Report"</td>
+                    <td colspan="7" class="loading-text">Select a date range and click "Generate Report"</td>
                 </tr>
             </tbody>
         </table>
@@ -558,7 +574,7 @@
         loadManagerialReport();
     };
 
-    // ۳. خواندن اطلاعات از دیتابیس با ادغام صف محلی آفلاین
+    // ۳. خواندن اطلاعات از دیتابیس با ادغام صف محلی آفلاین و استخراج موجودی زنده شووروم
     async function loadManagerialReport() {
         const startDate = document.getElementById('date-start-picker').value;
         const endDate = document.getElementById('date-end-picker').value;
@@ -566,7 +582,7 @@
         const errDisplay = document.getElementById('error-display');
         
         errDisplay.style.display = 'none';
-        tbody.innerHTML = '<tr><td colspan="6" class="loading-text">🔄 Fetching logs and analyzing activities...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="loading-text">🔄 Fetching logs and analyzing activities...</td></tr>';
 
         let onlineLogs = [];
 
@@ -612,7 +628,7 @@
             });
 
             if (mergedLogs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="loading-text">ℹ️ No activities found for this range.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="loading-text">ℹ️ No activities found for this range.</td></tr>';
                 updateKPIs(0, 0, 0);
                 return;
             }
@@ -620,13 +636,35 @@
             const uniqueBarcodes = [...new Set(mergedLogs.map(l => l.Barcode || l.barcode))].filter(Boolean);
             
             let productMap = {};
+            let showroomStockMap = {}; // مپ ذخیره دیتای لایو شووروم
+
             if (navigator.onLine && uniqueBarcodes.length > 0) {
+                // ۱. دریافت اطلاعات پایه کالا
                 const { data: products } = await _supabase
                     .from('system_inventory')
                     .select('Barcode, "Item Name"')
                     .in('Barcode', uniqueBarcodes);
                 if (products) {
                     products.forEach(p => { productMap[p.Barcode] = p['Item Name']; });
+                }
+
+                // ۲. استخراج مستقیم و همزمان موجودی زنده از جدول showroom_inventory
+                try {
+                    const { data: showroomData, error: showErr } = await _supabase
+                        .from('showroom_inventory')
+                        .select('Barcode, showroom_qty')
+                        .in('Barcode', uniqueBarcodes);
+                    
+                    if (!showErr && showroomData) {
+                        showroomData.forEach(s => {
+                            const bcd = s.Barcode || '';
+                            if (bcd) {
+                                showroomStockMap[bcd] = s.showroom_qty !== undefined ? s.showroom_qty : 0;
+                            }
+                        });
+                    }
+                } catch (err) {
+                    console.error("Error building showroom map:", err);
                 }
             }
 
@@ -639,6 +677,10 @@
             mergedLogs.forEach(log => {
                 const currentBarcode = log.Barcode || log.barcode || '---';
                 const itemName = productMap[currentBarcode] || 'System Item';
+                
+                // خواندن مقدار استوک زنده شووروم از ساختار مپ ایجاد شده
+                const liveShowroomStock = showroomStockMap[currentBarcode] !== undefined ? showroomStockMap[currentBarcode] : 0;
+
                 const qty = Math.abs(log.qty_transferred || 0);
                 const worker = log.worker_name || '';
                 const logDate = new Date(log.created_at).toLocaleString('en-GB', { timeZone: 'Asia/Muscat' });
@@ -673,6 +715,9 @@
                     actionButton = `<span style="color: #ea580c; font-size: 12px; font-weight:600;">⏳ Syncing...</span>`;
                 }
 
+                // تغییر رنگ باکس وضعیت در صورت اتمام یا کم بودن کالا در شووروم
+                const stockAlertClass = parseInt(liveShowroomStock) <= 2 ? 'showroom-live-indicator low-stock' : 'showroom-live-indicator';
+
                 tbody.innerHTML += `
                     <tr style="${isVoided ? 'opacity: 0.6; background-color: #f8fafc;' : ''}">
                         <td style="font-size: 13px; font-weight: 600; color: #64748b;">${logDate}</td>
@@ -682,7 +727,7 @@
                         <td style="font-weight: 700; font-size: 15px; text-decoration: ${isVoided ? 'line-through' : 'none'}; color: ${isVoided ? '#94a3b8' : ((log.qty_transferred || 0) >= 0 ? '#10b981' : '#ef4444')}">
                             ${(log.qty_transferred || 0) > 0 ? '+' : ''}${log.qty_transferred || 0}
                         </td>
-                        <td>${actionButton}</td>
+                        <td><span class="${stockAlertClass}">${liveShowroomStock} Pcs</span></td> <td>${actionButton}</td>
                     </tr>
                 `;
             });
@@ -815,10 +860,11 @@
         });
     }
 
+    document.getElementById('stat-count').textContent = reqs;
     function updateKPIs(reqs, intake, move) {
-        document.getElementById('stat-count').textContent = reqs;
-        document.getElementById('stat-intake').textContent = `${intake} Pcs`;
-        document.getElementById('stat-move').textContent = `${move} Pcs`;
+        if(document.getElementById('stat-count')) document.getElementById('stat-count').textContent = reqs;
+        if(document.getElementById('stat-intake')) document.getElementById('stat-intake').textContent = `${intake} Pcs`;
+        if(document.getElementById('stat-move')) document.getElementById('stat-move').textContent = `${move} Pcs`;
     }
 </script>
 </body>
