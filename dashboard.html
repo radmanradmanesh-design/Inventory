@@ -696,36 +696,59 @@
     }
 
     // فیلتراسیون کلاینت و رندر نهایی جدول بر اساس بند ۱ و ۲ و ۳
-    async function applyClientSideFilters() {
-        const tbody = document.getElementById('report-tbody');
-        let logsToRender = window.currentMergedLogs || [];
-        
-        if (logsToRender.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="loading-text">ℹ️ No activities found for this range.</td></tr>';
-            updateKPIs(0, 0, 0);
-            return;
-        }
+    // اصلاح شده برای جداول دوگانه
+async function applyClientSideFilters() {
+    const tbody = document.getElementById('report-tbody');
+    let logsToRender = window.currentMergedLogs || [];
+    
+    if (logsToRender.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="loading-text">ℹ️ No activities found.</td></tr>';
+        updateKPIs(0, 0, 0);
+        return;
+    }
 
-        const selectedCategory = document.getElementById('category-dropdown').value;
-        const uniqueBarcodes = [...new Set(logsToRender.map(l => l.Barcode || l.barcode))].filter(Boolean);
-        
-        let productMap = {};
-        if (navigator.onLine && uniqueBarcodes.length > 0) {
-            const { data: products } = await _supabase
-                .from('system_inventory')
-                .select('Barcode, "Item Name", Category, Stock') // دریافت فیلد موجودی زنده و کتگوری
-                .in('Barcode', uniqueBarcodes);
-            if (products) {
-                products.forEach(p => { 
-                    productMap[p.Barcode] = {
-                        name: p['Item Name'],
-                        category: p.Category || 'Uncategorized',
-                        liveStock: p.Stock || 0 // ذخیره موجودی لحظه‌ای شورووم (بند ۳)
-                    }; 
-                });
-            }
-        }
+    const selectedCategory = document.getElementById('category-dropdown').value;
+    const uniqueBarcodes = [...new Set(logsToRender.map(l => l.Barcode || l.barcode))].filter(Boolean);
+    
+    let productMap = {};
 
+    if (navigator.onLine && uniqueBarcodes.length > 0) {
+        // ۱. دریافت اطلاعات پایه (نام و دسته‌بندی) از جدول مرجع
+        const { data: baseProducts } = await _supabase
+            .from('system_inventory')
+            .select('Barcode, "Item Name", Category')
+            .in('Barcode', uniqueBarcodes);
+
+        // ۲. دریافت موجودی لحظه‌ای از جدول شوروم
+        // نکته: اگر ستون شما Quantity است بجای Stock، حتما آن را اینجا بنویسید
+        const { data: showroomStocks } = await _supabase
+            .from('showroom_inventory')
+            .select('Barcode, Quantity') 
+            .in('Barcode', uniqueBarcodes);
+
+        // ۳. ساخت نقشه ترکیبی
+        if (baseProducts) {
+            baseProducts.forEach(p => {
+                productMap[p.Barcode] = {
+                    name: p['Item Name'],
+                    category: p.Category || 'Uncategorized',
+                    liveStock: 0 // مقدار پیش‌فرض
+                };
+            });
+        }
+        
+        if (showroomStocks) {
+            showroomStocks.forEach(s => {
+                if (productMap[s.Barcode]) {
+                    productMap[s.Barcode].liveStock = s.Quantity || 0;
+                }
+            });
+        }
+    }
+
+    // ... ادامه منطق فیلترها طبق روال قبلی ...
+        
+   
         // ۱. اعمال فیلتر بر اساس دسته‌بندی (بند ۱)
         if (selectedCategory !== "Bulk") {
             logsToRender = logsToRender.filter(log => {
