@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Warehouse Management Control Panel</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
@@ -84,9 +85,72 @@
             border-radius: 20px;
             font-size: 13px;
             font-weight: 600;
-            display: none; /* فقط وقتی دیتای آفلاین هست نشان داده می‌شود */
+            display: none;
         }
         
+        /* بخش جدید آپلودر سیستم */
+        .upload-section {
+            background: #ffffff;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid #e2e8f0;
+            border-left: 5px solid #3b82f6;
+        }
+        .upload-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .upload-subtitle {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 16px;
+        }
+        .upload-row {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .file-input-wrapper {
+            position: relative;
+            flex: 1;
+            min-width: 260px;
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            background: #f8fafc;
+            border: 1.5px dashed #cbd5e1;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .sync-btn {
+            padding: 12px 28px;
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+        }
+        .sync-btn:hover { background-color: #1d4ed8; }
+        .sync-btn:disabled {
+            background-color: #94a3b8;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
         .filter-box {
             background: #ffffff;
             padding: 24px;
@@ -266,13 +330,24 @@
 
     <div id="error-display" class="error-box"></div>
 
+    <div class="upload-section" id="upload-panel">
+        <div class="upload-title">🔄 RetailX Live System Stock Synchronization</div>
+        <div class="upload-subtitle">Upload the new core system stock file. It will automatically detect sold items, adjust the showroom live levels and generate audit history.</div>
+        <div class="upload-row">
+            <div class="file-input-wrapper">
+                <input type="file" id="retailx-csv-file" accept=".csv">
+            </div>
+            <button class="sync-btn" id="sync-trigger-btn" onclick="handleCSVUpload()">Upload & Sync Inventory</button>
+        </div>
+    </div>
+
     <div class="filter-box">
         <div class="form-group">
-            <label for="start-date">Start Date</label>
+            <label for="date-start-picker">Start Date</label>
             <input type="date" id="date-start-picker">
         </div>
         <div class="form-group">
-            <label for="end-date">End Date</label>
+            <label for="date-end-picker">End Date</label>
             <input type="date" id="date-end-picker">
         </div>
         <button class="generate-btn" onclick="loadManagerialReport()">Generate Report</button>
@@ -319,11 +394,101 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'; 
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // لاین ۲۸۷: پسورد مدیریتی شما
     const ADMIN_PASSWORD = "RadmanAdmin2026"; 
 
     let db;
-    let cachedLogs = []; // نگهدارنده محلی گزارش‌ها برای ادغام دیتای آفلاین
+    let cachedLogs = [];
+
+    // موتور اختصاصی خواندن و ارسال پکیج دیتای دیتابیس با قابلیت هوشمند Upsert
+    async function handleCSVUpload() {
+        if (!navigator.onLine) {
+            alert("⛔ Sync operations require an active network connection. You cannot sync stock files while offline.");
+            return;
+        }
+
+        const fileInput = document.getElementById('retailx-csv-file');
+        const syncBtn = document.getElementById('sync-trigger-btn');
+        const errDisplay = document.getElementById('error-display');
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            alert("Please select a valid RetailX inventory CSV file first.");
+            return;
+        }
+
+        const file = fileInput.files[0];
+        
+        const password = prompt("🔒 Admin Security Lock.\nEnter Master Password to commit live inventory overwrite:");
+        if (password === null) return;
+        if (password !== ADMIN_PASSWORD) {
+            alert("⛔ Access Denied!");
+            return;
+        }
+
+        // تغییر وضعیت دکمه جهت جلوگیری از تکرار کلیک کلید
+        syncBtn.disabled = true;
+        syncBtn.textContent = "Processing & Syncing data...";
+        errDisplay.style.display = 'none';
+
+        // اجرای فرآیند پارس با کتابخانه پاپا‌پارس
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async function(results) {
+                const csvRows = results.data;
+                const formattedRows = [];
+
+                // یکسان‌سازی فرمت هدرها متناسب با ساختار دیتابیس سوپابیس شما
+                for (let row of csvRows) {
+                    const barcode = row['Barcode'] || row['barcode'];
+                    const itemName = row['Item Name'] || row['item name'] || row['ItemName'];
+                    const itemCode = row['Item Code'] || row['item code'] || row['ItemCode'];
+                    const stock = parseInt(row['Stock'] || row['stock'] || row['Quantity'] || row['quantity'] || 0, 10);
+
+                    if (barcode) {
+                        formattedRows.push({
+                            Barcode: barcode.trim(),
+                            "Item Name": itemName ? itemName.trim() : 'System Product',
+                            "Item Code": itemCode ? itemCode.trim() : '',
+                            Stock: stock
+                        });
+                    }
+                }
+
+                if (formattedRows.length === 0) {
+                    alert("❌ Parsing Failed: Could not identify rows with valid 'Barcode' keys inside the file.");
+                    syncBtn.disabled = false;
+                    syncBtn.textContent = "Upload & Sync Inventory";
+                    return;
+                }
+
+                try {
+                    // ارسال فوق‌العاده هوشمند دیتای دسته‌ای با متد رسمی اپسرت دیتابیس سوپابیس
+                    // فیلد onConflict کلید اصلی شما یعنی بارکد را هدف قرار می‌دهد
+                    const { error } = await _supabase
+                        .from('system_inventory')
+                        .upsert(formattedRows, { onConflict: 'Barcode' });
+
+                    if (error) throw error;
+
+                    alert(`🎉 Excellent! Successfully matched and updated [ ${formattedRows.length} ] products. Showroom levels auto-recalibrated via triggers.`);
+                    fileInput.value = ""; // ریسیت فیلد فایل
+                    loadManagerialReport(); // بازنشانی لیست گزارشات
+                } catch (err) {
+                    console.error(err);
+                    errDisplay.textContent = `🚨 Upsert Engine Error: ${err.message || 'Check database constraints.'}`;
+                    errDisplay.style.display = 'block';
+                } finally {
+                    syncBtn.disabled = false;
+                    syncBtn.textContent = "Upload & Sync Inventory";
+                }
+            },
+            error: function(parseError) {
+                alert(`CSV Format Read Error: ${parseError.message}`);
+                syncBtn.disabled = false;
+                syncBtn.textContent = "Upload & Sync Inventory";
+            }
+        });
+    }
 
     // ۱. مقداردهی اولیه دیتابیس محلی مرورگر (IndexedDB)
     function initOfflineStorage() {
@@ -339,7 +504,6 @@
         request.onsuccess = function(e) {
             db = e.target.result;
             updateOfflineBadgeCount();
-            // تلاش برای سینک خودکار زمان بالا آمدن صفحه در صورت آنلاین بودن
             if (navigator.onLine) {
                 syncOfflineQueue();
             }
@@ -353,13 +517,18 @@
     // ۲. پایش مداوم وضعیت شبکه اینترنت
     function updateNetworkStatus() {
         const badge = document.getElementById('network-status');
+        const uploadPanel = document.getElementById('upload-panel');
         if (navigator.onLine) {
             badge.textContent = "🟢 Online";
             badge.className = "live-badge online";
-            syncOfflineQueue(); // به محض آنلاین شدن، صف را خالی کن
+            uploadPanel.style.opacity = "1";
+            uploadPanel.style.pointerEvents = "auto";
+            syncOfflineQueue();
         } else {
             badge.textContent = "🔴 Offline Mode (Queue Active)";
             badge.className = "live-badge offline";
+            uploadPanel.style.opacity = "0.5";
+            uploadPanel.style.pointerEvents = "none";
         }
     }
 
@@ -391,7 +560,6 @@
 
         let onlineLogs = [];
 
-        // الف) اگر آنلاین بودیم، آخرین دیتا را از Supabase بگیر
         if (navigator.onLine) {
             try {
                 const startISO = `${startDate}T00:00:00.000Z`;
@@ -406,30 +574,26 @@
 
                 if (logError) throw logError;
                 onlineLogs = data || [];
-                cachedLogs = onlineLogs; // کش کردن در حافظه موقت
+                cachedLogs = onlineLogs;
             } catch (e) {
                 console.error("Could not fetch fresh data, using cache:", e);
                 onlineLogs = cachedLogs;
             }
         } else {
-            // ب) اگر آفلاین بودیم، از دیتای کش‌شده قبلی استفاده کن
             onlineLogs = cachedLogs;
         }
 
-        // ج) دیتای محلی آفلاین که هنوز سینک نشده را بیرون بکش تا در جدول نشان دهیم
         getOfflineQueueItems(async (offlineItems) => {
-            // ادغام دیتای آنلاین و آفلاین برای نمایش یکپارچه به رادمان
             let mergedLogs = [...offlineItems.map(item => ({
                 id: `offline-${item.id}`,
                 isOfflinePending: true,
                 Barcode: item.barcode,
                 qty_transferred: item.qtyTransferred,
                 worker_name: "Admin (Offline Correction)",
-                status: "Voided", // تراکنش والد شده است اما لوکال
+                status: "Voided",
                 created_at: item.timestamp
             })), ...onlineLogs];
 
-            // اعمال فیلتر ابطال روی رکوردهای آنلاینی که در صف آفلاین منتظر اعمال هستند
             offlineItems.forEach(off => {
                 let target = mergedLogs.find(l => l.id === off.logId);
                 if (target) {
@@ -481,8 +645,14 @@
                     totalIntakeQty += qty;
                     totalRequests++;
                 } else {
+                    badgeClass = 'badge movement';
                     totalMovementQty += qty;
                     totalRequests++;
+                }
+
+                // زیباتر کردن رنگ و برچسب لاگ‌های خودکار دیتابیس در جدول نهایی
+                if (worker.includes('System Auto-Sale')) {
+                    badgeClass = 'badge voided'; 
                 }
 
                 let actionButton = isVoided 
@@ -511,12 +681,10 @@
         });
     }
 
-    // ۴. منطق بهینه‌شده VoidTransaction با مدیریت حالت آفلاین
+    // ۴. منطق VoidTransaction با مدیریت حالت آفلاین
     async function voidTransaction(logId, barcode, qtyTransferred) {
         const password = prompt("🔒 Admin Access Required.\nPlease enter the Manager Password to void this record:");
-        
         if (password === null) return; 
-        
         if (password !== ADMIN_PASSWORD) {
             alert("⛔ Access Denied! Incorrect Admin Password.");
             return;
@@ -526,7 +694,6 @@
             return;
         }
 
-        // ایجاد پکیج دیتا جهت ارسال به دیتابیس یا ذخیره در صف آفلاین
         const txPayload = {
             logId: logId,
             barcode: barcode,
@@ -535,7 +702,6 @@
         };
 
         if (navigator.onLine) {
-            // مسیر آنلاین استاندارد - مستقیم در Supabase اعمال کن
             try {
                 await executeVoidOnServer(txPayload);
                 alert("✅ Success! Transaction successfully voided on server.");
@@ -545,29 +711,27 @@
                 pushToOfflineQueue(txPayload);
             }
         } else {
-            // مسیر آفلاین هوشمند - در صف مرورگر ذخیره کن
             pushToOfflineQueue(txPayload);
-            alert("📡 Device is Offline! The correction has been securely queued locally. It will auto-sync the millisecond you reconnect.");
+            alert("📡 Device is Offline! The correction has been securely queued locally.");
             loadManagerialReport();
         }
     }
 
-    // اجرای نهایی کالیبراسیون روی سرور
     async function executeVoidOnServer(payload) {
         const { data: itemData, error: fetchError } = await _supabase
             .from('system_inventory')
-            .select('Quantity')
+            .select('Stock') // اصلاح فیلد کدهای قدیمی بر اساس نام ساختاری جدید شما
             .eq('Barcode', payload.barcode)
             .single();
 
         if (fetchError) throw new Error("Item not found on database.");
 
-        const currentQty = itemData.Quantity || 0;
+        const currentQty = itemData.Stock || 0;
         const correctedQty = currentQty - payload.qtyTransferred; 
 
         const { error: updateInvError } = await _supabase
             .from('system_inventory')
-            .update({ Quantity: correctedQty })
+            .update({ Stock: correctedQty })
             .eq('Barcode', payload.barcode);
 
         if (updateInvError) throw updateInvError;
@@ -580,7 +744,7 @@
         if (updateLogError) throw updateLogError;
     }
 
-    // ۵. توابع کمکی کار با IndexedDB (مدیریت صف آفلاین)
+    // ۵. توابع کمکی کار با IndexedDB
     function pushToOfflineQueue(item) {
         if (!db) return;
         const transaction = db.transaction(["void_queue"], "readwrite");
@@ -614,7 +778,7 @@
         });
     }
 
-    // ۶. همگام‌ساز خودکار دیتا (Sync Engine) به محض وصل شدن اینترنت
+    // ۶. همگام‌ساز خودکار دیتا (Sync Engine)
     async function syncOfflineQueue() {
         getOfflineQueueItems(async (items) => {
             if (items.length === 0) return;
@@ -626,19 +790,17 @@
 
             for (const item of items) {
                 try {
-                    // تک تک پکیج‌های انبارداری ذخیره شده در زمان قطعی شبکه را روی سرور اعمال کن
                     await executeVoidOnServer(item);
-                    // حذف از صف مرورگر پس از ارسال موفق
                     store.delete(item.id);
                     console.log(`Successfully synced local ID: ${item.id}`);
                 } catch (err) {
-                    console.error(`Failed to sync item ${item.id}, will retry next time:`, err);
+                    console.error(`Failed to sync item ${item.id}:`, err);
                 }
             }
 
             transaction.oncomplete = function() {
                 updateOfflineBadgeCount();
-                loadManagerialReport(); // جدول را با دیتای تازه سرور بازنشانی کن
+                loadManagerialReport();
             };
         });
     }
