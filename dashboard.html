@@ -55,6 +55,7 @@
         }
         h1 { margin: 0; font-size: 22px; color: #0f172a; font-weight: 700; }
         
+        /* استایل‌های مربوط به وضعیت اتصال */
         .status-badges {
             display: flex;
             gap: 10px;
@@ -87,6 +88,7 @@
             display: none;
         }
         
+        /* بخش جدید آپلودر سیستم */
         .upload-section {
             background: #ffffff;
             padding: 24px;
@@ -166,42 +168,21 @@
             flex-direction: column;
             gap: 8px;
             flex: 1;
-            min-width: 180px;
+            min-width: 200px;
         }
         label { font-size: 13px; font-weight: 600; color: #64748b; text-transform: uppercase; }
-        input[type="date"], select {
+        input[type="date"] {
             padding: 12px;
             border: 1.5px solid #e2e8f0;
             border-radius: 8px;
             font-size: 15px;
             background-color: #f8fafc;
             outline: none;
-            color: #334155;
         }
-        input[type="date"]:focus, select:focus {
+        input[type="date"]:focus {
             border-color: #3b82f6;
             background-color: #fff;
         }
-        
-        /* استایل اختصاصی برای دکمه فیلتر معکوس فروش */
-        .toggle-filter-btn {
-            padding: 12px 18px;
-            background-color: #f1f5f9;
-            color: #475569;
-            border: 1.5px solid #cbd5e1;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .toggle-filter-btn.active {
-            background-color: #6366f1;
-            color: white;
-            border-color: #4f46e5;
-            box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.2);
-        }
-
         .generate-btn {
             padding: 13px 28px;
             background-color: #3b82f6;
@@ -213,7 +194,9 @@
             cursor: pointer;
             box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
         }
-        .generate-btn:hover { background-color: #2563eb; }
+        .generate-btn:hover {
+            background-color: #2563eb;
+        }
 
         .stats-grid {
             display: grid;
@@ -256,7 +239,7 @@
             border-collapse: collapse;
             text-align: left;
             font-size: 14px;
-            min-width: 950px;
+            min-width: 850px;
         }
         th {
             background-color: #f8fafc;
@@ -284,24 +267,9 @@
         }
         .badge.intake { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
         .badge.movement { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
-        .badge.autosale { background: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
         .badge.voided { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; text-decoration: line-through; }
         .badge.pending-sync { background: #ffedd5; color: #ea580c; border: 1px solid #fed7aa; animation: pulse 2s infinite; }
         
-        /* استایل هشدار موجودی پایین */
-        .low-stock-alert {
-            background-color: #fee2e2;
-            color: #ef4444;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 700;
-            margin-left: 6px;
-            border: 1px solid #fca5a5;
-            display: inline-block;
-            animation: pulse 1.5s infinite;
-        }
-
         @keyframes pulse {
             0% { opacity: 0.6; }
             50% { opacity: 1; }
@@ -382,19 +350,12 @@
             <label for="date-end-picker">End Date</label>
             <input type="date" id="date-end-picker">
         </div>
-        <div class="form-group">
-            <label for="category-dropdown">Category Filter</label>
-            <select id="category-dropdown">
-                <option value="Bulk">All Categories (Bulk)</option>
-            </select>
-        </div>
-        <button class="toggle-filter-btn" id="exclude-sales-toggle" onclick="toggleSalesFilter()">📋 Show All Logs</button>
         <button class="generate-btn" onclick="loadManagerialReport()">Generate Report</button>
     </div>
 
     <div class="stats-grid">
         <div class="stat-card total-req">
-            <div class="stat-title">Filtered Active Logs</div>
+            <div class="stat-title">Total Active Logs</div>
             <div id="stat-count" class="stat-value">0</div>
         </div>
         <div class="stat-card total-intake">
@@ -415,14 +376,13 @@
                     <th>Barcode</th>
                     <th>Item Name</th>
                     <th>Activity / Operator</th>
-                    <th>Showroom Live Qty</th>
                     <th>Qty Change</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody id="report-tbody">
                 <tr>
-                    <td colspan="7" class="loading-text">Select options and click "Generate Report"</td>
+                    <td colspan="6" class="loading-text">Select a date range and click "Generate Report"</td>
                 </tr>
             </tbody>
         </table>
@@ -438,22 +398,8 @@
 
     let db;
     let cachedLogs = [];
-    let excludeSalesMode = false; // فلگ مدیریت فیلتر معکوس تراکنش‌های فروش سیستمی
 
-    // دکمه مدیریت نوع فیلتر لاگ‌ها (بند ۲)
-    function toggleSalesFilter() {
-        excludeSalesMode = !excludeSalesMode;
-        const btn = document.getElementById('exclude-sales-toggle');
-        if (excludeSalesMode) {
-            btn.textContent = "⚙️ Manual Movements & Intake Only";
-            btn.classList.add('active');
-        } else {
-            btn.textContent = "📋 Show All Logs";
-            btn.classList.remove('active');
-        }
-        applyClientSideFilters();
-    }
-
+    // موتور اختصاصی خواندن و ارسال پکیج دیتای دیتابیس با قابلیت هوشمند Upsert
     async function handleCSVUpload() {
         if (!navigator.onLine) {
             alert("⛔ Sync operations require an active network connection. You cannot sync stock files while offline.");
@@ -478,10 +424,12 @@
             return;
         }
 
+        // تغییر وضعیت دکمه جهت جلوگیری از تکرار کلیک کلید
         syncBtn.disabled = true;
         syncBtn.textContent = "Processing & Syncing data...";
         errDisplay.style.display = 'none';
 
+        // اجرای فرآیند پارس با کتابخانه پاپا‌پارس
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
@@ -489,23 +437,28 @@
                 const csvRows = results.data;
                 const formattedRows = [];
 
+                // یکسان‌سازی فرمت هدرها متناسب با ساختار دیتابیس سوپابیس شما
                 for (let row of csvRows) {
                     const barcode = row['Barcode'] || row['barcode'];
                     const itemName = row['Item Name'] || row['item name'] || row['ItemName'];
                     const itemCode = row['Item Code'] || row['item code'] || row['ItemCode'];
-                    const category = row['Category'] || row['category'] || 'Uncategorized';
-                    let rawStock = row['Stock'] || row['stock'] || row['Quantity'] || row['quantity'] || '0';
+                    // خواندن مقدار اولیه از فایل
+                let rawStock = row['Stock'] || row['stock'] || row['Quantity'] || row['quantity'] || '0';
 
+                // ۱. تبدیل به متن صریح جهت جلوگیری از خطا
                     rawStock = String(rawStock); 
+
+                // ۲. حذف کاماها (ویرگول‌ها) از داخل متن عدد
                     rawStock = rawStock.replace(/,/g, ''); 
-                    const stock = Math.round(parseFloat(rawStock) || 0);
+
+                // ۳. تبدیل به عدد اعشاری و سپس رند کردن آن به عدد صحیح (حذف .00)
+                const stock = Math.round(parseFloat(rawStock) || 0);
 
                     if (barcode) {
                         formattedRows.push({
                             Barcode: barcode.trim(),
                             "Item Name": itemName ? itemName.trim() : 'System Product',
                             "Item Code": itemCode ? itemCode.trim() : '',
-                            Category: category.trim(),
                             Stock: stock
                         });
                     }
@@ -519,6 +472,8 @@
                 }
 
                 try {
+                    // ارسال فوق‌العاده هوشمند دیتای دسته‌ای با متد رسمی اپسرت دیتابیس سوپابیس
+                    // فیلد onConflict کلید اصلی شما یعنی بارکد را هدف قرار می‌دهد
                     const { error } = await _supabase
                         .from('system_inventory')
                         .upsert(formattedRows, { onConflict: 'Barcode' });
@@ -526,9 +481,8 @@
                     if (error) throw error;
 
                     alert(`🎉 Excellent! Successfully matched and updated [ ${formattedRows.length} ] products. Showroom levels auto-recalibrated via triggers.`);
-                    fileInput.value = ""; 
-                    await loadCategories(); // بازنشانی فیلتر دسته‌بندی‌ها در صورت وجود دسته جدید
-                    loadManagerialReport(); 
+                    fileInput.value = ""; // ریسیت فیلد فایل
+                    loadManagerialReport(); // بازنشانی لیست گزارشات
                 } catch (err) {
                     console.error(err);
                     errDisplay.textContent = `🚨 Upsert Engine Error: ${err.message || 'Check database constraints.'}`;
@@ -546,6 +500,7 @@
         });
     }
 
+    // ۱. مقداردهی اولیه دیتابیس محلی مرورگر (IndexedDB)
     function initOfflineStorage() {
         const request = indexedDB.open("WarehouseOfflineDB", 1);
         
@@ -569,6 +524,7 @@
         };
     }
 
+    // ۲. پایش مداوم وضعیت شبکه اینترنت
     function updateNetworkStatus() {
         const badge = document.getElementById('network-status');
         const uploadPanel = document.getElementById('upload-panel');
@@ -589,36 +545,7 @@
     window.addEventListener('online', updateNetworkStatus);
     window.addEventListener('offline', updateNetworkStatus);
 
-    // لود داینامیک دسته‌بندی‌ها از جدول اصلی دیتابیس (بند ۱)
-    async function loadCategories() {
-        if (!navigator.onLine) return;
-        try {
-            const { data, error } = await _supabase
-                .from('system_inventory')
-                .select('Category');
-            
-            if (error) throw error;
-            
-            if (data) {
-                const uniqueCategories = [...new Set(data.map(item => item.Category).filter(Boolean))];
-                const dropdown = document.getElementById('category-dropdown');
-                
-                // حفظ آپشن اول و پاک کردن مابقی جهت جلوگیری از تکرار مجدد
-                dropdown.innerHTML = '<option value="Bulk">All Categories (Bulk)</option>';
-                
-                uniqueCategories.sort().forEach(cat => {
-                    const opt = document.createElement('option');
-                    opt.value = cat;
-                    opt.textContent = cat;
-                    dropdown.appendChild(opt);
-                });
-            }
-        } catch (e) {
-            console.error("Error loading categories:", e);
-        }
-    }
-
-    window.onload = async function() {
+    window.onload = function() {
         initOfflineStorage();
         updateNetworkStatus();
 
@@ -628,15 +555,10 @@
         
         document.getElementById('date-start-picker').value = firstDay;
         document.getElementById('date-end-picker').value = today;
-        
-        await loadCategories();
         loadManagerialReport();
-
-        // اضافه کردن Event Listener برای فیلتر آنی دسته‌بندی
-        document.getElementById('category-dropdown').addEventListener('change', applyClientSideFilters);
     };
 
-    // متد اصلی بارگذاری اطلاعات خام از سرور یا کش محلی
+    // ۳. خواندن اطلاعات از دیتابیس با ادغام صف محلی آفلاین
     async function loadManagerialReport() {
         const startDate = document.getElementById('date-start-picker').value;
         const endDate = document.getElementById('date-end-picker').value;
@@ -644,7 +566,7 @@
         const errDisplay = document.getElementById('error-display');
         
         errDisplay.style.display = 'none';
-        tbody.innerHTML = '<tr><td colspan="7" class="loading-text">🔄 Fetching logs and analyzing activities...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="loading-text">🔄 Fetching logs and analyzing activities...</td></tr>';
 
         let onlineLogs = [];
 
@@ -689,217 +611,87 @@
                 }
             });
 
-            // ذخیره لاگ‌های خام ترکیب شده در متغیر سراسری جهت فیلترهای چندگانه کلاینت
-            window.currentMergedLogs = mergedLogs;
-            await applyClientSideFilters();
-        });
-    }
-
-    // فیلتراسیون کلاینت و رندر نهایی جدول بر اساس بند ۱ و ۲ و ۳
-  async function applyClientSideFilters() {
-    const tbody = document.getElementById('report-tbody');
-    let logsToRender = window.currentMergedLogs || [];
-    
-    // ۱. پاکسازی جدول و نمایش حالت پیش‌فرض
-    if (logsToRender.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="loading-text">ℹ️ No activities found.</td></tr>';
-        updateKPIs(0, 0, 0);
-        return;
-    }
-
-    const selectedCategory = document.getElementById('category-dropdown').value;
-    const uniqueBarcodes = [...new Set(logsToRender.map(l => l.Barcode || l.barcode))].filter(Boolean);
-    
-    // این متغیر نگهدارنده اطلاعات ترکیبی است
-    let productMap = {};
-
-    // ۲. دریافت اطلاعات از دیتابیس (فقط اگر آنلاین هستیم)
-    if (navigator.onLine && uniqueBarcodes.length > 0) {
-        try {
-            // دریافت نام و دسته‌بندی
-            const { data: baseProducts, error: baseError } = await _supabase
-                .from('system_inventory')
-                .select('Barcode, "Item Name", Category')
-                .in('Barcode', uniqueBarcodes);
-            
-            // دریافت موجودی شوروم (با ستون اختصاصی شما: showroom_qty)
-            const { data: showroomStocks, error: showroomError } = await _supabase
-                .from('showroom_inventory')
-                .select('Barcode, showroom_qty')
-                .in('Barcode', uniqueBarcodes);
-
-            if (baseError) console.error("Error fetching system_inventory:", baseError);
-            if (showroomError) console.error("Error fetching showroom_inventory:", showroomError);
-
-            // ۳. پر کردن نقشه (Map)
-            if (baseProducts) {
-                baseProducts.forEach(p => {
-                    productMap[p.Barcode] = {
-                        name: p['Item Name'],
-                        category: p.Category || 'Uncategorized',
-                        liveStock: 0 // مقدار پیش‌فرض
-                    };
-                });
+            if (mergedLogs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="loading-text">ℹ️ No activities found for this range.</td></tr>';
+                updateKPIs(0, 0, 0);
+                return;
             }
+
+            const uniqueBarcodes = [...new Set(mergedLogs.map(l => l.Barcode || l.barcode))].filter(Boolean);
             
-            // ۴. اعمال موجودی شوروم روی نقشه
-            if (showroomStocks) {
-                showroomStocks.forEach(s => {
-                    if (productMap[s.Barcode]) {
-                        productMap[s.Barcode].liveStock = s.showroom_qty || 0;
-                    } else {
-                        // اگر کالا در سیستم اصلی نیست ولی در شوروم هست
-                        productMap[s.Barcode] = {
-                            name: 'Unknown Item',
-                            category: 'N/A',
-                            liveStock: s.showroom_qty || 0
-                        };
-                    }
-                });
-            }
-        } catch (e) {
-            console.error("Critical error in data fetch:", e);
-        }
-    }
-
-    // ۵. فیلتر کردن لاگ‌ها (اعمال فیلتر دسته‌بندی)
-    const filteredLogs = logsToRender.filter(log => {
-        const barcode = log.Barcode || log.barcode;
-        const itemInfo = productMap[barcode] || { category: 'Uncategorized' };
-        
-        if (selectedCategory !== "All" && itemInfo.category !== selectedCategory) {
-            return false;
-        }
-        return true;
-    });
-
-    // ۶. نمایش در جدول
-    tbody.innerHTML = '';
-    filteredLogs.forEach(log => {
-        const barcode = log.Barcode || log.barcode;
-        const itemInfo = productMap[barcode] || { name: 'Loading...', category: '-', liveStock: 0 };
-        
-        const row = `
-            <tr>
-                <td>${barcode}</td>
-                <td>${itemInfo.name}</td>
-                <td>${itemInfo.category}</td>
-                <td>${log.Date}</td>
-                <td>${log.Action}</td>
-                <td>${log.Quantity}</td>
-                <td style="font-weight:bold; color: ${itemInfo.liveStock > 0 ? 'green' : 'red'}">
-                    ${itemInfo.liveStock}
-                </td>
-            </tr>
-        `;
-        tbody.innerHTML += row;
-    });
-
-    // ۷. آپدیت کردن KPIها
-    updateKPIs(filteredLogs.length, 0, 0); 
-}
-    
-    // ... ادامه تابع که از متغیر productMap استفاده می‌کند (نیازی به تغییر ندارد)
-        
-        if (showroomStocks) {
-            showroomStocks.forEach(s => {
-                if (productMap[s.Barcode]) {
-                    productMap[s.Barcode].liveStock = s.Quantity || 0;
+            let productMap = {};
+            if (navigator.onLine && uniqueBarcodes.length > 0) {
+                const { data: products } = await _supabase
+                    .from('system_inventory')
+                    .select('Barcode, "Item Name"')
+                    .in('Barcode', uniqueBarcodes);
+                if (products) {
+                    products.forEach(p => { productMap[p.Barcode] = p['Item Name']; });
                 }
-            });
-        }
-    }
+            }
 
-    // ... ادامه منطق فیلترها طبق روال قبلی ...
-        
-   
-        // ۱. اعمال فیلتر بر اساس دسته‌بندی (بند ۱)
-        if (selectedCategory !== "Bulk") {
-            logsToRender = logsToRender.filter(log => {
-                const b = log.Barcode || log.barcode;
-                return productMap[b] && productMap[b].category === selectedCategory;
-            });
-        }
+            let totalRequests = 0;
+            let totalIntakeQty = 0;
+            let totalMovementQty = 0;
 
-        // ۲. اعمال فیلتر معکوس جهت حذف فروش خودکار سیستمی (بند ۲)
-        if (excludeSalesMode) {
-            logsToRender = logsToRender.filter(log => {
+            tbody.innerHTML = '';
+
+            mergedLogs.forEach(log => {
+                const currentBarcode = log.Barcode || log.barcode || '---';
+                const itemName = productMap[currentBarcode] || 'System Item';
+                const qty = Math.abs(log.qty_transferred || 0);
                 const worker = log.worker_name || '';
-                return !worker.includes('System Auto-Sale');
+                const logDate = new Date(log.created_at).toLocaleString('en-GB', { timeZone: 'Asia/Muscat' });
+                
+                const isVoided = log.status && log.status === 'Voided';
+
+                let badgeClass = 'badge movement';
+                if (log.isOfflinePending) {
+                    badgeClass = 'badge pending-sync';
+                } else if (isVoided) {
+                    badgeClass = 'badge voided';
+                } else if (worker.includes('Direct Intake')) {
+                    badgeClass = 'badge intake';
+                    totalIntakeQty += qty;
+                    totalRequests++;
+                } else {
+                    badgeClass = 'badge movement';
+                    totalMovementQty += qty;
+                    totalRequests++;
+                }
+
+                // زیباتر کردن رنگ و برچسب لاگ‌های خودکار دیتابیس در جدول نهایی
+                if (worker.includes('System Auto-Sale')) {
+                    badgeClass = 'badge voided'; 
+                }
+
+                let actionButton = isVoided 
+                    ? `<span style="color: #94a3b8; font-size: 12px;">❌ Voided</span>`
+                    : `<button class="void-btn" onclick="voidTransaction(${log.id}, '${currentBarcode}', ${log.qty_transferred})">🚫 Void</button>`;
+                
+                if (log.isOfflinePending) {
+                    actionButton = `<span style="color: #ea580c; font-size: 12px; font-weight:600;">⏳ Syncing...</span>`;
+                }
+
+                tbody.innerHTML += `
+                    <tr style="${isVoided ? 'opacity: 0.6; background-color: #f8fafc;' : ''}">
+                        <td style="font-size: 13px; font-weight: 600; color: #64748b;">${logDate}</td>
+                        <td><code>${currentBarcode}</code></td>
+                        <td style="font-weight: 600; color: #1e293b; ${isVoided ? 'text-decoration: line-through;' : ''}">${itemName}</td>
+                        <td><span class="${badgeClass}">${isVoided ? 'VOID: ' + worker : worker}</span></td>
+                        <td style="font-weight: 700; font-size: 15px; text-decoration: ${isVoided ? 'line-through' : 'none'}; color: ${isVoided ? '#94a3b8' : ((log.qty_transferred || 0) >= 0 ? '#10b981' : '#ef4444')}">
+                            ${(log.qty_transferred || 0) > 0 ? '+' : ''}${log.qty_transferred || 0}
+                        </td>
+                        <td>${actionButton}</td>
+                    </tr>
+                `;
             });
-        }
 
-        if (logsToRender.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="loading-text">ℹ️ No activities match the selected filters.</td></tr>';
-            updateKPIs(0, 0, 0);
-            return;
-        }
-
-        let totalRequests = 0;
-        let totalIntakeQty = 0;
-        let totalMovementQty = 0;
-
-        tbody.innerHTML = '';
-
-        logsToRender.forEach(log => {
-            const currentBarcode = log.Barcode || log.barcode || '---';
-            const itemInfo = productMap[currentBarcode] || { name: 'System Item', liveStock: 0 };
-            const qty = Math.abs(log.qty_transferred || 0);
-            const worker = log.worker_name || '';
-            const logDate = new Date(log.created_at).toLocaleString('en-GB', { timeZone: 'Asia/Muscat' });
-            
-            const isVoided = log.status && log.status === 'Voided';
-
-            let badgeClass = 'badge movement';
-            if (log.isOfflinePending) {
-                badgeClass = 'badge pending-sync';
-            } else if (isVoided) {
-                badgeClass = 'badge voided';
-            } else if (worker.includes('Direct Intake')) {
-                badgeClass = 'badge intake';
-                totalIntakeQty += qty;
-                totalRequests++;
-            } else if (worker.includes('System Auto-Sale')) {
-                badgeClass = 'badge autosale';
-                totalRequests++;
-            } else {
-                badgeClass = 'badge movement';
-                totalMovementQty += qty;
-                totalRequests++;
-            }
-
-            let actionButton = isVoided 
-                ? `<span style="color: #94a3b8; font-size: 12px;">❌ Voided</span>`
-                : `<button class="void-btn" onclick="voidTransaction(${log.id}, '${currentBarcode}', ${log.qty_transferred})">🚫 Void</button>`;
-            
-            if (log.isOfflinePending) {
-                actionButton = `<span style="color: #ea580c; font-size: 12px; font-weight:600;">⏳ Syncing...</span>`;
-            }
-
-            // سیستم هشدار موجودی کمتر از ۲ عدد در شورووم (بند ۳)
-            let stockDisplay = `${itemInfo.liveStock} Pcs`;
-            if (itemInfo.liveStock < 2 && !isVoided) {
-                stockDisplay += ` <span class="low-stock-alert">⚠️ LOW STOCK</span>`;
-            }
-
-            tbody.innerHTML += `
-                <tr style="${isVoided ? 'opacity: 0.6; background-color: #f8fafc;' : ''}">
-                    <td style="font-size: 13px; font-weight: 600; color: #64748b;">${logDate}</td>
-                    <td><code>${currentBarcode}</code></td>
-                    <td style="font-weight: 600; color: #1e293b; ${isVoided ? 'text-decoration: line-through;' : ''}">${itemInfo.name}</td>
-                    <td><span class="${badgeClass}">${isVoided ? 'VOID: ' + worker : worker}</span></td>
-                    <td style="font-weight: 600; color: #334155;">${stockDisplay}</td>
-                    <td style="font-weight: 700; font-size: 15px; text-decoration: ${isVoided ? 'line-through' : 'none'}; color: ${isVoided ? '#94a3b8' : ((log.qty_transferred || 0) >= 0 ? '#10b981' : '#ef4444')}">
-                        ${(log.qty_transferred || 0) > 0 ? '+' : ''}${log.qty_transferred || 0}
-                    </td>
-                    <td>${actionButton}</td>
-                </tr>
-            `;
+            updateKPIs(totalRequests, totalIntakeQty, totalMovementQty);
         });
-
-        updateKPIs(totalRequests, totalIntakeQty, totalMovementQty);
     }
 
+    // ۴. منطق VoidTransaction با مدیریت حالت آفلاین
     async function voidTransaction(logId, barcode, qtyTransferred) {
         const password = prompt("🔒 Admin Access Required.\nPlease enter the Manager Password to void this record:");
         if (password === null) return; 
@@ -938,7 +730,7 @@
     async function executeVoidOnServer(payload) {
         const { data: itemData, error: fetchError } = await _supabase
             .from('system_inventory')
-            .select('Stock')
+            .select('Stock') // اصلاح فیلد کدهای قدیمی بر اساس نام ساختاری جدید شما
             .eq('Barcode', payload.barcode)
             .single();
 
@@ -962,6 +754,7 @@
         if (updateLogError) throw updateLogError;
     }
 
+    // ۵. توابع کمکی کار با IndexedDB
     function pushToOfflineQueue(item) {
         if (!db) return;
         const transaction = db.transaction(["void_queue"], "readwrite");
@@ -995,6 +788,7 @@
         });
     }
 
+    // ۶. همگام‌ساز خودکار دیتا (Sync Engine)
     async function syncOfflineQueue() {
         getOfflineQueueItems(async (items) => {
             if (items.length === 0) return;
