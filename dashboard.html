@@ -723,7 +723,7 @@ async function applyClientSideFilters() {
         // نکته: اگر ستون شما Quantity است بجای Stock، حتما آن را اینجا بنویسید
         const { data: showroomStocks } = await _supabase
             .from('showroom_inventory')
-            .select('Barcode, Quantity') 
+            .select('Barcode, showroom_qty') 
             .in('Barcode', uniqueBarcodes);
 
         // ۳. ساخت نقشه ترکیبی
