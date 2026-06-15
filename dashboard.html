@@ -712,18 +712,19 @@ async function applyClientSideFilters() {
     
     let productMap = {};
 
+   // ... داخل تابع applyClientSideFilters
+
     if (navigator.onLine && uniqueBarcodes.length > 0) {
-        // ۱. دریافت اطلاعات پایه (نام و دسته‌بندی) از جدول مرجع
+        // ۱. دریافت اطلاعات پایه از سیستم اینونتوری
         const { data: baseProducts } = await _supabase
             .from('system_inventory')
             .select('Barcode, "Item Name", Category')
             .in('Barcode', uniqueBarcodes);
 
-        // ۲. دریافت موجودی لحظه‌ای از جدول شوروم
-        // نکته: اگر ستون شما Quantity است بجای Stock، حتما آن را اینجا بنویسید
+        // ۲. دریافت موجودی از جدول شوروم (با نام ستون صحیح: showroom_qty)
         const { data: showroomStocks } = await _supabase
             .from('showroom_inventory')
-            .select('Barcode, showroom_qty') 
+            .select('Barcode, showroom_qty') // تغییر نام ستون اینجا انجام شد
             .in('Barcode', uniqueBarcodes);
 
         // ۳. ساخت نقشه ترکیبی
@@ -732,10 +733,30 @@ async function applyClientSideFilters() {
                 productMap[p.Barcode] = {
                     name: p['Item Name'],
                     category: p.Category || 'Uncategorized',
-                    liveStock: 0 // مقدار پیش‌فرض
+                    liveStock: 0 
                 };
             });
         }
+        
+        // ۴. اختصاص موجودی به بارکد مربوطه
+        if (showroomStocks) {
+            showroomStocks.forEach(s => {
+                // اگر قبلا در سیستم بوده، فقط مقدار استوک را آپدیت کن
+                if (productMap[s.Barcode]) {
+                    productMap[s.Barcode].liveStock = s.showroom_qty || 0; // استفاده از نام ستون جدید
+                } else {
+                    // اگر در سیستم نیست ولی در شوروم هست
+                    productMap[s.Barcode] = {
+                        name: 'Unknown Item',
+                        category: 'N/A',
+                        liveStock: s.showroom_qty || 0 // استفاده از نام ستون جدید
+                    };
+                }
+            });
+        }
+    }
+    
+    // ... ادامه تابع که از متغیر productMap استفاده می‌کند (نیازی به تغییر ندارد)
         
         if (showroomStocks) {
             showroomStocks.forEach(s => {
