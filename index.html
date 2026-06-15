@@ -224,7 +224,6 @@
                 <option value="out">Move to Showroom (Whse -> Showroom)</option>
                 <option value="in">Return to Warehouse (Showroom -> Whse)</option>
                 <option value="intake">➕ Direct Stock Intake (Add New Qty to Whse Shelf)</option>
-                <option value="sale">📉 Record Live Sale (Deduct directly from Showroom)</option>
             </select>
         </div>
 
@@ -250,7 +249,7 @@
 <script>
     // تنظیمات متصل‌کننده اصلی دیتابیس هوشمند
     const SUPABASE_URL = 'https://qmurpnbrnmyjdxqjhybz.supabase.co'; 
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWjoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'; 
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'; 
      
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -309,7 +308,6 @@
     function handleTypeChange() {
         const txType = typeSelect.value;
         newLocGroup.style.display = 'none';
-        document.getElementById('loc-select-group').style.display = 'block';
 
         if (txType === 'out') {
             submitBtn.textContent = 'Confirm Stock Movement';
@@ -324,10 +322,6 @@
             submitBtn.style.backgroundColor = '#d97706'; 
             document.getElementById('loc-select-group').querySelector('label').textContent = "Select Existing Shelf:";
             newLocGroup.style.display = 'block'; 
-        } else if (txType === 'sale') {
-            submitBtn.textContent = '📉 Confirm Live Sale (Deduct from Showroom)';
-            submitBtn.style.backgroundColor = '#e53e3e';
-            document.getElementById('loc-select-group').style.display = 'none';
         }
     }
 
@@ -515,13 +509,8 @@
 
         let currentLocQty = locBalances[selectedLoc] || 0;
 
-        // بررسی موجودی قبل از تراکنش برای خروج انبار یا ثبت فروش
         if (txType === 'out' && qty > currentLocQty) {
-            alert('Error: Not enough stock in this specific warehouse location!');
-            return;
-        }
-        if (txType === 'sale' && qty > currentShowroomQty) {
-            alert('Error: Not enough stock in Showroom to record this sale!');
+            alert('Error: Not enough stock in this specific location!');
             return;
         }
 
@@ -532,8 +521,6 @@
             actionMessage = `🔹 TRANSACTION TYPE: Move to Showroom\n📦 ITEM: ${itemName}\n🔢 QTY TO REMOVE FROM WHSE: -${qty} pcs\n📍 FROM SHELF: [ ${selectedLoc} ]`;
         } else if (txType === 'in') {
             actionMessage = `🔹 TRANSACTION TYPE: Return to Warehouse\n📦 ITEM: ${itemName}\n🔢 QTY TO ADD BACK TO WHSE: +${qty} pcs\n📍 TARGET SHELF: [ ${selectedLoc} ]`;
-        } else if (txType === 'sale') {
-            actionMessage = `🔹 TRANSACTION TYPE: Live Sale Execution\n📦 ITEM: ${itemName}\n🔢 QTY TO DEDUCT FROM SHOWROOM: -${qty} pcs`;
         }
 
         const confirmAction = confirm(`${actionMessage}\n\nAre you sure you want to update the database?`);
@@ -553,47 +540,30 @@
             newShowroomQty = currentShowroomQty - qty;
         } else if (txType === 'intake') {
             newLocQty = currentLocQty + qty; 
-        } else if (txType === 'sale') {
-            newShowroomQty = currentShowroomQty - qty;
         }
 
-        // اگر تراکنش از نوع فروش زنده نباشد، موجودی قفسه انبار آپدیت می‌شود
-        if (txType !== 'sale') {
-            const { error: whseError } = await _supabase
-                .from('warehouse_inventory')
-                .upsert(
-                    { "Row Labels": barcode, "Attribute": selectedLoc, "Value": newLocQty }, 
-                    { onConflict: 'Row Labels,Attribute' }
-                );
+        const { error: whseError } = await _supabase
+            .from('warehouse_inventory')
+            .upsert(
+                { "Row Labels": barcode, "Attribute": selectedLoc, "Value": newLocQty }, 
+                { onConflict: 'Row Labels,Attribute' }
+            );
 
-            if (whseError) {
-                alert(`Warehouse Update Error: ${whseError.message}`);
-                statusDiv.className = 'status error';
-                statusDiv.textContent = 'Error updating warehouse shelf!';
-                return;
-            }
+        if (whseError) {
+            alert(`Warehouse Update Error: ${whseError.message}`);
+            statusDiv.className = 'status error';
+            statusDiv.textContent = 'Error updating warehouse shelf!';
+            return;
         }
 
-        // آپدیت موجودی شورووم لایو (برای جابجایی‌ها و یا فروش مستقیم)
         if (txType !== 'intake') {
-            const { error: showErr } = await _supabase
-                .from('showroom_inventory')
-                .upsert({ Barcode: barcode, showroom_qty: newShowroomQty }, { onConflict: 'Barcode' });
-
-            if (showErr) {
-                alert(`Showroom Update Error: ${showErr.message}`);
-                statusDiv.className = 'status error';
-                statusDiv.textContent = 'Error updating showroom stock!';
-                return;
-            }
+            await _supabase.from('showroom_inventory').upsert({ Barcode: barcode, showroom_qty: newShowroomQty }, { onConflict: 'Barcode' });
         }
 
-        // تنظیم برچسب اپراتور و تعداد جهت درج در لاگ گزارشات
         let logWorkerName = `${operatorName} (Direct Intake to ${selectedLoc})`;
         let logQty = qty;
         if (txType === 'out') { logWorkerName = `${operatorName} (Shelf ${selectedLoc} -> Showroom)`; logQty = qty; }
         if (txType === 'in') { logWorkerName = `${operatorName} (Showroom -> Shelf ${selectedLoc})`; logQty = -qty; }
-        if (txType === 'sale') { logWorkerName = `${operatorName} (Live Showroom Sale)`; logQty = qty; } // مقدار مثبت برای شمارش خروجی در گزارش
          
         const { error: logError } = await _supabase
             .from('transfer_log')
