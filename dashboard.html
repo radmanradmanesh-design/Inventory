@@ -442,7 +442,17 @@
                     const barcode = row['Barcode'] || row['barcode'];
                     const itemName = row['Item Name'] || row['item name'] || row['ItemName'];
                     const itemCode = row['Item Code'] || row['item code'] || row['ItemCode'];
-                    const stock = parseInt(row['Stock'] || row['stock'] || row['Quantity'] || row['quantity'] || 0, 10);
+                    // خواندن مقدار اولیه از فایل
+                let rawStock = row['Stock'] || row['stock'] || row['Quantity'] || row['quantity'] || '0';
+
+                // ۱. تبدیل به متن صریح جهت جلوگیری از خطا
+                    rawStock = String(rawStock); 
+
+                // ۲. حذف کاماها (ویرگول‌ها) از داخل متن عدد
+                    rawStock = rawStock.replace(/,/g, ''); 
+
+                // ۳. تبدیل به عدد اعشاری و سپس رند کردن آن به عدد صحیح (حذف .00)
+                const stock = Math.round(parseFloat(rawStock) || 0);
 
                     if (barcode) {
                         formattedRows.push({
