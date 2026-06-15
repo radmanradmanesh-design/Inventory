@@ -716,7 +716,7 @@
                 }
 
                 // تغییر رنگ باکس وضعیت در صورت اتمام یا کم بودن کالا در شووروم
-                const stockAlertClass = parseInt(liveShowroomStock) <= 2 ? 'showroom-live-indicator low-stock' : 'showroom-live-indicator';
+                const stockAlertClass = parseInt(liveShowroomStock) <= 10 ? 'showroom-live-indicator low-stock' : 'showroom-live-indicator';
 
                 tbody.innerHTML += `
                     <tr style="${isVoided ? 'opacity: 0.6; background-color: #f8fafc;' : ''}">
