@@ -16,7 +16,7 @@
             -webkit-font-smoothing: antialiased;
         }
         .dashboard-container {
-            max-width: 1300px;
+            max-width: 1200px;
             margin: 0 auto;
         }
         
@@ -55,6 +55,7 @@
         }
         h1 { margin: 0; font-size: 22px; color: #0f172a; font-weight: 700; }
         
+        /* استایل‌های مربوط به وضعیت اتصال */
         .status-badges {
             display: flex;
             gap: 10px;
@@ -69,8 +70,14 @@
             font-weight: 600;
             transition: all 0.3s ease;
         }
-        .live-badge.online { background-color: #dcfce7; color: #15803d; }
-        .live-badge.offline { background-color: #fee2e2; color: #b91c1c; }
+        .live-badge.online {
+            background-color: #dcfce7;
+            color: #15803d;
+        }
+        .live-badge.offline {
+            background-color: #fee2e2;
+            color: #b91c1c;
+        }
         .queue-badge {
             background-color: #fef3c7;
             color: #d97706;
@@ -81,6 +88,7 @@
             display: none;
         }
         
+        /* بخش جدید آپلودر سیستم */
         .upload-section {
             background: #ffffff;
             padding: 24px;
@@ -90,23 +98,59 @@
             border: 1px solid #e2e8f0;
             border-left: 5px solid #3b82f6;
         }
-        .upload-title { font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 6px; }
-        .upload-subtitle { font-size: 13px; color: #64748b; margin-bottom: 16px; }
-        .upload-row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
-        .file-input-wrapper { position: relative; flex: 1; min-width: 260px; }
+        .upload-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .upload-subtitle {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 16px;
+        }
+        .upload-row {
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .file-input-wrapper {
+            position: relative;
+            flex: 1;
+            min-width: 260px;
+        }
         input[type="file"] {
-            width: 100%; padding: 10px; background: #f8fafc;
-            border: 1.5px dashed #cbd5e1; border-radius: 8px; font-size: 14px; cursor: pointer;
+            width: 100%;
+            padding: 10px;
+            background: #f8fafc;
+            border: 1.5px dashed #cbd5e1;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
         }
         .sync-btn {
-            padding: 12px 28px; background-color: #2563eb; color: white; border: none;
-            border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
-            transition: background 0.2s; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+            padding: 12px 28px;
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
         }
         .sync-btn:hover { background-color: #1d4ed8; }
-        .sync-btn:disabled { background-color: #94a3b8; cursor: not-allowed; box-shadow: none; }
+        .sync-btn:disabled {
+            background-color: #94a3b8;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
 
-        /* جعبه فیلترهای ارتقا یافته با کتگوری و سوئیچ فروش روز */
         .filter-box {
             background: #ffffff;
             padding: 24px;
@@ -115,7 +159,7 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
             border: 1px solid #f1f5f9;
             display: flex;
-            gap: 16px;
+            gap: 20px;
             align-items: flex-end;
             flex-wrap: wrap;
         }
@@ -124,106 +168,149 @@
             flex-direction: column;
             gap: 8px;
             flex: 1;
-            min-width: 180px;
+            min-width: 200px;
         }
-        .form-group.checkbox-group {
-            flex-direction: row;
-            align-items: center;
-            min-width: 160px;
-            height: 45px;
-            gap: 10px;
-            cursor: pointer;
-        }
-        label { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
-        input[type="date"], select {
-            padding: 11px; border: 1.5px solid #e2e8f0; border-radius: 8px;
-            font-size: 14px; background-color: #f8fafc; outline: none; color: #334155;
-            width: 100%; box-sizing: border-box;
-        }
-        input[type="date"]:focus, select:focus { border-color: #3b82f6; background-color: #fff; }
-        
-        /* استایل سوئیچ دکمه‌ای فروش روز */
-        .sales-toggle-btn {
-            background: #f1f5f9;
-            border: 1.5px solid #cbd5e1;
-            padding: 11px 16px;
+        label { font-size: 13px; font-weight: 600; color: #64748b; text-transform: uppercase; }
+        input[type="date"] {
+            padding: 12px;
+            border: 1.5px solid #e2e8f0;
             border-radius: 8px;
-            font-size: 13px;
-            font-weight: 600;
-            color: #475569;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            height: 44px;
-            box-sizing: border-box;
+            font-size: 15px;
+            background-color: #f8fafc;
+            outline: none;
         }
-        .sales-toggle-btn.active {
-            background-color: #fee2e2;
-            border-color: #fca5a5;
-            color: #991b1b;
+        input[type="date"]:focus {
+            border-color: #3b82f6;
+            background-color: #fff;
         }
-
         .generate-btn {
-            padding: 12px 24px; background-color: #3b82f6; color: white; border: none;
-            border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
-            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2); height: 44px;
+            padding: 13px 28px;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
         }
-        .generate-btn:hover { background-color: #2563eb; }
+        .generate-btn:hover {
+            background-color: #2563eb;
+        }
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 20px;
             margin-bottom: 24px;
         }
         .stat-card {
-            background: #ffffff; padding: 24px; border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #f1f5f9; position: relative;
+            background: #ffffff;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid #f1f5f9;
+            position: relative;
         }
-        .stat-card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+        }
         .stat-card.total-req::before { background-color: #3b82f6; }
         .stat-card.total-intake::before { background-color: #f59e0b; }
         .stat-card.total-move::before { background-color: #10b981; }
-        .stat-card.total-sales::before { background-color: #ef4444; }
         
         .stat-title { font-size: 13px; color: #64748b; font-weight: 600; text-transform: uppercase; }
-        .stat-value { font-size: 28px; font-weight: 700; margin-top: 10px; color: #1e293b; }
+        .stat-value { font-size: 32px; font-weight: 700; margin-top: 10px; color: #1e293b; }
 
         .report-table-box {
-            background: #ffffff; border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid #f1f5f9; overflow-x: auto;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid #f1f5f9;
+            overflow-x: auto;
         }
-        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; min-width: 950px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 14px;
+            min-width: 850px;
+        }
         th {
-            background-color: #f8fafc; color: #64748b; padding: 16px; font-weight: 600;
-            text-transform: uppercase; font-size: 11px; border-bottom: 2px solid #edf2f7; letter-spacing: 0.5px;
+            background-color: #f8fafc;
+            color: #64748b;
+            padding: 16px;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 12px;
+            border-bottom: 2px solid #edf2f7;
         }
-        td { padding: 16px; border-bottom: 1px solid #f1f5f9; color: #475569; vertical-align: middle; }
+        td {
+            padding: 16px;
+            border-bottom: 1px solid #f1f5f9;
+            color: #475569;
+            vertical-align: middle;
+        }
         tr:hover td { background-color: #f8fafc; }
         
-        .badge { display: inline-block; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
         .badge.intake { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
         .badge.movement { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
-        .badge.autosale { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
         .badge.voided { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; text-decoration: line-through; }
         .badge.pending-sync { background: #ffedd5; color: #ea580c; border: 1px solid #fed7aa; animation: pulse 2s infinite; }
         
-        .showroom-stock-indicator {
-            font-weight: 700; background: #f1f5f9; padding: 4px 8px; border-radius: 6px; color: #334155; font-size: 13px;
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
         }
-        .showroom-stock-indicator.alert { background: #fee2e2; color: #b91c1c; }
 
-        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
         .void-btn {
-            background-color: #ef4444; color: white; border: none; padding: 6px 12px;
-            border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.2s;
+            background-color: #ef4444;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
         }
         .void-btn:hover { background-color: #dc2626; }
-        code { background-color: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; color: #0f172a; }
-        .loading-text { padding: 50px; text-align: center; color: #64748b; font-size: 15px; }
-        .error-box { background-color: #fef2f2; color: #991b1b; padding: 16px; border-radius: 8px; border: 1px solid #fca5a5; margin-bottom: 24px; display: none; }
+
+        code {
+            background-color: #f1f5f9;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            color: #0f172a;
+        }
+        .loading-text {
+            padding: 50px;
+            text-align: center;
+            color: #64748b;
+            font-size: 15px;
+        }
+        .error-box {
+            background-color: #fef2f2;
+            color: #991b1b;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid #fca5a5;
+            margin-bottom: 24px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -243,7 +330,6 @@
 
     <div id="error-display" class="error-box"></div>
 
-    <!-- بخش آپلودر سیستم -->
     <div class="upload-section" id="upload-panel">
         <div class="upload-title">🔄 RetailX Live System Stock Synchronization</div>
         <div class="upload-subtitle">Upload the new core system stock file. It will automatically detect sold items, adjust the showroom live levels and generate audit history.</div>
@@ -255,7 +341,6 @@
         </div>
     </div>
 
-    <!-- پنل فیلترهای ارتقا یافته کاملاً هماهنگ با درخواست شما -->
     <div class="filter-box">
         <div class="form-group">
             <label for="date-start-picker">Start Date</label>
@@ -265,16 +350,6 @@
             <label for="date-end-picker">End Date</label>
             <input type="date" id="date-end-picker">
         </div>
-        <div class="form-group">
-            <label for="category-filter">Category Dropdown</label>
-            <select id="category-filter">
-                <option value="ALL">-- All Categories (Bulk view) --</option>
-            </select>
-        </div>
-        <!-- دکمه ضامن کلیکی برای فیلتر آنی کل فروش‌های روز -->
-        <button type="button" id="sales-only-toggle" class="sales-toggle-btn" onclick="toggleSalesFilter()">
-            <span>🔍 Show Daily Sales Only</span>
-        </button>
         <button class="generate-btn" onclick="loadManagerialReport()">Generate Report</button>
     </div>
 
@@ -284,16 +359,12 @@
             <div id="stat-count" class="stat-value">0</div>
         </div>
         <div class="stat-card total-intake">
-            <div class="stat-title">Units Added (Intake)</div>
+            <div class="stat-title">Total Units Added (Intake)</div>
             <div id="stat-intake" class="stat-value">0 Pcs</div>
         </div>
         <div class="stat-card total-move">
-            <div class="stat-title">Showroom Movements</div>
+            <div class="stat-title">Total Showroom Movements</div>
             <div id="stat-move" class="stat-value">0 Pcs</div>
-        </div>
-        <div class="stat-card total-sales">
-            <div class="stat-title">Detected Daily Sales</div>
-            <div id="stat-sales" class="stat-value">0 Pcs</div>
         </div>
     </div>
 
@@ -303,8 +374,7 @@
                 <tr>
                     <th>Date & Time</th>
                     <th>Barcode</th>
-                    <th>Item Name & Category</th>
-                    <th>Showroom Live Stock</th>
+                    <th>Item Name</th>
                     <th>Activity / Operator</th>
                     <th>Qty Change</th>
                     <th>Actions</th>
@@ -312,7 +382,7 @@
             </thead>
             <tbody id="report-tbody">
                 <tr>
-                    <td colspan="7" class="loading-text">Select a date range and click "Generate Report"</td>
+                    <td colspan="6" class="loading-text">Select a date range and click "Generate Report"</td>
                 </tr>
             </tbody>
         </table>
@@ -321,34 +391,21 @@
 
 <script>
     const SUPABASE_URL = 'https://qmurpnbrnmyjdxqjhybz.supabase.co'; 
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWspaceIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'; 
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'; 
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const ADMIN_PASSWORD = "RadmanAdmin2026"; 
 
     let db;
     let cachedLogs = [];
-    let isSalesOnlyActive = false; // پرچم دکمه کلیکی فروش‌های روز
 
-    // فعال/غیرفعال کردن فیلتر کلیکی فروش‌های روز
-    function toggleSalesFilter() {
-        isSalesOnlyActive = !isSalesOnlyActive;
-        const btn = document.getElementById('sales-only-toggle');
-        if (isSalesOnlyActive) {
-            btn.classList.add('active');
-            btn.innerHTML = '🚨 Viewing: Daily Sales Only';
-        } else {
-            btn.classList.remove('active');
-            btn.innerHTML = '🔍 Show Daily Sales Only';
-        }
-        applyClientSideFilters(); // فیلتر آنی روی دیتای موجود در جدول بدون ریلود کل صفحه
-    }
-
+    // موتور اختصاصی خواندن و ارسال پکیج دیتای دیتابیس با قابلیت هوشمند Upsert
     async function handleCSVUpload() {
         if (!navigator.onLine) {
-            alert("⛔ Sync operations require an active network connection.");
+            alert("⛔ Sync operations require an active network connection. You cannot sync stock files while offline.");
             return;
         }
+
         const fileInput = document.getElementById('retailx-csv-file');
         const syncBtn = document.getElementById('sync-trigger-btn');
         const errDisplay = document.getElementById('error-display');
@@ -357,15 +414,22 @@
             alert("Please select a valid RetailX inventory CSV file first.");
             return;
         }
+
         const file = fileInput.files[0];
+        
         const password = prompt("🔒 Admin Security Lock.\nEnter Master Password to commit live inventory overwrite:");
         if (password === null) return;
-        if (password !== ADMIN_PASSWORD) { alert("⛔ Access Denied!"); return; }
+        if (password !== ADMIN_PASSWORD) {
+            alert("⛔ Access Denied!");
+            return;
+        }
 
+        // تغییر وضعیت دکمه جهت جلوگیری از تکرار کلیک کلید
         syncBtn.disabled = true;
         syncBtn.textContent = "Processing & Syncing data...";
         errDisplay.style.display = 'none';
 
+        // اجرای فرآیند پارس با کتابخانه پاپا‌پارس
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
@@ -373,114 +437,113 @@
                 const csvRows = results.data;
                 const formattedRows = [];
 
+                // یکسان‌سازی فرمت هدرها متناسب با ساختار دیتابیس سوپابیس شما
                 for (let row of csvRows) {
                     const barcode = row['Barcode'] || row['barcode'];
                     const itemName = row['Item Name'] || row['item name'] || row['ItemName'];
                     const itemCode = row['Item Code'] || row['item code'] || row['ItemCode'];
-                    const cat = row['Category'] || row['category'] || 'General';
-                    let rawStock = row['Stock'] || row['stock'] || row['Quantity'] || row['quantity'] || '0';
-                    
-                    rawStock = String(rawStock).replace(/,/g, '');
-                    const stock = Math.round(parseFloat(rawStock) || 0);
+                    // خواندن مقدار اولیه از فایل
+                let rawStock = row['Stock'] || row['stock'] || row['Quantity'] || row['quantity'] || '0';
+
+                // ۱. تبدیل به متن صریح جهت جلوگیری از خطا
+                    rawStock = String(rawStock); 
+
+                // ۲. حذف کاماها (ویرگول‌ها) از داخل متن عدد
+                    rawStock = rawStock.replace(/,/g, ''); 
+
+                // ۳. تبدیل به عدد اعشاری و سپس رند کردن آن به عدد صحیح (حذف .00)
+                const stock = Math.round(parseFloat(rawStock) || 0);
 
                     if (barcode) {
                         formattedRows.push({
                             Barcode: barcode.trim(),
                             "Item Name": itemName ? itemName.trim() : 'System Product',
                             "Item Code": itemCode ? itemCode.trim() : '',
-                            "Category": cat.trim(), // ذخیره کتگوری در دیتابیس در صورت نیاز
                             Stock: stock
                         });
                     }
                 }
 
                 if (formattedRows.length === 0) {
-                    alert("❌ Parsing Failed: Barcodes missing.");
+                    alert("❌ Parsing Failed: Could not identify rows with valid 'Barcode' keys inside the file.");
                     syncBtn.disabled = false;
                     syncBtn.textContent = "Upload & Sync Inventory";
                     return;
                 }
 
                 try {
+                    // ارسال فوق‌العاده هوشمند دیتای دسته‌ای با متد رسمی اپسرت دیتابیس سوپابیس
+                    // فیلد onConflict کلید اصلی شما یعنی بارکد را هدف قرار می‌دهد
                     const { error } = await _supabase
                         .from('system_inventory')
                         .upsert(formattedRows, { onConflict: 'Barcode' });
 
                     if (error) throw error;
-                    alert(`🎉 Successfully synced [ ${formattedRows.length} ] products.`);
-                    fileInput.value = "";
-                    await populateCategoryDropdown(); // به روز رسانی منوی کشویی کتگوری‌ها
-                    loadManagerialReport();
+
+                    alert(`🎉 Excellent! Successfully matched and updated [ ${formattedRows.length} ] products. Showroom levels auto-recalibrated via triggers.`);
+                    fileInput.value = ""; // ریسیت فیلد فایل
+                    loadManagerialReport(); // بازنشانی لیست گزارشات
                 } catch (err) {
                     console.error(err);
-                    errDisplay.textContent = `🚨 Upsert Error: ${err.message}`;
+                    errDisplay.textContent = `🚨 Upsert Engine Error: ${err.message || 'Check database constraints.'}`;
                     errDisplay.style.display = 'block';
                 } finally {
                     syncBtn.disabled = false;
                     syncBtn.textContent = "Upload & Sync Inventory";
                 }
+            },
+            error: function(parseError) {
+                alert(`CSV Format Read Error: ${parseError.message}`);
+                syncBtn.disabled = false;
+                syncBtn.textContent = "Upload & Sync Inventory";
             }
         });
     }
 
+    // ۱. مقداردهی اولیه دیتابیس محلی مرورگر (IndexedDB)
     function initOfflineStorage() {
         const request = indexedDB.open("WarehouseOfflineDB", 1);
+        
         request.onupgradeneeded = function(e) {
             let dbInstance = e.target.result;
             if (!dbInstance.objectStoreNames.contains("void_queue")) {
                 dbInstance.createObjectStore("void_queue", { keyPath: "id", autoIncrement: true });
             }
         };
+
         request.onsuccess = function(e) {
             db = e.target.result;
             updateOfflineBadgeCount();
-            if (navigator.onLine) syncOfflineQueue();
+            if (navigator.onLine) {
+                syncOfflineQueue();
+            }
+        };
+
+        request.onerror = function() {
+            console.error("IndexedDB initialization failed.");
         };
     }
 
-    // لود خودکار کتگوری‌های موجود در دیتابیس درون منوی کشویی
-    async function populateCategoryDropdown() {
-        if (!navigator.onLine) return;
-        try {
-            const { data } = await _supabase.from('system_inventory').select('Category');
-            if (data) {
-                const uniqueCategories = [...new Set(data.map(item => item.Category).filter(Boolean))];
-                const selectElement = document.getElementById('category-filter');
-                
-                // پاک کردن گزینه‌های قبلی به جز گزینه اول Bulk
-                selectElement.innerHTML = '<option value="ALL">-- All Categories (Bulk view) --</option>';
-                
-                uniqueCategories.sort().forEach(cat => {
-                    const opt = document.createElement('option');
-                    opt.value = cat;
-                    opt.textContent = cat;
-                    selectElement.appendChild(opt);
-                });
-            }
-        } catch (e) { console.error("Error populating categories", e); }
-    }
-
+    // ۲. پایش مداوم وضعیت شبکه اینترنت
     function updateNetworkStatus() {
         const badge = document.getElementById('network-status');
         const uploadPanel = document.getElementById('upload-panel');
         if (navigator.onLine) {
-            badge.textContent = "🟢 Online"; badge.className = "live-badge online";
-            uploadPanel.style.opacity = "1"; uploadPanel.style.pointerEvents = "auto";
+            badge.textContent = "🟢 Online";
+            badge.className = "live-badge online";
+            uploadPanel.style.opacity = "1";
+            uploadPanel.style.pointerEvents = "auto";
             syncOfflineQueue();
-            populateCategoryDropdown();
         } else {
-            badge.textContent = "🔴 Offline Mode (Queue Active)"; badge.className = "live-badge offline";
-            uploadPanel.style.opacity = "0.5"; uploadPanel.style.pointerEvents = "none";
+            badge.textContent = "🔴 Offline Mode (Queue Active)";
+            badge.className = "live-badge offline";
+            uploadPanel.style.opacity = "0.5";
+            uploadPanel.style.pointerEvents = "none";
         }
     }
 
     window.addEventListener('online', updateNetworkStatus);
     window.addEventListener('offline', updateNetworkStatus);
-
-    // دیتای نگهدارنده محلی برای فیلتر سریع بدون ریلود مجدد سرور
-    let globalActiveMergedLogs = [];
-    let globalProductMetadataMap = {};
-    let globalShowroomStockMap = {};
 
     window.onload = function() {
         initOfflineStorage();
@@ -492,11 +555,10 @@
         
         document.getElementById('date-start-picker').value = firstDay;
         document.getElementById('date-end-picker').value = today;
-        
-        // گوش دادن به تغییر منوی کشویی برای اعمال فیلتر آنی
-        document.getElementById('category-filter').addEventListener('change', applyClientSideFilters);
+        loadManagerialReport();
     };
 
+    // ۳. خواندن اطلاعات از دیتابیس با ادغام صف محلی آفلاین
     async function loadManagerialReport() {
         const startDate = document.getElementById('date-start-picker').value;
         const endDate = document.getElementById('date-end-picker').value;
@@ -504,9 +566,10 @@
         const errDisplay = document.getElementById('error-display');
         
         errDisplay.style.display = 'none';
-        tbody.innerHTML = '<tr><td colspan="7" class="loading-text">🔄 Fetching logs and analyzing warehouse inventory levels...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="loading-text">🔄 Fetching logs and analyzing activities...</td></tr>';
 
         let onlineLogs = [];
+
         if (navigator.onLine) {
             try {
                 const startISO = `${startDate}T00:00:00.000Z`;
@@ -522,8 +585,13 @@
                 if (logError) throw logError;
                 onlineLogs = data || [];
                 cachedLogs = onlineLogs;
-            } catch (e) { onlineLogs = cachedLogs; }
-        } else { onlineLogs = cachedLogs; }
+            } catch (e) {
+                console.error("Could not fetch fresh data, using cache:", e);
+                onlineLogs = cachedLogs;
+            }
+        } else {
+            onlineLogs = cachedLogs;
+        }
 
         getOfflineQueueItems(async (offlineItems) => {
             let mergedLogs = [...offlineItems.map(item => ({
@@ -538,155 +606,123 @@
 
             offlineItems.forEach(off => {
                 let target = mergedLogs.find(l => l.id === off.logId);
-                if (target) target.status = 'Voided';
+                if (target) {
+                    target.status = 'Voided';
+                }
             });
 
-            const uniqueBarcodes = [...new Set(mergedLogs.map(l => l.Barcode))].filter(Boolean);
-            
-            // دریافت همزمان اطلاعات محصول (شامل کتگوری) و موجودی لایو شورووم
-            globalProductMetadataMap = {};
-            globalShowroomStockMap = {};
+            if (mergedLogs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="loading-text">ℹ️ No activities found for this range.</td></tr>';
+                updateKPIs(0, 0, 0);
+                return;
+            }
 
+            const uniqueBarcodes = [...new Set(mergedLogs.map(l => l.Barcode || l.barcode))].filter(Boolean);
+            
+            let productMap = {};
             if (navigator.onLine && uniqueBarcodes.length > 0) {
                 const { data: products } = await _supabase
                     .from('system_inventory')
-                    .select('Barcode, "Item Name", Category')
+                    .select('Barcode, "Item Name"')
                     .in('Barcode', uniqueBarcodes);
                 if (products) {
-                    products.forEach(p => { 
-                        globalProductMetadataMap[p.Barcode] = { name: p['Item Name'], category: p.Category || 'General' }; 
-                    });
-                }
-
-                const { data: showroom } = await _supabase
-                    .from('showroom_inventory')
-                    .select('Barcode, showroom_qty')
-                    .in('Barcode', uniqueBarcodes);
-                if (showroom) {
-                    showroom.forEach(s => { globalShowroomStockMap[s.Barcode] = s.showroom_qty; });
+                    products.forEach(p => { productMap[p.Barcode] = p['Item Name']; });
                 }
             }
 
-            globalActiveMergedLogs = mergedLogs;
-            applyClientSideFilters(); // رندر نهایی جدول بر اساس فیلترهای انتخابی
+            let totalRequests = 0;
+            let totalIntakeQty = 0;
+            let totalMovementQty = 0;
+
+            tbody.innerHTML = '';
+
+            mergedLogs.forEach(log => {
+                const currentBarcode = log.Barcode || log.barcode || '---';
+                const itemName = productMap[currentBarcode] || 'System Item';
+                const qty = Math.abs(log.qty_transferred || 0);
+                const worker = log.worker_name || '';
+                const logDate = new Date(log.created_at).toLocaleString('en-GB', { timeZone: 'Asia/Muscat' });
+                
+                const isVoided = log.status && log.status === 'Voided';
+
+                let badgeClass = 'badge movement';
+                if (log.isOfflinePending) {
+                    badgeClass = 'badge pending-sync';
+                } else if (isVoided) {
+                    badgeClass = 'badge voided';
+                } else if (worker.includes('Direct Intake')) {
+                    badgeClass = 'badge intake';
+                    totalIntakeQty += qty;
+                    totalRequests++;
+                } else {
+                    badgeClass = 'badge movement';
+                    totalMovementQty += qty;
+                    totalRequests++;
+                }
+
+                // زیباتر کردن رنگ و برچسب لاگ‌های خودکار دیتابیس در جدول نهایی
+                if (worker.includes('System Auto-Sale')) {
+                    badgeClass = 'badge voided'; 
+                }
+
+                let actionButton = isVoided 
+                    ? `<span style="color: #94a3b8; font-size: 12px;">❌ Voided</span>`
+                    : `<button class="void-btn" onclick="voidTransaction(${log.id}, '${currentBarcode}', ${log.qty_transferred})">🚫 Void</button>`;
+                
+                if (log.isOfflinePending) {
+                    actionButton = `<span style="color: #ea580c; font-size: 12px; font-weight:600;">⏳ Syncing...</span>`;
+                }
+
+                tbody.innerHTML += `
+                    <tr style="${isVoided ? 'opacity: 0.6; background-color: #f8fafc;' : ''}">
+                        <td style="font-size: 13px; font-weight: 600; color: #64748b;">${logDate}</td>
+                        <td><code>${currentBarcode}</code></td>
+                        <td style="font-weight: 600; color: #1e293b; ${isVoided ? 'text-decoration: line-through;' : ''}">${itemName}</td>
+                        <td><span class="${badgeClass}">${isVoided ? 'VOID: ' + worker : worker}</span></td>
+                        <td style="font-weight: 700; font-size: 15px; text-decoration: ${isVoided ? 'line-through' : 'none'}; color: ${isVoided ? '#94a3b8' : ((log.qty_transferred || 0) >= 0 ? '#10b981' : '#ef4444')}">
+                            ${(log.qty_transferred || 0) > 0 ? '+' : ''}${log.qty_transferred || 0}
+                        </td>
+                        <td>${actionButton}</td>
+                    </tr>
+                `;
+            });
+
+            updateKPIs(totalRequests, totalIntakeQty, totalMovementQty);
         });
     }
 
-    // تابع موتور رندر جدول (ادغام فیلتر بالک، منوی کشویی کتگوری و سوئیچ دکمه‌ای فروش روز)
-    function applyClientSideFilters() {
-        const tbody = document.getElementById('report-tbody');
-        const selectedCategory = document.getElementById('category-filter').value;
-        
-        let totalRequests = 0;
-        let totalIntakeQty = 0;
-        let totalMovementQty = 0;
-        let totalSalesQty = 0;
-
-        tbody.innerHTML = '';
-
-        let filteredLogs = globalActiveMergedLogs.filter(log => {
-            const barcode = log.Barcode || '';
-            const metadata = globalProductMetadataMap[barcode] || { category: 'General' };
-            const worker = log.worker_name || '';
-
-            // الف) اعمال فیلتر کشویی کتگوری
-            if (selectedCategory !== 'ALL' && metadata.category !== selectedCategory) {
-                return false;
-            }
-
-            // ب) اعمال فیلتر دکمه‌ای کلیک فروش زنده روز (بر اساس لاگ تریگر)
-            if (isSalesOnlyActive && !worker.includes('System Auto-Sale')) {
-                return false;
-            }
-
-            return true;
-        });
-
-        if (filteredLogs.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="loading-text">ℹ️ No records matching the selected filters found.</td></tr>';
-            updateKPIs(0, 0, 0, 0);
+    // ۴. منطق VoidTransaction با مدیریت حالت آفلاین
+    async function voidTransaction(logId, barcode, qtyTransferred) {
+        const password = prompt("🔒 Admin Access Required.\nPlease enter the Manager Password to void this record:");
+        if (password === null) return; 
+        if (password !== ADMIN_PASSWORD) {
+            alert("⛔ Access Denied! Incorrect Admin Password.");
             return;
         }
 
-        filteredLogs.forEach(log => {
-            const currentBarcode = log.Barcode || '---';
-            const metadata = globalProductMetadataMap[currentBarcode] || { name: 'System Item', category: 'General' };
-            const liveShowroomQty = globalShowroomStockMap[currentBarcode] !== undefined ? globalShowroomStockMap[currentBarcode] : '0';
-            
-            const qty = Math.abs(log.qty_transferred || 0);
-            const worker = log.worker_name || '';
-            const logDate = new Date(log.created_at).toLocaleString('en-GB', { timeZone: 'Asia/Muscat' });
-            const isVoided = log.status && log.status === 'Voided';
+        if (!confirm(`Are you sure you want to void this transaction? This will automatically reverse [ ${qtyTransferred} Pcs ] to correct the mistake.`)) {
+            return;
+        }
 
-            let badgeClass = 'badge movement';
-            let activityLabel = worker;
-
-            if (log.isOfflinePending) {
-                badgeClass = 'badge pending-sync';
-            } else if (isVoided) {
-                badgeClass = 'badge voided';
-            } else if (worker.includes('System Auto-Sale')) {
-                badgeClass = 'badge autosale';
-                activityLabel = '🛒 Core Live Sale';
-                if (!isVoided) totalSalesQty += qty;
-            } else if (worker.includes('Direct Intake')) {
-                badgeClass = 'badge intake';
-                if (!isVoided) totalIntakeQty += qty;
-            } else {
-                badgeClass = 'badge movement';
-                if (!isVoided) totalMovementQty += qty;
-            }
-
-            if (!isVoided) totalRequests++;
-
-            let actionButton = isVoided 
-                ? `<span style="color: #94a3b8; font-size: 12px;">❌ Voided</span>`
-                : `<button class="void-btn" onclick="voidTransaction(${log.id}, '${currentBarcode}', ${log.qty_transferred})">🚫 Void</button>`;
-            
-            if (log.isOfflinePending) {
-                actionButton = `<span style="color: #ea580c; font-size: 12px; font-weight:600;">⏳ Syncing...</span>`;
-            }
-
-            // کلاس هشدار برای موجودی‌های صفر یا بحرانی شورووم جهت مدیریت هوشمندانه
-            const stockAlertClass = parseInt(liveShowroomQty) <= 2 ? 'showroom-stock-indicator alert' : 'showroom-stock-indicator';
-
-            tbody.innerHTML += `
-                <tr style="${isVoided ? 'opacity: 0.5; background-color: #f8fafc;' : ''}">
-                    <td style="font-size: 13px; font-weight: 600; color: #64748b;">${logDate}</td>
-                    <td><code>${currentBarcode}</code></td>
-                    <td>
-                        <div style="font-weight: 700; color: #1e293b; ${isVoided ? 'text-decoration: line-through;' : ''}">${metadata.name}</div>
-                        <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">📁 ${metadata.category}</div>
-                    </td>
-                    <td><span class="${stockAlertClass}">${liveShowroomQty} Pcs Left</span></td>
-                    <td><span class="${badgeClass}">${isVoided ? 'VOID: ' + activityLabel : activityLabel}</span></td>
-                    <td style="font-weight: 700; font-size: 15px; text-decoration: ${isVoided ? 'line-through' : 'none'}; color: ${isVoided ? '#94a3b8' : ((log.qty_transferred || 0) >= 0 ? '#10b981' : '#ef4444')}">
-                        ${(log.qty_transferred || 0) > 0 ? '+' : ''}${log.qty_transferred || 0}
-                    </td>
-                    <td>${actionButton}</td>
-                </tr>
-            `;
-        });
-
-        updateKPIs(totalRequests, totalIntakeQty, totalMovementQty, totalSalesQty);
-    }
-
-    async function voidTransaction(logId, barcode, qtyTransferred) {
-        const password = prompt("🔒 Admin Access Required.\nEnter Manager Password:");
-        if (password !== ADMIN_PASSWORD) { alert("⛔ Access Denied!"); return; }
-        if (!confirm(`Are you sure you want to void this transaction?`)) return;
-
-        const txPayload = { logId: logId, barcode: barcode, qtyTransferred: qtyTransferred, timestamp: new Date().toISOString() };
+        const txPayload = {
+            logId: logId,
+            barcode: barcode,
+            qtyTransferred: qtyTransferred,
+            timestamp: new Date().toISOString()
+        };
 
         if (navigator.onLine) {
             try {
                 await executeVoidOnServer(txPayload);
-                alert("✅ Success! Transaction successfully voided.");
+                alert("✅ Success! Transaction successfully voided on server.");
                 loadManagerialReport();
-            } catch (error) { pushToOfflineQueue(txPayload); }
+            } catch (error) {
+                alert(`❌ Server update failed, saving to offline queue instead: ${error.message}`);
+                pushToOfflineQueue(txPayload);
+            }
         } else {
             pushToOfflineQueue(txPayload);
-            alert("📡 Device is Offline! Saved to queue.");
+            alert("📡 Device is Offline! The correction has been securely queued locally.");
             loadManagerialReport();
         }
     }
@@ -694,59 +730,95 @@
     async function executeVoidOnServer(payload) {
         const { data: itemData, error: fetchError } = await _supabase
             .from('system_inventory')
-            .select('Stock')
+            .select('Stock') // اصلاح فیلد کدهای قدیمی بر اساس نام ساختاری جدید شما
             .eq('Barcode', payload.barcode)
             .single();
 
-        if (fetchError) throw new Error("Item not found.");
+        if (fetchError) throw new Error("Item not found on database.");
+
         const currentQty = itemData.Stock || 0;
         const correctedQty = currentQty - payload.qtyTransferred; 
 
-        await _supabase.from('system_inventory').update({ Stock: correctedQty }).eq('Barcode', payload.barcode);
-        await _supabase.from('transfer_log').update({ status: 'Voided' }).eq('id', payload.logId);
+        const { error: updateInvError } = await _supabase
+            .from('system_inventory')
+            .update({ Stock: correctedQty })
+            .eq('Barcode', payload.barcode);
+
+        if (updateInvError) throw updateInvError;
+
+        const { error: updateLogError } = await _supabase
+            .from('transfer_log')
+            .update({ status: 'Voided' })
+            .eq('id', payload.logId);
+
+        if (updateLogError) throw updateLogError;
     }
 
+    // ۵. توابع کمکی کار با IndexedDB
     function pushToOfflineQueue(item) {
         if (!db) return;
         const transaction = db.transaction(["void_queue"], "readwrite");
-        transaction.objectStore("void_queue").add(item);
-        transaction.oncomplete = () => updateOfflineBadgeCount();
+        const store = transaction.objectStore("void_queue");
+        store.add(item);
+
+        transaction.oncomplete = function() {
+            updateOfflineBadgeCount();
+        };
     }
 
     function getOfflineQueueItems(callback) {
         if (!db) { callback([]); return; }
-        const request = db.transaction(["void_queue"], "readonly").objectStore("void_queue").getAll();
-        request.onsuccess = () => callback(request.result || []);
+        const transaction = db.transaction(["void_queue"], "readonly");
+        const store = transaction.objectStore("void_queue");
+        const request = store.getAll();
+        request.onsuccess = function() {
+            callback(request.result || []);
+        };
     }
 
     function updateOfflineBadgeCount() {
         getOfflineQueueItems((items) => {
             const badge = document.getElementById("offline-queue-count");
-            badge.style.display = items.length > 0 ? "inline-block" : "none";
-            badge.textContent = `⏳ ${items.length} Unsynced Fixes`;
+            if (items.length > 0) {
+                badge.textContent = `⏳ ${items.length} Unsynced Fixes`;
+                badge.style.display = "inline-block";
+            } else {
+                badge.style.display = "none";
+            }
         });
     }
 
+    // ۶. همگام‌ساز خودکار دیتا (Sync Engine)
     async function syncOfflineQueue() {
         getOfflineQueueItems(async (items) => {
             if (items.length === 0) return;
+
+            console.log(`Starting background sync for ${items.length} pending corrections...`);
+            
             const transaction = db.transaction(["void_queue"], "readwrite");
             const store = transaction.objectStore("void_queue");
+
             for (const item of items) {
                 try {
                     await executeVoidOnServer(item);
                     store.delete(item.id);
-                } catch (err) { console.error(err); }
+                    console.log(`Successfully synced local ID: ${item.id}`);
+                } catch (err) {
+                    console.error(`Failed to sync item ${item.id}:`, err);
+                }
             }
-            transaction.oncomplete = () => { updateOfflineBadgeCount(); loadManagerialReport(); };
+
+            transaction.oncomplete = function() {
+                updateOfflineBadgeCount();
+                loadManagerialReport();
+            };
         });
     }
 
-    function updateKPIs(reqs, intake, move, sales) {
+    function updateKPIs(reqs, intake, move) {
         document.getElementById('stat-count').textContent = reqs;
         document.getElementById('stat-intake').textContent = `${intake} Pcs`;
         document.getElementById('stat-move').textContent = `${move} Pcs`;
-        document.getElementById('stat-sales').textContent = `${sales} Pcs`;
     }
 </script>
 </body>
