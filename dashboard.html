@@ -55,7 +55,7 @@
         }
         h1 { margin: 0; font-size: 22px; color: #0f172a; font-weight: 700; }
         
-        /* استایل‌های مربوط به وضعیت اتصال */
+        /* وضعیت اتصال */
         .status-badges {
             display: flex;
             gap: 10px;
@@ -88,7 +88,7 @@
             display: none;
         }
         
-        /* بخش جدید آپلودر سیستم */
+        /* بخش آپلودر سیستم */
         .upload-section {
             background: #ffffff;
             padding: 24px;
@@ -151,6 +151,7 @@
             box-shadow: none;
         }
 
+        /* بخش فیلترهای بالا */
         .filter-box {
             background: #ffffff;
             padding: 24px;
@@ -169,6 +170,7 @@
             gap: 8px;
             flex: 1;
             min-width: 200px;
+            position: relative;
         }
         label { font-size: 13px; font-weight: 600; color: #64748b; text-transform: uppercase; }
         input[type="date"] {
@@ -183,6 +185,104 @@
             border-color: #3b82f6;
             background-color: #fff;
         }
+
+        /* استایل اختصاصی برای منوی کشویی چک‌باکس‌دار کتگوری */
+        .dropdown-check-wrapper {
+            position: relative;
+            width: 100%;
+        }
+        .dropdown-check-trigger {
+            padding: 12px;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            background-color: #f8fafc;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+        .dropdown-check-trigger:after {
+            content: '▼';
+            font-size: 10px;
+            color: #64748b;
+        }
+        .dropdown-check-content {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            max-height: 220px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            padding: 8px 0;
+        }
+        .dropdown-check-content.show {
+            display: block;
+        }
+        .dropdown-option-item {
+            padding: 8px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .dropdown-option-item:hover {
+            background-color: #f1f5f9;
+        }
+        .dropdown-option-item input[type="checkbox"] {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+        }
+        .dropdown-actions {
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 6px;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-around;
+        }
+        .dropdown-actions button {
+            background: none;
+            border: none;
+            color: #2563eb;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* استایل سوئیچ فیلتر ترنزکشن‌ها */
+        .toggle-filter-container {
+            display: flex;
+            background: #f1f5f9;
+            padding: 4px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+        .toggle-btn {
+            padding: 10px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            border: none;
+            background: none;
+            color: #64748b;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .toggle-btn.active {
+            background: #ffffff;
+            color: #0f172a;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
         .generate-btn {
             padding: 13px 28px;
             background-color: #3b82f6;
@@ -239,7 +339,7 @@
             border-collapse: collapse;
             text-align: left;
             font-size: 14px;
-            min-width: 950px; /* افزایش طول به دلیل اضافه شدن ستون جدید */
+            min-width: 950px;
         }
         th {
             background-color: #f8fafc;
@@ -270,7 +370,6 @@
         .badge.voided { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; text-decoration: line-through; }
         .badge.pending-sync { background: #ffedd5; color: #ea580c; border: 1px solid #fed7aa; animation: pulse 2s infinite; }
         
-        /* استایل اختصاصی برای نمایشگر وضعیت موجودی شووروم */
         .showroom-live-indicator {
             display: inline-block;
             padding: 4px 10px;
@@ -366,6 +465,30 @@
             <label for="date-end-picker">End Date</label>
             <input type="date" id="date-end-picker">
         </div>
+
+        <div class="form-group">
+            <label>Category Filter</label>
+            <div class="dropdown-check-wrapper">
+                <div class="dropdown-check-trigger" id="category-dropdown-btn" onclick="toggleCategoryDropdown()">Select Categories</div>
+                <div class="dropdown-check-content" id="category-dropdown-content">
+                    <div class="dropdown-actions">
+                        <button onclick="selectAllCategories(event)">Select All</button>
+                        <button onclick="clearAllCategories(event)">Clear</button>
+                    </div>
+                    <div id="category-options-container">
+                        </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Transaction Type</label>
+            <div class="toggle-filter-container">
+                <button id="tx-filter-non-sales" class="toggle-btn active" onclick="setTxFilter('non-sales')">Excl. Sales (Default)</button>
+                <button id="tx-filter-all" class="toggle-btn" onclick="setTxFilter('all')">All Transactions</button>
+            </div>
+        </div>
+
         <button class="generate-btn" onclick="loadManagerialReport()">Generate Report</button>
     </div>
 
@@ -414,6 +537,102 @@
 
     let db;
     let cachedLogs = [];
+    
+    // وضعیت متغیرهای فیلتر جدید
+    let selectedCategories = [];
+    let currentTxFilter = 'non-sales'; // حالت پیش‌فرض مقداردهی شد
+
+    // بستن منوی کشویی دسته‌بندی در صورت کلیک در محیط بیرون
+    document.addEventListener('click', function(e) {
+        const wrapper = document.querySelector('.dropdown-check-wrapper');
+        if (wrapper && !wrapper.contains(e.target)) {
+            document.getElementById('category-dropdown-content').classList.remove('show');
+        }
+    });
+
+    function toggleCategoryDropdown() {
+        document.getElementById('category-dropdown-content').classList.toggle('show');
+    }
+
+    function updateDropdownTriggerText() {
+        const btn = document.getElementById('category-dropdown-btn');
+        if (selectedCategories.length === 0) {
+            btn.textContent = "No Category Selected";
+        } else {
+            btn.textContent = `${selectedCategories.length} Categories Selected`;
+        }
+    }
+
+    function selectAllCategories(e) {
+        if(e) e.preventDefault();
+        const checkboxes = document.querySelectorAll('#category-options-container input[type="checkbox"]');
+        selectedCategories = [];
+        checkboxes.forEach(cb => {
+            cb.checked = true;
+            selectedCategories.push(cb.value);
+        });
+        updateDropdownTriggerText();
+    }
+
+    function clearAllCategories(e) {
+        if(e) e.preventDefault();
+        const checkboxes = document.querySelectorAll('#category-options-container input[type="checkbox"]');
+        checkboxes.forEach(cb => cb.checked = false);
+        selectedCategories = [];
+        updateDropdownTriggerText();
+    }
+
+    function handleCheckboxChange(cb) {
+        if (cb.checked) {
+            if (!selectedCategories.includes(cb.value)) selectedCategories.push(cb.value);
+        } else {
+            selectedCategories = selectedCategories.filter(c => c !== cb.value);
+        }
+        updateDropdownTriggerText();
+    }
+
+    function setTxFilter(type) {
+        currentTxFilter = type;
+        document.getElementById('tx-filter-non-sales').classList.remove('active');
+        document.getElementById('tx-filter-all').classList.remove('active');
+        
+        if(type === 'non-sales') {
+            document.getElementById('tx-filter-non-sales').classList.add('active');
+        } else {
+            document.getElementById('tx-filter-all').classList.add('active');
+        }
+    }
+
+    // واکشی دسته‌بندی‌ها به صورت پویا از جدول مرجع سیستم
+    async function fetchCategoriesFromServer() {
+        if (!navigator.onLine) return;
+        try {
+            const { data, error } = await _supabase
+                .from('system_inventory')
+                .select('Category');
+            
+            if (!error && data) {
+                // استخراج کتگوری‌های یکتا و حذف رکوردهای خالی
+                const uniqueCats = [...new Set(data.map(item => item.Category).filter(Boolean))];
+                const container = document.getElementById('category-options-container');
+                container.innerHTML = '';
+                
+                selectedCategories = [];
+                uniqueCats.forEach(cat => {
+                    selectedCategories.push(cat); // به صورت پیش‌فرض همه انتخاب می‌شوند
+                    container.innerHTML += `
+                        <div class="dropdown-option-item">
+                            <input type="checkbox" value="${cat}" checked onchange="handleCheckboxChange(this)">
+                            <span>${cat}</span>
+                        </div>
+                    `;
+                });
+                updateDropdownTriggerText();
+            }
+        } catch(e) {
+            console.error("Error fetching categories:", e);
+        }
+    }
 
     // موتور اختصاصی خواندن و ارسال پکیج دیتای دیتابیس با قابلیت هوشمند Upsert
     async function handleCSVUpload() {
@@ -440,12 +659,10 @@
             return;
         }
 
-        // تغییر وضعیت دکمه جهت جلوگیری از تکرار کلیک کلید
         syncBtn.disabled = true;
         syncBtn.textContent = "Processing & Syncing data...";
         errDisplay.style.display = 'none';
 
-        // اجرای فرآیند پارس با کتابخانه پاپا‌پارس
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
@@ -453,28 +670,22 @@
                 const csvRows = results.data;
                 const formattedRows = [];
 
-                // یکسان‌سازی فرمت هدرها متناسب با ساختار دیتابیس سوپابیس شما
                 for (let row of csvRows) {
                     const barcode = row['Barcode'] || row['barcode'];
                     const itemName = row['Item Name'] || row['item name'] || row['ItemName'];
                     const itemCode = row['Item Code'] || row['item code'] || row['ItemCode'];
-                    // خواندن مقدار اولیه از فایل
-                let rawStock = row['Stock'] || row['stock'] || row['Quantity'] || row['quantity'] || '0';
+                    const category = row['Category'] || row['category'] || row['Category Name']; // فیلد کتگوری توسعه داده شد
+                    let rawStock = row['Stock'] || row['stock'] || row['Quantity'] || row['quantity'] || '0';
 
-                // ۱. تبدیل به متن صریح جهت جلوگیری از خطا
-                    rawStock = String(rawStock); 
-
-                // ۲. حذف کاماها (ویرگول‌ها) از داخل متن عدد
-                    rawStock = rawStock.replace(/,/g, ''); 
-
-                // ۳. تبدیل به عدد اعشاری و سپس رند کردن آن به عدد صحیح (حذف .00)
-                const stock = Math.round(parseFloat(rawStock) || 0);
+                    rawStock = String(rawStock).replace(/,/g, ''); 
+                    const stock = Math.round(parseFloat(rawStock) || 0);
 
                     if (barcode) {
                         formattedRows.push({
                             Barcode: barcode.trim(),
                             "Item Name": itemName ? itemName.trim() : 'System Product',
                             "Item Code": itemCode ? itemCode.trim() : '',
+                            Category: category ? category.trim() : 'General', // درج فیلد به دیتابیس
                             Stock: stock
                         });
                     }
@@ -488,8 +699,6 @@
                 }
 
                 try {
-                    // ارسال فوق‌العاده هوشمند دیتای دسته‌ای با متد رسمی اپسرت دیتابیس سوپابیس
-                    // فیلد onConflict کلید اصلی شما یعنی بارکد را هدف قرار می‌دهد
                     const { error } = await _supabase
                         .from('system_inventory')
                         .upsert(formattedRows, { onConflict: 'Barcode' });
@@ -497,8 +706,9 @@
                     if (error) throw error;
 
                     alert(`🎉 Excellent! Successfully matched and updated [ ${formattedRows.length} ] products. Showroom levels auto-recalibrated via triggers.`);
-                    fileInput.value = ""; // ریسیت فیلد فایل
-                    loadManagerialReport(); // بازنشانی لیست گزارشات
+                    fileInput.value = ""; 
+                    await fetchCategoriesFromServer(); // رفرش کردن لیست کتگوری‌ها پس از آپلود
+                    loadManagerialReport(); 
                 } catch (err) {
                     console.error(err);
                     errDisplay.textContent = `🚨 Upsert Engine Error: ${err.message || 'Check database constraints.'}`;
@@ -516,7 +726,6 @@
         });
     }
 
-    // ۱. مقداردهی اولیه دیتابیس محلی مرورگر (IndexedDB)
     function initOfflineStorage() {
         const request = indexedDB.open("WarehouseOfflineDB", 1);
         
@@ -540,7 +749,6 @@
         };
     }
 
-    // ۲. پایش مداوم وضعیت شبکه اینترنت
     function updateNetworkStatus() {
         const badge = document.getElementById('network-status');
         const uploadPanel = document.getElementById('upload-panel');
@@ -561,7 +769,7 @@
     window.addEventListener('online', updateNetworkStatus);
     window.addEventListener('offline', updateNetworkStatus);
 
-    window.onload = function() {
+    window.onload = async function() {
         initOfflineStorage();
         updateNetworkStatus();
 
@@ -571,10 +779,12 @@
         
         document.getElementById('date-start-picker').value = firstDay;
         document.getElementById('date-end-picker').value = today;
+        
+        await fetchCategoriesFromServer(); // ابتدا کتگوری‌ها لود شوند
         loadManagerialReport();
     };
 
-    // ۳. خواندن اطلاعات از دیتابیس با ادغام صف محلی آفلاین و استخراج موجودی زنده شووروم
+    // خواندن اطلاعات و اعمال همزمان فیلترهای پیشرفته کتگوری و نوع تراکنش
     async function loadManagerialReport() {
         const startDate = document.getElementById('date-start-picker').value;
         const endDate = document.getElementById('date-end-picker').value;
@@ -636,19 +846,21 @@
             const uniqueBarcodes = [...new Set(mergedLogs.map(l => l.Barcode || l.barcode))].filter(Boolean);
             
             let productMap = {};
-            let showroomStockMap = {}; // مپ ذخیره دیتای لایو شووروم
+            let itemCategoryMap = {}; // ساخت مپ اختصاصی جهت نگهداری کتگوری هر کالا
+            let showroomStockMap = {}; 
 
             if (navigator.onLine && uniqueBarcodes.length > 0) {
-                // ۱. دریافت اطلاعات پایه کالا
                 const { data: products } = await _supabase
                     .from('system_inventory')
-                    .select('Barcode, "Item Name"')
+                    .select('Barcode, "Item Name", Category')
                     .in('Barcode', uniqueBarcodes);
                 if (products) {
-                    products.forEach(p => { productMap[p.Barcode] = p['Item Name']; });
+                    products.forEach(p => { 
+                        productMap[p.Barcode] = p['Item Name']; 
+                        itemCategoryMap[p.Barcode] = p.Category || 'General';
+                    });
                 }
 
-                // ۲. استخراج مستقیم و همزمان موجودی زنده از جدول showroom_inventory
                 try {
                     const { data: showroomData, error: showErr } = await _supabase
                         .from('showroom_inventory')
@@ -673,18 +885,28 @@
             let totalMovementQty = 0;
 
             tbody.innerHTML = '';
+            let displayedRowsCount = 0;
 
             mergedLogs.forEach(log => {
                 const currentBarcode = log.Barcode || log.barcode || '---';
                 const itemName = productMap[currentBarcode] || 'System Item';
-                
-                // خواندن مقدار استوک زنده شووروم از ساختار مپ ایجاد شده
-                const liveShowroomStock = showroomStockMap[currentBarcode] !== undefined ? showroomStockMap[currentBarcode] : 0;
-
-                const qty = Math.abs(log.qty_transferred || 0);
+                const itemCategory = itemCategoryMap[currentBarcode] || 'General';
                 const worker = log.worker_name || '';
+
+                // ─── فیلتر ۱: اعمال شرط چک‌باکس‌های کتگوری ───
+                if (selectedCategories.length > 0 && !selectedCategories.includes(itemCategory)) {
+                    return; // کالا در کتگوری‌های انتخابی کاربر نیست، عبور کن
+                }
+
+                // ─── فیلتر ۲: اعمال شرط نوع تراکنش (اکسکلود کردن فروش در حالت پیش‌فرض) ───
+                if (currentTxFilter === 'non-sales' && worker.includes('System Auto-Sale')) {
+                    return; // تراکنش از نوع فروش سیستمی است و فیلتر پیش‌فرض فعال است، عبور کن
+                }
+
+                displayedRowsCount++;
+                const liveShowroomStock = showroomStockMap[currentBarcode] !== undefined ? showroomStockMap[currentBarcode] : 0;
+                const qty = Math.abs(log.qty_transferred || 0);
                 const logDate = new Date(log.created_at).toLocaleString('en-GB', { timeZone: 'Asia/Muscat' });
-                
                 const isVoided = log.status && log.status === 'Voided';
 
                 let badgeClass = 'badge movement';
@@ -702,9 +924,8 @@
                     totalRequests++;
                 }
 
-                // زیباتر کردن رنگ و برچسب لاگ‌های خودکار دیتابیس در جدول نهایی
                 if (worker.includes('System Auto-Sale')) {
-                    badgeClass = 'badge voided'; 
+                    badgeClass = 'badge voided'; // ظاهر اختصاصی برای نمایش فروش‌ها در صورت فعال‌سازی
                 }
 
                 let actionButton = isVoided 
@@ -715,14 +936,14 @@
                     actionButton = `<span style="color: #ea580c; font-size: 12px; font-weight:600;">⏳ Syncing...</span>`;
                 }
 
-                // تغییر رنگ باکس وضعیت در صورت اتمام یا کم بودن کالا در شووروم
+                // اینجا شرط آستانه موجودی که قبلاً روی ۱۰ تنظیم شده بود را می‌توانید ببینید
                 const stockAlertClass = parseInt(liveShowroomStock) <= 10 ? 'showroom-live-indicator low-stock' : 'showroom-live-indicator';
 
                 tbody.innerHTML += `
                     <tr style="${isVoided ? 'opacity: 0.6; background-color: #f8fafc;' : ''}">
                         <td style="font-size: 13px; font-weight: 600; color: #64748b;">${logDate}</td>
                         <td><code>${currentBarcode}</code></td>
-                        <td style="font-weight: 600; color: #1e293b; ${isVoided ? 'text-decoration: line-through;' : ''}">${itemName}</td>
+                        <td style="font-weight: 600; color: #1e293b; ${isVoided ? 'text-decoration: line-through;' : ''}">${itemName} <span style="font-size:11px; color:#94a3b8; font-weight:normal;">(${itemCategory})</span></td>
                         <td><span class="${badgeClass}">${isVoided ? 'VOID: ' + worker : worker}</span></td>
                         <td style="font-weight: 700; font-size: 15px; text-decoration: ${isVoided ? 'line-through' : 'none'}; color: ${isVoided ? '#94a3b8' : ((log.qty_transferred || 0) >= 0 ? '#10b981' : '#ef4444')}">
                             ${(log.qty_transferred || 0) > 0 ? '+' : ''}${log.qty_transferred || 0}
@@ -732,11 +953,20 @@
                 `;
             });
 
+            if(displayedRowsCount === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="loading-text">ℹ️ No rows matched the active category/transaction filters.</td></tr>';
+            }
+
             updateKPIs(totalRequests, totalIntakeQty, totalMovementQty);
         });
     }
 
-    // ۴. منطق VoidTransaction با مدیریت حالت آفلاین
+    function updateKPIs(count, intake, move) {
+        document.getElementById('stat-count').textContent = count;
+        document.getElementById('stat-intake').textContent = `${intake} Pcs`;
+        document.getElementById('stat-move').textContent = `${move} Pcs`;
+    }
+
     async function voidTransaction(logId, barcode, qtyTransferred) {
         const password = prompt("🔒 Admin Access Required.\nPlease enter the Manager Password to void this record:");
         if (password === null) return; 
@@ -775,7 +1005,7 @@
     async function executeVoidOnServer(payload) {
         const { data: itemData, error: fetchError } = await _supabase
             .from('system_inventory')
-            .select('Stock') // اصلاح فیلد کدهای قدیمی بر اساس نام ساختاری جدید شما
+            .select('Stock') 
             .eq('Barcode', payload.barcode)
             .single();
 
@@ -799,7 +1029,6 @@
         if (updateLogError) throw updateLogError;
     }
 
-    // ۵. توابع کمکی کار با IndexedDB
     function pushToOfflineQueue(item) {
         if (!db) return;
         const transaction = db.transaction(["void_queue"], "readwrite");
@@ -833,7 +1062,6 @@
         });
     }
 
-    // ۶. همگام‌ساز خودکار دیتا (Sync Engine)
     async function syncOfflineQueue() {
         getOfflineQueueItems(async (items) => {
             if (items.length === 0) return;
@@ -849,22 +1077,12 @@
                     store.delete(item.id);
                     console.log(`Successfully synced local ID: ${item.id}`);
                 } catch (err) {
-                    console.error(`Failed to sync item ${item.id}:`, err);
+                    console.error(`Failed to sync item ID ${item.id}:`, err);
                 }
             }
-
-            transaction.oncomplete = function() {
-                updateOfflineBadgeCount();
-                loadManagerialReport();
-            };
+            updateOfflineBadgeCount();
+            loadManagerialReport();
         });
-    }
-
-    document.getElementById('stat-count').textContent = reqs;
-    function updateKPIs(reqs, intake, move) {
-        if(document.getElementById('stat-count')) document.getElementById('stat-count').textContent = reqs;
-        if(document.getElementById('stat-intake')) document.getElementById('stat-intake').textContent = `${intake} Pcs`;
-        if(document.getElementById('stat-move')) document.getElementById('stat-move').textContent = `${move} Pcs`;
     }
 </script>
 </body>
