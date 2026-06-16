@@ -784,10 +784,14 @@ async function loadManagerialReport() {
     let onlineLogs = [];
     if (navigator.onLine) {
         try {
-            // ساخت بازه زمانی استاندارد بدون دستکاری مخرب منطقه زمانی
-            const startISO = `${startDate}T00:00:00`;
-            const endISO = `${endDate}T23:59:59`;
+            // تبدیل تاریخ‌ها به شیء بومی Date و فیلتر بر اساس ایزو استاندارد و قطعی دیتابیس
+            const startLocal = new Date(startDate + 'T00:00:00');
+            const endLocal = new Date(endDate + 'T23:59:59');
 
+            const startISO = startLocal.toISOString();
+            const endISO = endLocal.toISOString();
+
+            // کوئری اصلاح‌شده با ساختار کاملاً استاندارد دیتابیس
             const { data, error: logError } = await _supabase
                 .from('transfer_log')
                 .select('*')
@@ -797,7 +801,7 @@ async function loadManagerialReport() {
 
             if (logError) throw logError;
             onlineLogs = data || [];
-            cachedLogs = onlineLogs; // ذخیره در کش برای مواقع آفلاین
+            cachedLogs = onlineLogs; 
         } catch (e) {
             console.error("Could not fetch fresh data, using cache:", e);
             onlineLogs = cachedLogs;
@@ -807,7 +811,6 @@ async function loadManagerialReport() {
     }
 
     getOfflineQueueItems(async (offlineItems) => {
-        // ادغام رکوردهای آفلاین منتظر ارسال با رکوردهای دریافت شده از سرور
         let mergedLogs = [
             ...offlineItems.map(item => ({
                 id: `offline-${item.id}`,
@@ -821,7 +824,6 @@ async function loadManagerialReport() {
             ...onlineLogs
         ];
 
-        // اصلاح وضعیت رکوردهایی که درخواست ابطال آن‌ها ثبت شده است
         offlineItems.forEach(off => {
             let target = mergedLogs.find(l => l.id === off.logId);
             if (target) {
@@ -835,7 +837,6 @@ async function loadManagerialReport() {
             return;
         }
 
-        // استخراج تمام بارکدهای منحصر به فرد موجود در کل بازه زمانی (تمام روزها)
         const uniqueBarcodes = [...new Set(mergedLogs.map(l => l.Barcode || l.barcode))].filter(Boolean);
 
         let productMap = {};
@@ -843,7 +844,6 @@ async function loadManagerialReport() {
         let showroomStockMap = {};
 
         if (navigator.onLine && uniqueBarcodes.length > 0) {
-            // دریافت اطلاعات کالاها از جدول انبار اصلی برای تمام بارکدهای کل بازه
             const { data: products } = await _supabase
                 .from('warehouse_inventory')
                 .select('Barcode, "Item Name", Category')
@@ -859,7 +859,6 @@ async function loadManagerialReport() {
             }
 
             try {
-                // دریافت موجودی زنده شوروم
                 const { data: showroomData, error: showErr } = await _supabase
                     .from('showroom_inventory')
                     .select('Barcode, showroom_qty')
@@ -884,7 +883,6 @@ async function loadManagerialReport() {
         tbody.innerHTML = '';
         let displayedRowsCount = 0;
 
-        // رندر کردن تک تک سطرها بدون افتادن در تله حذف روزهای قبل
         mergedLogs.forEach(log => {
             const rawBarcode = log.Barcode || log.barcode;
             const currentBarcode = rawBarcode ? rawBarcode.trim() : '---';
@@ -893,13 +891,10 @@ async function loadManagerialReport() {
             const itemCategory = itemCategoryMap[currentBarcode] || 'General';
             const worker = log.worker_name || '';
 
-            // اصلاح منطق فیلتر دسته‌بندی: اگر دسته‌بندی‌های خاصی تیک خورده‌اند و این کالا جزو آن‌ها نیست، رد شود
-            // اما اگر فیلتر خالی است یا کالا معتبر است، نباید روزهای قبل بی دلیل حذف شوند
             if (selectedCategories.length > 0 && !selectedCategories.includes(itemCategory)) {
                 return; 
             }
             
-            // اعمال فیلتر نوع تراکنش (فروش خودکار یا جابجایی دستی انبار)
             if (currentTxFilter === 'non-sales' && worker.includes('System Auto-Sale')) {
                 return;
             }
@@ -908,7 +903,6 @@ async function loadManagerialReport() {
             const liveShowroomStock = showroomStockMap[currentBarcode] !== undefined ? showroomStockMap[currentBarcode] : 0;
             const qty = Math.abs(log.qty_transferred || 0);
             
-            // فرمت زمان به وقت محلی مسقط/عمان برای نمایش بی نقص تمام روزها
             const logDate = new Date(log.created_at).toLocaleString('en-GB', { timeZone: 'Asia/Muscat' });
             const isVoided = log.status && log.status === 'Voided';
 
