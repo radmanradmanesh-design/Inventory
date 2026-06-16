@@ -767,40 +767,49 @@
         loadManagerialReport();
     };
 
-    async function loadManagerialReport() {
-        const startDate = document.getElementById('date-start-picker').value;
-        const endDate = document.getElementById('date-end-picker').value;
-        const tbody = document.getElementById('report-tbody');
-        const errDisplay = document.getElementById('error-display');
-        
-        errDisplay.style.display = 'none';
-        tbody.innerHTML = '<tr><td colspan="7" class="loading-text">🔄 Fetching logs and analyzing activities...</td></tr>';
+async function loadManagerialReport() {
+    const startDate = document.getElementById('date-start-picker').value;
+    const endDate = document.getElementById('date-end-picker').value;
+    const tbody = document.getElementById('report-tbody');
+    const errDisplay = document.getElementById('error-display');
+    
+    errDisplay.style.display = 'none';
+    tbody.innerHTML = '<tr><td colspan="7" class="loading-text">🔄 Fetching logs and analyzing activities...</td></tr>';
 
-        let onlineLogs = [];
-        if (navigator.onLine) {
-            try {
-                const startISO = `${startDate}T00:00:00.000Z`;
-                const endISO = `${endDate}T23:59:59.999Z`;
+    if (!startDate || !endDate) {
+        alert("Please select both start and end dates.");
+        return;
+    }
 
-                const { data, error: logError } = await _supabase
-                    .from('transfer_log')
-                    .select('*')
-                    .gte('created_at', startISO)
-                    .lte('created_at', endISO)
-                    .order('created_at', { ascending: false });
-                if (logError) throw logError;
-                onlineLogs = data || [];
-                cachedLogs = onlineLogs;
-            } catch (e) {
-                console.error("Could not fetch fresh data, using cache:", e);
-                onlineLogs = cachedLogs;
-            }
-        } else {
+    let onlineLogs = [];
+    if (navigator.onLine) {
+        try {
+            // ساخت بازه زمانی استاندارد بدون دستکاری مخرب منطقه زمانی
+            const startISO = `${startDate}T00:00:00`;
+            const endISO = `${endDate}T23:59:59`;
+
+            const { data, error: logError } = await _supabase
+                .from('transfer_log')
+                .select('*')
+                .gte('created_at', startISO)
+                .lte('created_at', endISO)
+                .order('created_at', { ascending: false });
+
+            if (logError) throw logError;
+            onlineLogs = data || [];
+            cachedLogs = onlineLogs; // ذخیره در کش برای مواقع آفلاین
+        } catch (e) {
+            console.error("Could not fetch fresh data, using cache:", e);
             onlineLogs = cachedLogs;
         }
+    } else {
+        onlineLogs = cachedLogs;
+    }
 
-        getOfflineQueueItems(async (offlineItems) => {
-            let mergedLogs = [...offlineItems.map(item => ({
+    getOfflineQueueItems(async (offlineItems) => {
+        // ادغام رکوردهای آفلاین منتظر ارسال با رکوردهای دریافت شده از سرور
+        let mergedLogs = [
+            ...offlineItems.map(item => ({
                 id: `offline-${item.id}`,
                 isOfflinePending: true,
                 Barcode: item.barcode,
@@ -808,150 +817,168 @@
                 worker_name: "Admin (Offline Correction)",
                 status: "Voided",
                 created_at: item.timestamp
-            })), ...onlineLogs];
+            })),
+            ...onlineLogs
+        ];
 
-            offlineItems.forEach(off => {
-                let target = mergedLogs.find(l => l.id === off.logId);
-                if (target) {
-                    target.status = 'Voided';
+        // اصلاح وضعیت رکوردهایی که درخواست ابطال آن‌ها ثبت شده است
+        offlineItems.forEach(off => {
+            let target = mergedLogs.find(l => l.id === off.logId);
+            if (target) {
+                target.status = 'Voided';
+            }
+        });
+
+        if (mergedLogs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="loading-text">ℹ️ No activities found for this range.</td></tr>';
+            updateKPIs(0, 0, 0);
+            return;
+        }
+
+        // استخراج تمام بارکدهای منحصر به فرد موجود در کل بازه زمانی (تمام روزها)
+        const uniqueBarcodes = [...new Set(mergedLogs.map(l => l.Barcode || l.barcode))].filter(Boolean);
+
+        let productMap = {};
+        let itemCategoryMap = {};
+        let showroomStockMap = {};
+
+        if (navigator.onLine && uniqueBarcodes.length > 0) {
+            // دریافت اطلاعات کالاها از جدول انبار اصلی برای تمام بارکدهای کل بازه
+            const { data: products } = await _supabase
+                .from('warehouse_inventory')
+                .select('Barcode, "Item Name", Category')
+                .in('Barcode', uniqueBarcodes);
+
+            if (products) {
+                products.forEach(p => {
+                    if (p.Barcode) {
+                        productMap[p.Barcode.trim()] = p['Item Name'];
+                        itemCategoryMap[p.Barcode.trim()] = p.Category || 'General';
+                    }
+                });
+            }
+
+            try {
+                // دریافت موجودی زنده شوروم
+                const { data: showroomData, error: showErr } = await _supabase
+                    .from('showroom_inventory')
+                    .select('Barcode, showroom_qty')
+                    .in('Barcode', uniqueBarcodes);
+
+                if (!showErr && showroomData) {
+                    showroomData.forEach(s => {
+                        if (s.Barcode) {
+                            showroomStockMap[s.Barcode.trim()] = s.showroom_qty !== undefined ? s.showroom_qty : 0;
+                        }
+                    });
                 }
-            });
+            } catch (err) {
+                console.error("Error building showroom map:", err);
+            }
+        }
 
-            if (mergedLogs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="loading-text">ℹ️ No activities found for this range.</td></tr>';
-                updateKPIs(0, 0, 0);
+        let totalRequests = 0;
+        let totalIntakeQty = 0;
+        let totalMovementQty = 0;
+
+        tbody.innerHTML = '';
+        let displayedRowsCount = 0;
+
+        // رندر کردن تک تک سطرها بدون افتادن در تله حذف روزهای قبل
+        mergedLogs.forEach(log => {
+            const rawBarcode = log.Barcode || log.barcode;
+            const currentBarcode = rawBarcode ? rawBarcode.trim() : '---';
+            
+            const itemName = productMap[currentBarcode] || 'System Item';
+            const itemCategory = itemCategoryMap[currentBarcode] || 'General';
+            const worker = log.worker_name || '';
+
+            // اصلاح منطق فیلتر دسته‌بندی: اگر دسته‌بندی‌های خاصی تیک خورده‌اند و این کالا جزو آن‌ها نیست، رد شود
+            // اما اگر فیلتر خالی است یا کالا معتبر است، نباید روزهای قبل بی دلیل حذف شوند
+            if (selectedCategories.length > 0 && !selectedCategories.includes(itemCategory)) {
+                return; 
+            }
+            
+            // اعمال فیلتر نوع تراکنش (فروش خودکار یا جابجایی دستی انبار)
+            if (currentTxFilter === 'non-sales' && worker.includes('System Auto-Sale')) {
                 return;
             }
 
-            const uniqueBarcodes = [...new Set(mergedLogs.map(l => l.Barcode || l.barcode))].filter(Boolean);
+            displayedRowsCount++;
+            const liveShowroomStock = showroomStockMap[currentBarcode] !== undefined ? showroomStockMap[currentBarcode] : 0;
+            const qty = Math.abs(log.qty_transferred || 0);
             
-            let productMap = {};
-            let itemCategoryMap = {}; 
-            let showroomStockMap = {};
-            if (navigator.onLine && uniqueBarcodes.length > 0) {
-                const { data: products } = await _supabase
-                    .from('system_inventory')
-                    .select('Barcode, "Item Name", Category')
-                    .in('Barcode', uniqueBarcodes);
-                if (products) {
-                    products.forEach(p => { 
-                        productMap[p.Barcode] = p['Item Name']; 
-                        itemCategoryMap[p.Barcode] = p.Category || 'General';
-                    });
-                }
+            // فرمت زمان به وقت محلی مسقط/عمان برای نمایش بی نقص تمام روزها
+            const logDate = new Date(log.created_at).toLocaleString('en-GB', { timeZone: 'Asia/Muscat' });
+            const isVoided = log.status && log.status === 'Voided';
 
-                try {
-                    const { data: showroomData, error: showErr } = await _supabase
-                        .from('showroom_inventory')
-                        .select('Barcode, showroom_qty')
-                        .in('Barcode', uniqueBarcodes);
-                    if (!showErr && showroomData) {
-                        showroomData.forEach(s => {
-                            const bcd = s.Barcode || '';
-                            if (bcd) {
-                                showroomStockMap[bcd] = s.showroom_qty !== undefined ? s.showroom_qty : 0;
-                            }
-                        });
-                    }
-                } catch (err) {
-                    console.error("Error building showroom map:", err);
+            let badgeClass = 'badge movement';
+            if (log.isOfflinePending) {
+                badgeClass = 'badge pending-sync';
+            } else if (isVoided) {
+                badgeClass = 'badge voided';
+            } else if (worker.includes('Direct Intake')) {
+                badgeClass = 'badge intake';
+                totalIntakeQty += qty;
+                totalRequests++;
+            } else {
+                badgeClass = 'badge movement';
+                totalMovementQty += qty;
+                totalRequests++;
+            }
+
+            if (worker.includes('System Auto-Sale')) {
+                badgeClass = 'badge voided';
+            }
+
+            let actionButton = isVoided ? 
+                `<span style="color: #94a3b8; font-size: 12px;">❌ Voided</span>` : 
+                `<button class="void-btn" onclick="voidTransaction(${log.id}, '${currentBarcode}', ${log.qty_transferred})">🚫 Void</button>`;
+
+            if (log.isOfflinePending) {
+                actionButton = `<span style="color: #ea580c; font-size: 12px; font-weight:600;">⏳ Syncing...</span>`;
+            }
+
+            const stockAlertClass = parseInt(liveShowroomStock) <= 10 ?
+                'showroom-live-indicator low-stock' : 'showroom-live-indicator';
+
+            let qtyColor = '#10b981';
+            if (isVoided) {
+                qtyColor = '#94a3b8';
+            } else if (worker.includes('System Auto-Sale') || (log.qty_transferred || 0) < 0) {
+                qtyColor = '#ef4444';
+            }
+
+            let qtySign = '';
+            if (!isVoided) {
+                if (worker.includes('System Auto-Sale') || (log.qty_transferred || 0) < 0) {
+                    qtySign = '-';
+                } else if ((log.qty_transferred || 0) > 0) {
+                    qtySign = '+';
                 }
             }
 
-            let totalRequests = 0;
-            let totalIntakeQty = 0;
-            let totalMovementQty = 0;
-
-            tbody.innerHTML = '';
-            let displayedRowsCount = 0;
-            mergedLogs.forEach(log => {
-                const currentBarcode = log.Barcode || log.barcode || '---';
-                const itemName = productMap[currentBarcode] || 'System Item';
-                const itemCategory = itemCategoryMap[currentBarcode] || 'General';
-                const worker = log.worker_name || '';
-
-                if (selectedCategories.length > 0 && !selectedCategories.includes(itemCategory)) {
-                    return; 
-                }
-
-                if (currentTxFilter === 'non-sales' && worker.includes('System Auto-Sale')) {
-                    return; 
-                }
-
-                displayedRowsCount++;
-                const liveShowroomStock = showroomStockMap[currentBarcode] !== undefined ? showroomStockMap[currentBarcode] : 0;
-                const qty = Math.abs(log.qty_transferred || 0);
-                const logDate = new Date(log.created_at).toLocaleString('en-GB', { timeZone: 'Asia/Muscat' });
-                const isVoided = log.status && log.status === 'Voided';
-
-                let badgeClass = 'badge movement';
-                if (log.isOfflinePending) {
-                    badgeClass = 'badge pending-sync';
-                } else if (isVoided) {
-                    badgeClass = 'badge voided';
-                } else if (worker.includes('Direct Intake')) {
-                    badgeClass = 'badge intake';
-                    totalIntakeQty += qty;
-                    totalRequests++;
-                } else {
-                    badgeClass = 'badge movement';
-                    totalMovementQty += qty;
-                    totalRequests++;
-                }
-
-                if (worker.includes('System Auto-Sale')) {
-                    badgeClass = 'badge voided';
-                }
-
-                let actionButton = isVoided 
-                    ? `<span style="color: #94a3b8; font-size: 12px;">❌ Voided</span>`
-                    : `<button class="void-btn" onclick="voidTransaction(${log.id}, '${currentBarcode}', ${log.qty_transferred})">🚫 Void</button>`;
-                if (log.isOfflinePending) {
-                    actionButton = `<span style="color: #ea580c; font-size: 12px; font-weight:600;">⏳ Syncing...</span>`;
-                }
-
-                const stockAlertClass = parseInt(liveShowroomStock) <= 10 ? 'showroom-live-indicator low-stock' : 'showroom-live-indicator';
-
-                // منطق تفکیک رنگ ستون تعداد تغییر یافته
-                let qtyColor = '#10b981'; 
-                if (isVoided) {
-                    qtyColor = '#94a3b8'; 
-                } else if (worker.includes('System Auto-Sale') || (log.qty_transferred || 0) < 0) {
-                    qtyColor = '#ef4444'; 
-                }
-
-                // منطق اعمال صحیح علامت‌های مثبت و منفی بدون بهم زدن جدول
-                let qtySign = '';
-                if (!isVoided) {
-                    if (worker.includes('System Auto-Sale') || (log.qty_transferred || 0) < 0) {
-                        qtySign = '-';
-                    } else if ((log.qty_transferred || 0) > 0) {
-                        qtySign = '+';
-                    }
-                }
-
-                tbody.innerHTML += `
-                    <tr style="${isVoided ? 'opacity: 0.6; background-color: #f8fafc;' : ''}">
-                        <td style="font-size: 13px; font-weight: 600; color: #64748b;">${logDate}</td>
-                        <td><code>${currentBarcode}</code></td>
-                        <td style="font-weight: 600; color: #1e293b; ${isVoided ? 'text-decoration: line-through;' : ''}">${itemName} <span style="font-size:11px; color:#94a3b8; font-weight:normal;">(${itemCategory})</span></td>
-                        <td><span class="${badgeClass}">${isVoided ? 'VOID: ' + worker : worker}</span></td>
-                        <td style="font-weight: 700; font-size: 15px; text-decoration: ${isVoided ? 'line-through' : 'none'}; color: ${qtyColor}; text-align: left;">
-                            ${qtySign}${qty} Pcs
-                        </td>
-                        <td><span class="${stockAlertClass}">${liveShowroomStock} Pcs</span></td> 
-                        <td>${actionButton}</td>
-                    </tr>
-                `;
-            });
-
-            if(displayedRowsCount === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="loading-text">ℹ️ No rows matched the active category/transaction filters.</td></tr>';
-            }
-
-            updateKPIs(totalRequests, totalIntakeQty, totalMovementQty);
+            tbody.innerHTML += `
+                <tr style="${isVoided ? 'opacity: 0.6; background-color: #f8fafc;' : ''}">
+                    <td style="font-size: 13px; font-weight: 600; color: #64748b;">${logDate}</td>
+                    <td><code>${currentBarcode}</code></td>
+                    <td style="font-weight: 600; color: #1e293b; ${isVoided ? 'text-decoration: line-through;' : ''}">${itemName} <span style="font-size:11px; color:#94a3b8; font-weight:normal;">(${itemCategory})</span></td>
+                    <td><span class="${badgeClass}">${isVoided ? 'VOID: ' + worker : worker}</span></td>
+                    <td style="font-weight: 700; font-size: 15px; text-decoration: ${isVoided ? 'line-through' : 'none'}; color: ${qtyColor}; text-align: left;">
+                        ${qtySign}${qty} Pcs
+                    </td>
+                    <td><span class="${stockAlertClass}">${liveShowroomStock} Pcs</span></td>
+                    <td>${actionButton}</td>
+                </tr>
+            `;
         });
-    }
+
+        if(displayedRowsCount === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="loading-text">ℹ️ No rows matched the active category/transaction filters.</td></tr>';
+        }
+        updateKPIs(totalRequests, totalIntakeQty, totalMovementQty);
+    });
+}
 
     function updateKPIs(count, intake, move) {
         document.getElementById('stat-count').textContent = count;
