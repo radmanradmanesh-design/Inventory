@@ -293,7 +293,6 @@
             background-color: #2563eb;
         }
 
-        /* استایل دکمه جدید خروجی اکسل انبار و شوروم */
         .export-consolidated-btn {
             padding: 13px 24px;
             background-color: #10b981;
@@ -501,7 +500,6 @@
         </div>
 
         <button class="generate-btn" onclick="loadManagerialReport()">Generate Report</button>
-        
         <button id="consolidated-export-btn" class="export-consolidated-btn" onclick="exportWarehouseShowroomCSV()">📥 Export Warehouse & Showroom CSV</button>
     </div>
 
@@ -543,7 +541,7 @@
 </div>
 
 <script>
-    const SUPABASE_URL = 'https://qmurpnbrnmyjdxqjhybz.supabase.co'; 
+    const SUPABASE_URL = 'https://qmurpnbrnmyjdxqjhybz.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -618,7 +616,7 @@
         if (!navigator.onLine) return;
         try {
             const { data, error } = await _supabase
-                .from('system_inventory')
+                .from('warehouse_inventory')
                 .select('Category');
             if (!error && data) {
                 const uniqueCats = [...new Set(data.map(item => item.Category).filter(Boolean))];
@@ -691,7 +689,7 @@
                             "Item Name": itemName ? itemName.trim() : 'System Product',
                             "Item Code": itemCode ? itemCode.trim() : '',
                             Category: category ? category.trim() : 'General',
-                            Stock: stock
+                            warehouse_qty: stock
                         });
                     }
                 }
@@ -705,7 +703,7 @@
 
                 try {
                     const { error } = await _supabase
-                        .from('system_inventory')
+                        .from('warehouse_inventory')
                         .upsert(formattedRows, { onConflict: 'Barcode' });
                     if (error) throw error;
 
@@ -807,6 +805,7 @@
                     .gte('created_at', startISO)
                     .lte('created_at', endISO)
                     .order('created_at', { ascending: false });
+
                 if (logError) throw logError;
                 onlineLogs = data || [];
                 cachedLogs = onlineLogs;
@@ -819,15 +818,18 @@
         }
 
         getOfflineQueueItems(async (offlineItems) => {
-            let mergedLogs = [...offlineItems.map(item => ({
-                id: `offline-${item.id}`,
-                isOfflinePending: true,
-                Barcode: item.barcode,
-                qty_transferred: item.qtyTransferred,
-                worker_name: "Admin (Offline Correction)",
-                status: "Voided",
-                created_at: item.timestamp
-            })), ...onlineLogs];
+            let mergedLogs = [
+                ...offlineItems.map(item => ({
+                    id: `offline-${item.id}`,
+                    isOfflinePending: true,
+                    Barcode: item.barcode,
+                    qty_transferred: item.qtyTransferred,
+                    worker_name: "Admin (Offline Correction)",
+                    status: "Voided",
+                    created_at: item.timestamp
+                })),
+                ...onlineLogs
+            ];
 
             offlineItems.forEach(off => {
                 let target = mergedLogs.find(l => l.id === off.logId);
@@ -843,18 +845,20 @@
             }
 
             const uniqueBarcodes = [...new Set(mergedLogs.map(l => l.Barcode || l.barcode))].filter(Boolean);
-            
+
             let productMap = {};
-            let itemCategoryMap = {}; 
+            let itemCategoryMap = {};
             let showroomStockMap = {};
+
             if (navigator.onLine && uniqueBarcodes.length > 0) {
                 const { data: products } = await _supabase
-                    .from('system_inventory')
+                    .from('warehouse_inventory')
                     .select('Barcode, "Item Name", Category')
                     .in('Barcode', uniqueBarcodes);
+
                 if (products) {
-                    products.forEach(p => { 
-                        productMap[p.Barcode] = p['Item Name']; 
+                    products.forEach(p => {
+                        productMap[p.Barcode] = p['Item Name'];
                         itemCategoryMap[p.Barcode] = p.Category || 'General';
                     });
                 }
@@ -864,6 +868,7 @@
                         .from('showroom_inventory')
                         .select('Barcode, showroom_qty')
                         .in('Barcode', uniqueBarcodes);
+
                     if (!showErr && showroomData) {
                         showroomData.forEach(s => {
                             const bcd = s.Barcode || '';
@@ -883,6 +888,7 @@
 
             tbody.innerHTML = '';
             let displayedRowsCount = 0;
+
             mergedLogs.forEach(log => {
                 const currentBarcode = log.Barcode || log.barcode || '---';
                 const itemName = productMap[currentBarcode] || 'System Item';
@@ -890,11 +896,10 @@
                 const worker = log.worker_name || '';
 
                 if (selectedCategories.length > 0 && !selectedCategories.includes(itemCategory)) {
-                    return; 
+                    return;
                 }
-
                 if (currentTxFilter === 'non-sales' && worker.includes('System Auto-Sale')) {
-                    return; 
+                    return;
                 }
 
                 displayedRowsCount++;
@@ -922,20 +927,22 @@
                     badgeClass = 'badge voided';
                 }
 
-                let actionButton = isVoided 
-                    ? `<span style="color: #94a3b8; font-size: 12px;">❌ Voided</span>`
-                    : `<button class="void-btn" onclick="voidTransaction(${log.id}, '${currentBarcode}', ${log.qty_transferred})">🚫 Void</button>`;
+                let actionButton = isVoided ? 
+                    `<span style="color: #94a3b8; font-size: 12px;">❌ Voided</span>` : 
+                    `<button class="void-btn" onclick="voidTransaction(${log.id}, '${currentBarcode}', ${log.qty_transferred})">🚫 Void</button>`;
+
                 if (log.isOfflinePending) {
                     actionButton = `<span style="color: #ea580c; font-size: 12px; font-weight:600;">⏳ Syncing...</span>`;
                 }
 
-                const stockAlertClass = parseInt(liveShowroomStock) <= 10 ? 'showroom-live-indicator low-stock' : 'showroom-live-indicator';
+                const stockAlertClass = parseInt(liveShowroomStock) <= 10 ?
+                    'showroom-live-indicator low-stock' : 'showroom-live-indicator';
 
-                let qtyColor = '#10b981'; 
+                let qtyColor = '#10b981';
                 if (isVoided) {
-                    qtyColor = '#94a3b8'; 
+                    qtyColor = '#94a3b8';
                 } else if (worker.includes('System Auto-Sale') || (log.qty_transferred || 0) < 0) {
-                    qtyColor = '#ef4444'; 
+                    qtyColor = '#ef4444';
                 }
 
                 let qtySign = '';
@@ -956,7 +963,7 @@
                         <td style="font-weight: 700; font-size: 15px; text-decoration: ${isVoided ? 'line-through' : 'none'}; color: ${qtyColor}; text-align: left;">
                             ${qtySign}${qty} Pcs
                         </td>
-                        <td><span class="${stockAlertClass}">${liveShowroomStock} Pcs</span></td> 
+                        <td><span class="${stockAlertClass}">${liveShowroomStock} Pcs</span></td>
                         <td>${actionButton}</td>
                     </tr>
                 `;
@@ -965,7 +972,6 @@
             if(displayedRowsCount === 0) {
                 tbody.innerHTML = '<tr><td colspan="7" class="loading-text">ℹ️ No rows matched the active category/transaction filters.</td></tr>';
             }
-
             updateKPIs(totalRequests, totalIntakeQty, totalMovementQty);
         });
     }
@@ -976,10 +982,10 @@
         document.getElementById('stat-move').textContent = `${move} Pcs`;
     }
 
-    // ─── تابع جدید و کاملاً اختصاصی ادغام جدول انبار و شوروم و دانلود CSV ───
+    // ─── تابع جدید: استفاده کاملاً انحصاری از warehouse_inventory به عنوان مرجع اصلی گزارش تجمیعی ───
     async function exportWarehouseShowroomCSV() {
         if (!navigator.onLine) {
-            alert("⛔ دریافت گزارش تجمیعی نیاز به اتصال اینترنت دارد.");
+            alert("⛔ Consolidated report pulling requires an active network connection.");
             return;
         }
 
@@ -988,231 +994,35 @@
         btn.disabled = true;
 
         try {
-            // ۱. خواندن اطلاعات از جدول انبار مرکزی
-            const { data: warehouseData, error: whError } = await _supabase
+            // ۱. دریافت تمام رکوردها از جدول اصلی و مرجع warehouse_inventory
+            const { data: warehouseProducts, error: whError } = await _supabase
                 .from('warehouse_inventory')
-                .select('Barcode, warehouse_qty'); // تغییر به نام جدول واقعی انبار شما
-            
-            if (whError) {
-                // اگر نام ستون یا جدول با دیتابیس شما به خاطر تفاوت نگارشی خطا داد، از سیستم اینونتری به عنوان رفرنس کمکی استفاده می‌کند
-                console.warn("warehouse_inventory direct pull failed, trying structured query...");
+                .select('Barcode, "Item Name", Category, warehouse_qty');
+
+            if (whError) throw whError;
+
+            if (!warehouseProducts || warehouseProducts.length === 0) {
+                alert("❌ No records found in the master warehouse_inventory table.");
+                btn.textContent = "📥 Export Warehouse & Showroom CSV";
+                btn.disabled = false;
+                return;
             }
 
-            // ۲. خواندن اطلاعات از جدول شوروم
+            // ۲. دریافت اطلاعات تکمیلی موجودی‌ها از جدول showroom_inventory
             const { data: showroomData, error: srError } = await _supabase
                 .from('showroom_inventory')
                 .select('Barcode, showroom_qty');
+
             if (srError) throw srError;
 
-            // دریافت نام کالاها از ساختار سیستم برای خوانایی بهتر فایل اکسل نهایی
-            const { data: systemProducts } = await _supabase
-                .from('system_inventory')
-                .select('Barcode, "Item Name", Category');
-
-            let productInfoMap = {};
-            if (systemProducts) {
-                systemProducts.forEach(p => {
-                    productInfoMap[p.Barcode.trim()] = {
-                        name: p['Item Name'] || 'Unknown Product',
-                        category: p.Category || 'General'
-                    };
-                });
-            }
-
-            // ساخت یک لیست یکپارچه از تمام بارکدهای موجود در هر دو جدول انبار و شوروم
-            let allBarcodes = new Set();
-            let whMap = {};
+            // ساخت یک نقشه (Map) سریع از موجودی‌های شوروم بر اساس بارکد
             let srMap = {};
-
-            if (warehouseData) {
-                warehouseData.forEach(item => {
-                    if (item.Barcode) {
-                        const b = item.Barcode.trim();
-                        allBarcodes.add(b);
-                        // تطبیق نام ستون فرضی موجودی انبار شما (یا Stock یا warehouse_qty)
-                        whMap[b] = item.warehouse_qty !== undefined ? item.warehouse_qty : (item.Stock || 0);
-                    }
-                });
-            } else {
-                // مپ کردن موجودی انبار از جدول سیستم در صورت عدم دسترسی مستقیم به جدول مجزا
-                if (systemProducts) {
-                    systemProducts.forEach(p => {
-                        const b = p.Barcode.trim();
-                        allBarcodes.add(b);
-                        whMap[b] = p.Stock || 0;
-                    });
-                }
-            }
-
             if (showroomData) {
                 showroomData.forEach(item => {
                     if (item.Barcode) {
-                        const b = item.Barcode.trim();
-                        allBarcodes.add(b);
-                        srMap[b] = item.showroom_qty || 0;
+                        srMap[item.Barcode.trim()] = item.showroom_qty || 0;
                     }
                 });
             }
 
-            // ۳. فرآیند ادغام سطر به سطر جداول انبار و شوروم بر اساس بارکد
-            let csvRows = [];
-            csvRows.push(['Barcode', 'Item Name', 'Category', 'Warehouse Stock (انبار)', 'Showroom Stock (شوروم)', 'Combined Total (مجموع کل)']);
-
-            allBarcodes.forEach(barcode => {
-                const info = productInfoMap[barcode] || { name: 'System Product', category: 'General' };
-                const warehouseQty = whMap[barcode] || 0;
-                const showroomQty = srMap[barcode] || 0;
-                const combinedTotal = warehouseQty + showroomQty;
-
-                csvRows.push([
-                    `="${barcode}"`, // فرمت استاندارد اکسل برای به هم نریختن بارکدهای طولانی
-                    info.name,
-                    info.category,
-                    warehouseQty,
-                    showroomQty,
-                    combinedTotal
-                ]);
-            });
-
-            // ۴. تبدیل داده‌ها به فایل CSV ساختار یافته با انکودینگ UTF-8 (برای پشتیبانی از زبان فارسی)
-            let csvContent = "\uFEFF"; // BOM برای نمایش صحیح حروف فارسی در اکسل
-            csvRows.forEach(row => {
-                csvContent += row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(",") + "\r\n";
-            });
-
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", `Consolidated_Stock_Report_${new Date().toISOString().split('T')[0]}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            alert("🎉 فایل اکسل/CSV تجمیعی انبار و شوروم با موفقیت صادر و دانلود شد.");
-
-        } catch (err) {
-            console.error(err);
-            alert(`❌ خطا در استخراج داده‌ها: ${err.message}`);
-        } finally {
-            btn.textContent = "📥 Export Warehouse & Showroom CSV";
-            btn.disabled = false;
-        }
-    }
-
-    async function voidTransaction(logId, barcode, qtyTransferred) {
-        const password = prompt("🔒 Admin Access Required.\nPlease enter the Manager Password to void this record:");
-        if (password === null) return; 
-        if (password !== ADMIN_PASSWORD) {
-            alert("⛔ Access Denied! Incorrect Admin Password.");
-            return;
-        }
-
-        if (!confirm(`Are you sure you want to void this transaction? This will automatically reverse [ ${qtyTransferred} Pcs ] to correct the mistake.`)) {
-            return;
-        }
-
-        const txPayload = {
-            logId: logId,
-            barcode: barcode,
-            qtyTransferred: qtyTransferred,
-            timestamp: new Date().toISOString()
-        };
-        if (navigator.onLine) {
-            try {
-                await executeVoidOnServer(txPayload);
-                alert("✅ Success! Transaction successfully voided on server.");
-                loadManagerialReport();
-            } catch (error) {
-                alert(`❌ Server update failed, saving to offline queue instead: ${error.message}`);
-                pushToOfflineQueue(txPayload);
-            }
-        } else {
-            pushToOfflineQueue(txPayload);
-            alert("📡 Device is Offline! The correction has been securely queued locally.");
-            loadManagerialReport();
-        }
-    }
-
-    async function executeVoidOnServer(payload) {
-        const { data: itemData, error: fetchError } = await _supabase
-            .from('system_inventory')
-            .select('Stock') 
-            .eq('Barcode', payload.barcode)
-            .single();
-        if (fetchError) throw new Error("Item not found on database.");
-
-        const currentQty = itemData.Stock || 0;
-        const correctedQty = currentQty - payload.qtyTransferred; 
-
-        const { error: updateInvError } = await _supabase
-            .from('system_inventory')
-            .update({ Stock: correctedQty })
-            .eq('Barcode', payload.barcode);
-        if (updateInvError) throw updateInvError;
-
-        const { error: updateLogError } = await _supabase
-            .from('transfer_log')
-            .update({ status: 'Voided' })
-            .eq('id', payload.logId);
-        if (updateLogError) throw updateLogError;
-    }
-
-    function pushToOfflineQueue(item) {
-        if (!db) return;
-        const transaction = db.transaction(["void_queue"], "readwrite");
-        const store = transaction.objectStore("void_queue");
-        store.add(item);
-        transaction.oncomplete = function() {
-            updateOfflineBadgeCount();
-        };
-    }
-
-    function getOfflineQueueItems(callback) {
-        if (!db) { callback([]); return; }
-        const transaction = db.transaction(["void_queue"], "readonly");
-        const store = transaction.objectStore("void_queue");
-        const request = store.getAll();
-        request.onsuccess = function() {
-            callback(request.result || []);
-        };
-    }
-
-    function updateOfflineBadgeCount() {
-        getOfflineQueueItems((items) => {
-            const badge = document.getElementById("offline-queue-count");
-            if (items.length > 0) {
-                badge.textContent = `⏳ ${items.length} Unsynced Fixes`;
-                badge.style.display = "inline-block";
-            } 
-            else {
-                badge.style.display = "none";
-            }
-        });
-    }
-
-    async function syncOfflineQueue() {
-        getOfflineQueueItems(async (items) => {
-            if (items.length === 0) return;
-
-            console.log(`Starting background sync for ${items.length} pending corrections...`);
-            
-            const transaction = db.transaction(["void_queue"], "readwrite");
-            const store = transaction.objectStore("void_queue");
-
-            for (const item of items) {
-                try {
-                    await executeVoidOnServer(item);
-                    store.delete(item.id);
-                    console.log(`Successfully synced local ID: ${item.id}`);
-                } catch (err) {
-                    console.error(`Failed to sync item ID ${item.id}:`, err);
-                }
-            }
-            updateOfflineBadgeCount();
-            loadManagerialReport();
-        });
-    }
-</script>
-</body>
-</html>
+            // ۳
