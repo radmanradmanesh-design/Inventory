@@ -55,7 +55,6 @@
         }
         h1 { margin: 0; font-size: 22px; color: #0f172a; font-weight: 700; }
         
-        /* وضعیت اتصال */
         .status-badges {
             display: flex;
             gap: 10px;
@@ -88,7 +87,6 @@
             display: none;
         }
         
-        /* بخش آپلودر سیستم */
         .upload-section {
             background: #ffffff;
             padding: 24px;
@@ -151,7 +149,6 @@
             box-shadow: none;
         }
 
-        /* بخش فیلترهای بالا */
         .filter-box {
             background: #ffffff;
             padding: 24px;
@@ -186,7 +183,6 @@
             background-color: #fff;
         }
 
-        /* استایل اختصاصی برای منوی کشویی چک‌باکس‌دار کتگوری */
         .dropdown-check-wrapper {
             position: relative;
             width: 100%;
@@ -258,7 +254,6 @@
             cursor: pointer;
         }
 
-        /* استایل سوئیچ فیلتر ترنزکشن‌ها */
         .toggle-filter-container {
             display: flex;
             background: #f1f5f9;
@@ -475,8 +470,7 @@
                         <button onclick="selectAllCategories(event)">Select All</button>
                         <button onclick="clearAllCategories(event)">Clear</button>
                     </div>
-                    <div id="category-options-container">
-                        </div>
+                    <div id="category-options-container"></div>
                 </div>
             </div>
         </div>
@@ -516,7 +510,8 @@
                     <th>Item Name</th>
                     <th>Activity / Operator</th>
                     <th>Qty Change</th>
-                    <th>Showroom Live Qty</th> <th>Actions</th>
+                    <th>Showroom Live Qty</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody id="report-tbody">
@@ -530,19 +525,16 @@
 
 <script>
     const SUPABASE_URL = 'https://qmurpnbrnmyjdxqjhybz.supabase.co'; 
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'; 
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const ADMIN_PASSWORD = "RadmanAdmin2026"; 
 
     let db;
     let cachedLogs = [];
-    
-    // وضعیت متغیرهای فیلتر جدید
     let selectedCategories = [];
-    let currentTxFilter = 'non-sales'; // حالت پیش‌فرض مقداردهی شد
+    let currentTxFilter = 'non-sales';
 
-    // بستن منوی کشویی دسته‌بندی در صورت کلیک در محیط بیرون
     document.addEventListener('click', function(e) {
         const wrapper = document.querySelector('.dropdown-check-wrapper');
         if (wrapper && !wrapper.contains(e.target)) {
@@ -603,23 +595,20 @@
         }
     }
 
-    // واکشی دسته‌بندی‌ها به صورت پویا از جدول مرجع سیستم
     async function fetchCategoriesFromServer() {
         if (!navigator.onLine) return;
         try {
             const { data, error } = await _supabase
                 .from('system_inventory')
                 .select('Category');
-            
             if (!error && data) {
-                // استخراج کتگوری‌های یکتا و حذف رکوردهای خالی
                 const uniqueCats = [...new Set(data.map(item => item.Category).filter(Boolean))];
                 const container = document.getElementById('category-options-container');
                 container.innerHTML = '';
                 
                 selectedCategories = [];
                 uniqueCats.forEach(cat => {
-                    selectedCategories.push(cat); // به صورت پیش‌فرض همه انتخاب می‌شوند
+                    selectedCategories.push(cat);
                     container.innerHTML += `
                         <div class="dropdown-option-item">
                             <input type="checkbox" value="${cat}" checked onchange="handleCheckboxChange(this)">
@@ -634,7 +623,6 @@
         }
     }
 
-    // موتور اختصاصی خواندن و ارسال پکیج دیتای دیتابیس با قابلیت هوشمند Upsert
     async function handleCSVUpload() {
         if (!navigator.onLine) {
             alert("⛔ Sync operations require an active network connection. You cannot sync stock files while offline.");
@@ -651,7 +639,6 @@
         }
 
         const file = fileInput.files[0];
-        
         const password = prompt("🔒 Admin Security Lock.\nEnter Master Password to commit live inventory overwrite:");
         if (password === null) return;
         if (password !== ADMIN_PASSWORD) {
@@ -662,7 +649,6 @@
         syncBtn.disabled = true;
         syncBtn.textContent = "Processing & Syncing data...";
         errDisplay.style.display = 'none';
-
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
@@ -674,7 +660,7 @@
                     const barcode = row['Barcode'] || row['barcode'];
                     const itemName = row['Item Name'] || row['item name'] || row['ItemName'];
                     const itemCode = row['Item Code'] || row['item code'] || row['ItemCode'];
-                    const category = row['Category'] || row['category'] || row['Category Name']; // فیلد کتگوری توسعه داده شد
+                    const category = row['Category'] || row['category'] || row['Category Name'];
                     let rawStock = row['Stock'] || row['stock'] || row['Quantity'] || row['quantity'] || '0';
 
                     rawStock = String(rawStock).replace(/,/g, ''); 
@@ -685,7 +671,7 @@
                             Barcode: barcode.trim(),
                             "Item Name": itemName ? itemName.trim() : 'System Product',
                             "Item Code": itemCode ? itemCode.trim() : '',
-                            Category: category ? category.trim() : 'General', // درج فیلد به دیتابیس
+                            Category: category ? category.trim() : 'General',
                             Stock: stock
                         });
                     }
@@ -702,13 +688,12 @@
                     const { error } = await _supabase
                         .from('system_inventory')
                         .upsert(formattedRows, { onConflict: 'Barcode' });
-
                     if (error) throw error;
 
                     alert(`🎉 Excellent! Successfully matched and updated [ ${formattedRows.length} ] products. Showroom levels auto-recalibrated via triggers.`);
                     fileInput.value = ""; 
-                    await fetchCategoriesFromServer(); // رفرش کردن لیست کتگوری‌ها پس از آپلود
-                    loadManagerialReport(); 
+                    await fetchCategoriesFromServer();
+                    loadManagerialReport();
                 } catch (err) {
                     console.error(err);
                     errDisplay.textContent = `🚨 Upsert Engine Error: ${err.message || 'Check database constraints.'}`;
@@ -728,7 +713,6 @@
 
     function initOfflineStorage() {
         const request = indexedDB.open("WarehouseOfflineDB", 1);
-        
         request.onupgradeneeded = function(e) {
             let dbInstance = e.target.result;
             if (!dbInstance.objectStoreNames.contains("void_queue")) {
@@ -772,7 +756,6 @@
     window.onload = async function() {
         initOfflineStorage();
         updateNetworkStatus();
-
         const now = new Date();
         const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
         const today = now.toISOString().split('T')[0];
@@ -780,11 +763,10 @@
         document.getElementById('date-start-picker').value = firstDay;
         document.getElementById('date-end-picker').value = today;
         
-        await fetchCategoriesFromServer(); // ابتدا کتگوری‌ها لود شوند
+        await fetchCategoriesFromServer();
         loadManagerialReport();
     };
 
-    // خواندن اطلاعات و اعمال همزمان فیلترهای پیشرفته کتگوری و نوع تراکنش
     async function loadManagerialReport() {
         const startDate = document.getElementById('date-start-picker').value;
         const endDate = document.getElementById('date-end-picker').value;
@@ -795,7 +777,6 @@
         tbody.innerHTML = '<tr><td colspan="7" class="loading-text">🔄 Fetching logs and analyzing activities...</td></tr>';
 
         let onlineLogs = [];
-
         if (navigator.onLine) {
             try {
                 const startISO = `${startDate}T00:00:00.000Z`;
@@ -807,7 +788,6 @@
                     .gte('created_at', startISO)
                     .lte('created_at', endISO)
                     .order('created_at', { ascending: false });
-
                 if (logError) throw logError;
                 onlineLogs = data || [];
                 cachedLogs = onlineLogs;
@@ -846,9 +826,8 @@
             const uniqueBarcodes = [...new Set(mergedLogs.map(l => l.Barcode || l.barcode))].filter(Boolean);
             
             let productMap = {};
-            let itemCategoryMap = {}; // ساخت مپ اختصاصی جهت نگهداری کتگوری هر کالا
-            let showroomStockMap = {}; 
-
+            let itemCategoryMap = {}; 
+            let showroomStockMap = {};
             if (navigator.onLine && uniqueBarcodes.length > 0) {
                 const { data: products } = await _supabase
                     .from('system_inventory')
@@ -866,7 +845,6 @@
                         .from('showroom_inventory')
                         .select('Barcode, showroom_qty')
                         .in('Barcode', uniqueBarcodes);
-                    
                     if (!showErr && showroomData) {
                         showroomData.forEach(s => {
                             const bcd = s.Barcode || '';
@@ -886,21 +864,18 @@
 
             tbody.innerHTML = '';
             let displayedRowsCount = 0;
-
             mergedLogs.forEach(log => {
                 const currentBarcode = log.Barcode || log.barcode || '---';
                 const itemName = productMap[currentBarcode] || 'System Item';
                 const itemCategory = itemCategoryMap[currentBarcode] || 'General';
                 const worker = log.worker_name || '';
 
-                // ─── فیلتر ۱: اعمال شرط چک‌باکس‌های کتگوری ───
                 if (selectedCategories.length > 0 && !selectedCategories.includes(itemCategory)) {
-                    return; // کالا در کتگوری‌های انتخابی کاربر نیست، عبور کن
+                    return; 
                 }
 
-                // ─── فیلتر ۲: اعمال شرط نوع تراکنش (اکسکلود کردن فروش در حالت پیش‌فرض) ───
                 if (currentTxFilter === 'non-sales' && worker.includes('System Auto-Sale')) {
-                    return; // تراکنش از نوع فروش سیستمی است و فیلتر پیش‌فرض فعال است، عبور کن
+                    return; 
                 }
 
                 displayedRowsCount++;
@@ -925,19 +900,35 @@
                 }
 
                 if (worker.includes('System Auto-Sale')) {
-                    badgeClass = 'badge voided'; // ظاهر اختصاصی برای نمایش فروش‌ها در صورت فعال‌سازی
+                    badgeClass = 'badge voided';
                 }
 
                 let actionButton = isVoided 
                     ? `<span style="color: #94a3b8; font-size: 12px;">❌ Voided</span>`
                     : `<button class="void-btn" onclick="voidTransaction(${log.id}, '${currentBarcode}', ${log.qty_transferred})">🚫 Void</button>`;
-                
                 if (log.isOfflinePending) {
                     actionButton = `<span style="color: #ea580c; font-size: 12px; font-weight:600;">⏳ Syncing...</span>`;
                 }
 
-                // اینجا شرط آستانه موجودی که قبلاً روی ۱۰ تنظیم شده بود را می‌توانید ببینید
                 const stockAlertClass = parseInt(liveShowroomStock) <= 10 ? 'showroom-live-indicator low-stock' : 'showroom-live-indicator';
+
+                // منطق تفکیک رنگ ستون تعداد تغییر یافته
+                let qtyColor = '#10b981'; 
+                if (isVoided) {
+                    qtyColor = '#94a3b8'; 
+                } else if (worker.includes('System Auto-Sale') || (log.qty_transferred || 0) < 0) {
+                    qtyColor = '#ef4444'; 
+                }
+
+                // منطق اعمال صحیح علامت‌های مثبت و منفی بدون بهم زدن جدول
+                let qtySign = '';
+                if (!isVoided) {
+                    if (worker.includes('System Auto-Sale') || (log.qty_transferred || 0) < 0) {
+                        qtySign = '-';
+                    } else if ((log.qty_transferred || 0) > 0) {
+                        qtySign = '+';
+                    }
+                }
 
                 tbody.innerHTML += `
                     <tr style="${isVoided ? 'opacity: 0.6; background-color: #f8fafc;' : ''}">
@@ -945,10 +936,11 @@
                         <td><code>${currentBarcode}</code></td>
                         <td style="font-weight: 600; color: #1e293b; ${isVoided ? 'text-decoration: line-through;' : ''}">${itemName} <span style="font-size:11px; color:#94a3b8; font-weight:normal;">(${itemCategory})</span></td>
                         <td><span class="${badgeClass}">${isVoided ? 'VOID: ' + worker : worker}</span></td>
-                        <td style="font-weight: 700; font-size: 15px; text-decoration: ${isVoided ? 'line-through' : 'none'}; color: ${isVoided ? '#94a3b8' : ((log.qty_transferred || 0) >= 0 ? '#10b981' : '#ef4444')}">
-                            ${(log.qty_transferred || 0) > 0 ? '+' : ''}${log.qty_transferred || 0}
+                        <td style="font-weight: 700; font-size: 15px; text-decoration: ${isVoided ? 'line-through' : 'none'}; color: ${qtyColor}; text-align: left;">
+                            ${qtySign}${qty} Pcs
                         </td>
-                        <td><span class="${stockAlertClass}">${liveShowroomStock} Pcs</span></td> <td>${actionButton}</td>
+                        <td><span class="${stockAlertClass}">${liveShowroomStock} Pcs</span></td> 
+                        <td>${actionButton}</td>
                     </tr>
                 `;
             });
@@ -985,7 +977,6 @@
             qtyTransferred: qtyTransferred,
             timestamp: new Date().toISOString()
         };
-
         if (navigator.onLine) {
             try {
                 await executeVoidOnServer(txPayload);
@@ -1008,7 +999,6 @@
             .select('Stock') 
             .eq('Barcode', payload.barcode)
             .single();
-
         if (fetchError) throw new Error("Item not found on database.");
 
         const currentQty = itemData.Stock || 0;
@@ -1018,14 +1008,12 @@
             .from('system_inventory')
             .update({ Stock: correctedQty })
             .eq('Barcode', payload.barcode);
-
         if (updateInvError) throw updateInvError;
 
         const { error: updateLogError } = await _supabase
             .from('transfer_log')
             .update({ status: 'Voided' })
             .eq('id', payload.logId);
-
         if (updateLogError) throw updateLogError;
     }
 
@@ -1034,7 +1022,6 @@
         const transaction = db.transaction(["void_queue"], "readwrite");
         const store = transaction.objectStore("void_queue");
         store.add(item);
-
         transaction.oncomplete = function() {
             updateOfflineBadgeCount();
         };
@@ -1056,7 +1043,8 @@
             if (items.length > 0) {
                 badge.textContent = `⏳ ${items.length} Unsynced Fixes`;
                 badge.style.display = "inline-block";
-            } else {
+            } 
+            else {
                 badge.style.display = "none";
             }
         });
