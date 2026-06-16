@@ -522,10 +522,9 @@
         </table>
     </div>
 </div>
-
 <script>
     const SUPABASE_URL = 'https://qmurpnbrnmyjdxqjhybz.supabase.co'; 
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWjoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const ADMIN_PASSWORD = "RadmanAdmin2026"; 
@@ -766,7 +765,6 @@
         await fetchCategoriesFromServer();
         loadManagerialReport();
     };
-
     async function loadManagerialReport() {
         const startDate = document.getElementById('date-start-picker').value;
         const endDate = document.getElementById('date-end-picker').value;
@@ -905,14 +903,13 @@
 
                 let actionButton = isVoided 
                     ? `<span style="color: #94a3b8; font-size: 12px;">❌ Voided</span>`
-                    : `<button class="void-btn" onclick="voidTransaction(${log.id}, '${currentBarcode}', ${log.qty_transferred})">🚫 Void</button>`;
+                    : `<button class="void-btn" onclick="voidTransaction('${log.id}', '${currentBarcode}', ${log.qty_transferred})">🚫 Void</button>`;
                 if (log.isOfflinePending) {
                     actionButton = `<span style="color: #ea580c; font-size: 12px; font-weight:600;">⏳ Syncing...</span>`;
                 }
 
                 const stockAlertClass = parseInt(liveShowroomStock) <= 10 ? 'showroom-live-indicator low-stock' : 'showroom-live-indicator';
 
-                // منطق تفکیک رنگ ستون تعداد تغییر یافته
                 let qtyColor = '#10b981'; 
                 if (isVoided) {
                     qtyColor = '#94a3b8'; 
@@ -920,7 +917,6 @@
                     qtyColor = '#ef4444'; 
                 }
 
-                // منطق اعمال صحیح علامت‌های مثبت و منفی بدون بهم زدن جدول
                 let qtySign = '';
                 if (!isVoided) {
                     if (worker.includes('System Auto-Sale') || (log.qty_transferred || 0) < 0) {
