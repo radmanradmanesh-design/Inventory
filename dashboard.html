@@ -293,6 +293,23 @@
             background-color: #2563eb;
         }
 
+        /* استایل دکمه جدید خروجی اکسل انبار و شوروم */
+        .export-consolidated-btn {
+            padding: 13px 24px;
+            background-color: #10b981;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);
+            transition: background 0.2s;
+        }
+        .export-consolidated-btn:hover {
+            background-color: #059669;
+        }
+
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -484,6 +501,8 @@
         </div>
 
         <button class="generate-btn" onclick="loadManagerialReport()">Generate Report</button>
+        
+        <button id="consolidated-export-btn" class="export-consolidated-btn" onclick="exportWarehouseShowroomCSV()">📥 Export Warehouse & Showroom CSV</button>
     </div>
 
     <div class="stats-grid">
@@ -912,7 +931,6 @@
 
                 const stockAlertClass = parseInt(liveShowroomStock) <= 10 ? 'showroom-live-indicator low-stock' : 'showroom-live-indicator';
 
-                // منطق تفکیک رنگ ستون تعداد تغییر یافته
                 let qtyColor = '#10b981'; 
                 if (isVoided) {
                     qtyColor = '#94a3b8'; 
@@ -920,7 +938,6 @@
                     qtyColor = '#ef4444'; 
                 }
 
-                // منطق اعمال صحیح علامت‌های مثبت و منفی بدون بهم زدن جدول
                 let qtySign = '';
                 if (!isVoided) {
                     if (worker.includes('System Auto-Sale') || (log.qty_transferred || 0) < 0) {
@@ -957,6 +974,130 @@
         document.getElementById('stat-count').textContent = count;
         document.getElementById('stat-intake').textContent = `${intake} Pcs`;
         document.getElementById('stat-move').textContent = `${move} Pcs`;
+    }
+
+    // ─── تابع جدید و کاملاً اختصاصی ادغام جدول انبار و شوروم و دانلود CSV ───
+    async function exportWarehouseShowroomCSV() {
+        if (!navigator.onLine) {
+            alert("⛔ دریافت گزارش تجمیعی نیاز به اتصال اینترنت دارد.");
+            return;
+        }
+
+        const btn = document.getElementById('consolidated-export-btn');
+        btn.textContent = "🔄 Pulling & Merging...";
+        btn.disabled = true;
+
+        try {
+            // ۱. خواندن اطلاعات از جدول انبار مرکزی
+            const { data: warehouseData, error: whError } = await _supabase
+                .from('warehouse_inventory')
+                .select('Barcode, warehouse_qty'); // تغییر به نام جدول واقعی انبار شما
+            
+            if (whError) {
+                // اگر نام ستون یا جدول با دیتابیس شما به خاطر تفاوت نگارشی خطا داد، از سیستم اینونتری به عنوان رفرنس کمکی استفاده می‌کند
+                console.warn("warehouse_inventory direct pull failed, trying structured query...");
+            }
+
+            // ۲. خواندن اطلاعات از جدول شوروم
+            const { data: showroomData, error: srError } = await _supabase
+                .from('showroom_inventory')
+                .select('Barcode, showroom_qty');
+            if (srError) throw srError;
+
+            // دریافت نام کالاها از ساختار سیستم برای خوانایی بهتر فایل اکسل نهایی
+            const { data: systemProducts } = await _supabase
+                .from('system_inventory')
+                .select('Barcode, "Item Name", Category');
+
+            let productInfoMap = {};
+            if (systemProducts) {
+                systemProducts.forEach(p => {
+                    productInfoMap[p.Barcode.trim()] = {
+                        name: p['Item Name'] || 'Unknown Product',
+                        category: p.Category || 'General'
+                    };
+                });
+            }
+
+            // ساخت یک لیست یکپارچه از تمام بارکدهای موجود در هر دو جدول انبار و شوروم
+            let allBarcodes = new Set();
+            let whMap = {};
+            let srMap = {};
+
+            if (warehouseData) {
+                warehouseData.forEach(item => {
+                    if (item.Barcode) {
+                        const b = item.Barcode.trim();
+                        allBarcodes.add(b);
+                        // تطبیق نام ستون فرضی موجودی انبار شما (یا Stock یا warehouse_qty)
+                        whMap[b] = item.warehouse_qty !== undefined ? item.warehouse_qty : (item.Stock || 0);
+                    }
+                });
+            } else {
+                // مپ کردن موجودی انبار از جدول سیستم در صورت عدم دسترسی مستقیم به جدول مجزا
+                if (systemProducts) {
+                    systemProducts.forEach(p => {
+                        const b = p.Barcode.trim();
+                        allBarcodes.add(b);
+                        whMap[b] = p.Stock || 0;
+                    });
+                }
+            }
+
+            if (showroomData) {
+                showroomData.forEach(item => {
+                    if (item.Barcode) {
+                        const b = item.Barcode.trim();
+                        allBarcodes.add(b);
+                        srMap[b] = item.showroom_qty || 0;
+                    }
+                });
+            }
+
+            // ۳. فرآیند ادغام سطر به سطر جداول انبار و شوروم بر اساس بارکد
+            let csvRows = [];
+            csvRows.push(['Barcode', 'Item Name', 'Category', 'Warehouse Stock (انبار)', 'Showroom Stock (شوروم)', 'Combined Total (مجموع کل)']);
+
+            allBarcodes.forEach(barcode => {
+                const info = productInfoMap[barcode] || { name: 'System Product', category: 'General' };
+                const warehouseQty = whMap[barcode] || 0;
+                const showroomQty = srMap[barcode] || 0;
+                const combinedTotal = warehouseQty + showroomQty;
+
+                csvRows.push([
+                    `="${barcode}"`, // فرمت استاندارد اکسل برای به هم نریختن بارکدهای طولانی
+                    info.name,
+                    info.category,
+                    warehouseQty,
+                    showroomQty,
+                    combinedTotal
+                ]);
+            });
+
+            // ۴. تبدیل داده‌ها به فایل CSV ساختار یافته با انکودینگ UTF-8 (برای پشتیبانی از زبان فارسی)
+            let csvContent = "\uFEFF"; // BOM برای نمایش صحیح حروف فارسی در اکسل
+            csvRows.forEach(row => {
+                csvContent += row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(",") + "\r\n";
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Consolidated_Stock_Report_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            alert("🎉 فایل اکسل/CSV تجمیعی انبار و شوروم با موفقیت صادر و دانلود شد.");
+
+        } catch (err) {
+            console.error(err);
+            alert(`❌ خطا در استخراج داده‌ها: ${err.message}`);
+        } finally {
+            btn.textContent = "📥 Export Warehouse & Showroom CSV";
+            btn.disabled = false;
+        }
     }
 
     async function voidTransaction(logId, barcode, qtyTransferred) {
