@@ -55,6 +55,7 @@
         }
         h1 { margin: 0; font-size: 22px; color: #0f172a; font-weight: 700; }
         
+        /* وضعیت اتصال */
         .status-badges {
             display: flex;
             gap: 10px;
@@ -87,6 +88,7 @@
             display: none;
         }
         
+        /* بخش آپلودر سیستم */
         .upload-section {
             background: #ffffff;
             padding: 24px;
@@ -149,6 +151,7 @@
             box-shadow: none;
         }
 
+        /* بخش فیلترهای بالا */
         .filter-box {
             background: #ffffff;
             padding: 24px;
@@ -183,6 +186,7 @@
             background-color: #fff;
         }
 
+        /* استایل اختصاصی برای منوی کشویی چک‌باکس‌دار کتگوری */
         .dropdown-check-wrapper {
             position: relative;
             width: 100%;
@@ -254,6 +258,7 @@
             cursor: pointer;
         }
 
+        /* استایل سوئیچ فیلتر ترنزکشن‌ها */
         .toggle-filter-container {
             display: flex;
             background: #f1f5f9;
@@ -291,22 +296,6 @@
         }
         .generate-btn:hover {
             background-color: #2563eb;
-        }
-
-        .export-consolidated-btn {
-            padding: 13px 24px;
-            background-color: #10b981;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);
-            transition: background 0.2s;
-        }
-        .export-consolidated-btn:hover {
-            background-color: #059669;
         }
 
         .stats-grid {
@@ -486,7 +475,8 @@
                         <button onclick="selectAllCategories(event)">Select All</button>
                         <button onclick="clearAllCategories(event)">Clear</button>
                     </div>
-                    <div id="category-options-container"></div>
+                    <div id="category-options-container">
+                        </div>
                 </div>
             </div>
         </div>
@@ -500,7 +490,6 @@
         </div>
 
         <button class="generate-btn" onclick="loadManagerialReport()">Generate Report</button>
-        <button id="consolidated-export-btn" class="export-consolidated-btn" onclick="exportWarehouseShowroomCSV()">📥 Export Warehouse & Showroom CSV</button>
     </div>
 
     <div class="stats-grid">
@@ -527,8 +516,7 @@
                     <th>Item Name</th>
                     <th>Activity / Operator</th>
                     <th>Qty Change</th>
-                    <th>Showroom Live Qty</th>
-                    <th>Actions</th>
+                    <th>Showroom Live Qty</th> <th>Actions</th>
                 </tr>
             </thead>
             <tbody id="report-tbody">
@@ -541,17 +529,20 @@
 </div>
 
 <script>
-    const SUPABASE_URL = 'https://qmurpnbrnmyjdxqjhybz.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec';
+    const SUPABASE_URL = 'https://qmurpnbrnmyjdxqjhybz.supabase.co'; 
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'; 
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const ADMIN_PASSWORD = "RadmanAdmin2026"; 
 
     let db;
     let cachedLogs = [];
+    
+    // وضعیت متغیرهای فیلتر جدید
     let selectedCategories = [];
-    let currentTxFilter = 'non-sales';
+    let currentTxFilter = 'non-sales'; // حالت پیش‌فرض مقداردهی شد
 
+    // بستن منوی کشویی دسته‌بندی در صورت کلیک در محیط بیرون
     document.addEventListener('click', function(e) {
         const wrapper = document.querySelector('.dropdown-check-wrapper');
         if (wrapper && !wrapper.contains(e.target)) {
@@ -612,20 +603,23 @@
         }
     }
 
+    // واکشی دسته‌بندی‌ها به صورت پویا از جدول مرجع سیستم
     async function fetchCategoriesFromServer() {
         if (!navigator.onLine) return;
         try {
             const { data, error } = await _supabase
-                .from('warehouse_inventory')
+                .from('system_inventory')
                 .select('Category');
+            
             if (!error && data) {
+                // استخراج کتگوری‌های یکتا و حذف رکوردهای خالی
                 const uniqueCats = [...new Set(data.map(item => item.Category).filter(Boolean))];
                 const container = document.getElementById('category-options-container');
                 container.innerHTML = '';
                 
                 selectedCategories = [];
                 uniqueCats.forEach(cat => {
-                    selectedCategories.push(cat);
+                    selectedCategories.push(cat); // به صورت پیش‌فرض همه انتخاب می‌شوند
                     container.innerHTML += `
                         <div class="dropdown-option-item">
                             <input type="checkbox" value="${cat}" checked onchange="handleCheckboxChange(this)">
@@ -640,6 +634,7 @@
         }
     }
 
+    // موتور اختصاصی خواندن و ارسال پکیج دیتای دیتابیس با قابلیت هوشمند Upsert
     async function handleCSVUpload() {
         if (!navigator.onLine) {
             alert("⛔ Sync operations require an active network connection. You cannot sync stock files while offline.");
@@ -656,6 +651,7 @@
         }
 
         const file = fileInput.files[0];
+        
         const password = prompt("🔒 Admin Security Lock.\nEnter Master Password to commit live inventory overwrite:");
         if (password === null) return;
         if (password !== ADMIN_PASSWORD) {
@@ -666,6 +662,7 @@
         syncBtn.disabled = true;
         syncBtn.textContent = "Processing & Syncing data...";
         errDisplay.style.display = 'none';
+
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
@@ -677,7 +674,7 @@
                     const barcode = row['Barcode'] || row['barcode'];
                     const itemName = row['Item Name'] || row['item name'] || row['ItemName'];
                     const itemCode = row['Item Code'] || row['item code'] || row['ItemCode'];
-                    const category = row['Category'] || row['category'] || row['Category Name'];
+                    const category = row['Category'] || row['category'] || row['Category Name']; // فیلد کتگوری توسعه داده شد
                     let rawStock = row['Stock'] || row['stock'] || row['Quantity'] || row['quantity'] || '0';
 
                     rawStock = String(rawStock).replace(/,/g, ''); 
@@ -688,8 +685,8 @@
                             Barcode: barcode.trim(),
                             "Item Name": itemName ? itemName.trim() : 'System Product',
                             "Item Code": itemCode ? itemCode.trim() : '',
-                            Category: category ? category.trim() : 'General',
-                            warehouse_qty: stock
+                            Category: category ? category.trim() : 'General', // درج فیلد به دیتابیس
+                            Stock: stock
                         });
                     }
                 }
@@ -703,14 +700,15 @@
 
                 try {
                     const { error } = await _supabase
-                        .from('warehouse_inventory')
+                        .from('system_inventory')
                         .upsert(formattedRows, { onConflict: 'Barcode' });
+
                     if (error) throw error;
 
                     alert(`🎉 Excellent! Successfully matched and updated [ ${formattedRows.length} ] products. Showroom levels auto-recalibrated via triggers.`);
                     fileInput.value = ""; 
-                    await fetchCategoriesFromServer();
-                    loadManagerialReport();
+                    await fetchCategoriesFromServer(); // رفرش کردن لیست کتگوری‌ها پس از آپلود
+                    loadManagerialReport(); 
                 } catch (err) {
                     console.error(err);
                     errDisplay.textContent = `🚨 Upsert Engine Error: ${err.message || 'Check database constraints.'}`;
@@ -730,6 +728,7 @@
 
     function initOfflineStorage() {
         const request = indexedDB.open("WarehouseOfflineDB", 1);
+        
         request.onupgradeneeded = function(e) {
             let dbInstance = e.target.result;
             if (!dbInstance.objectStoreNames.contains("void_queue")) {
@@ -773,6 +772,7 @@
     window.onload = async function() {
         initOfflineStorage();
         updateNetworkStatus();
+
         const now = new Date();
         const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
         const today = now.toISOString().split('T')[0];
@@ -780,10 +780,11 @@
         document.getElementById('date-start-picker').value = firstDay;
         document.getElementById('date-end-picker').value = today;
         
-        await fetchCategoriesFromServer();
+        await fetchCategoriesFromServer(); // ابتدا کتگوری‌ها لود شوند
         loadManagerialReport();
     };
 
+    // خواندن اطلاعات و اعمال همزمان فیلترهای پیشرفته کتگوری و نوع تراکنش
     async function loadManagerialReport() {
         const startDate = document.getElementById('date-start-picker').value;
         const endDate = document.getElementById('date-end-picker').value;
@@ -794,6 +795,7 @@
         tbody.innerHTML = '<tr><td colspan="7" class="loading-text">🔄 Fetching logs and analyzing activities...</td></tr>';
 
         let onlineLogs = [];
+
         if (navigator.onLine) {
             try {
                 const startISO = `${startDate}T00:00:00.000Z`;
@@ -818,18 +820,15 @@
         }
 
         getOfflineQueueItems(async (offlineItems) => {
-            let mergedLogs = [
-                ...offlineItems.map(item => ({
-                    id: `offline-${item.id}`,
-                    isOfflinePending: true,
-                    Barcode: item.barcode,
-                    qty_transferred: item.qtyTransferred,
-                    worker_name: "Admin (Offline Correction)",
-                    status: "Voided",
-                    created_at: item.timestamp
-                })),
-                ...onlineLogs
-            ];
+            let mergedLogs = [...offlineItems.map(item => ({
+                id: `offline-${item.id}`,
+                isOfflinePending: true,
+                Barcode: item.barcode,
+                qty_transferred: item.qtyTransferred,
+                worker_name: "Admin (Offline Correction)",
+                status: "Voided",
+                created_at: item.timestamp
+            })), ...onlineLogs];
 
             offlineItems.forEach(off => {
                 let target = mergedLogs.find(l => l.id === off.logId);
@@ -845,20 +844,19 @@
             }
 
             const uniqueBarcodes = [...new Set(mergedLogs.map(l => l.Barcode || l.barcode))].filter(Boolean);
-
+            
             let productMap = {};
-            let itemCategoryMap = {};
-            let showroomStockMap = {};
+            let itemCategoryMap = {}; // ساخت مپ اختصاصی جهت نگهداری کتگوری هر کالا
+            let showroomStockMap = {}; 
 
             if (navigator.onLine && uniqueBarcodes.length > 0) {
                 const { data: products } = await _supabase
-                    .from('warehouse_inventory')
+                    .from('system_inventory')
                     .select('Barcode, "Item Name", Category')
                     .in('Barcode', uniqueBarcodes);
-
                 if (products) {
-                    products.forEach(p => {
-                        productMap[p.Barcode] = p['Item Name'];
+                    products.forEach(p => { 
+                        productMap[p.Barcode] = p['Item Name']; 
                         itemCategoryMap[p.Barcode] = p.Category || 'General';
                     });
                 }
@@ -868,7 +866,7 @@
                         .from('showroom_inventory')
                         .select('Barcode, showroom_qty')
                         .in('Barcode', uniqueBarcodes);
-
+                    
                     if (!showErr && showroomData) {
                         showroomData.forEach(s => {
                             const bcd = s.Barcode || '';
@@ -895,11 +893,14 @@
                 const itemCategory = itemCategoryMap[currentBarcode] || 'General';
                 const worker = log.worker_name || '';
 
+                // ─── فیلتر ۱: اعمال شرط چک‌باکس‌های کتگوری ───
                 if (selectedCategories.length > 0 && !selectedCategories.includes(itemCategory)) {
-                    return;
+                    return; // کالا در کتگوری‌های انتخابی کاربر نیست، عبور کن
                 }
+
+                // ─── فیلتر ۲: اعمال شرط نوع تراکنش (اکسکلود کردن فروش در حالت پیش‌فرض) ───
                 if (currentTxFilter === 'non-sales' && worker.includes('System Auto-Sale')) {
-                    return;
+                    return; // تراکنش از نوع فروش سیستمی است و فیلتر پیش‌فرض فعال است، عبور کن
                 }
 
                 displayedRowsCount++;
@@ -924,35 +925,19 @@
                 }
 
                 if (worker.includes('System Auto-Sale')) {
-                    badgeClass = 'badge voided';
+                    badgeClass = 'badge voided'; // ظاهر اختصاصی برای نمایش فروش‌ها در صورت فعال‌سازی
                 }
 
-                let actionButton = isVoided ? 
-                    `<span style="color: #94a3b8; font-size: 12px;">❌ Voided</span>` : 
-                    `<button class="void-btn" onclick="voidTransaction(${log.id}, '${currentBarcode}', ${log.qty_transferred})">🚫 Void</button>`;
-
+                let actionButton = isVoided 
+                    ? `<span style="color: #94a3b8; font-size: 12px;">❌ Voided</span>`
+                    : `<button class="void-btn" onclick="voidTransaction(${log.id}, '${currentBarcode}', ${log.qty_transferred})">🚫 Void</button>`;
+                
                 if (log.isOfflinePending) {
                     actionButton = `<span style="color: #ea580c; font-size: 12px; font-weight:600;">⏳ Syncing...</span>`;
                 }
 
-                const stockAlertClass = parseInt(liveShowroomStock) <= 10 ?
-                    'showroom-live-indicator low-stock' : 'showroom-live-indicator';
-
-                let qtyColor = '#10b981';
-                if (isVoided) {
-                    qtyColor = '#94a3b8';
-                } else if (worker.includes('System Auto-Sale') || (log.qty_transferred || 0) < 0) {
-                    qtyColor = '#ef4444';
-                }
-
-                let qtySign = '';
-                if (!isVoided) {
-                    if (worker.includes('System Auto-Sale') || (log.qty_transferred || 0) < 0) {
-                        qtySign = '-';
-                    } else if ((log.qty_transferred || 0) > 0) {
-                        qtySign = '+';
-                    }
-                }
+                // اینجا شرط آستانه موجودی که قبلاً روی ۱۰ تنظیم شده بود را می‌توانید ببینید
+                const stockAlertClass = parseInt(liveShowroomStock) <= 10 ? 'showroom-live-indicator low-stock' : 'showroom-live-indicator';
 
                 tbody.innerHTML += `
                     <tr style="${isVoided ? 'opacity: 0.6; background-color: #f8fafc;' : ''}">
@@ -960,11 +945,10 @@
                         <td><code>${currentBarcode}</code></td>
                         <td style="font-weight: 600; color: #1e293b; ${isVoided ? 'text-decoration: line-through;' : ''}">${itemName} <span style="font-size:11px; color:#94a3b8; font-weight:normal;">(${itemCategory})</span></td>
                         <td><span class="${badgeClass}">${isVoided ? 'VOID: ' + worker : worker}</span></td>
-                        <td style="font-weight: 700; font-size: 15px; text-decoration: ${isVoided ? 'line-through' : 'none'}; color: ${qtyColor}; text-align: left;">
-                            ${qtySign}${qty} Pcs
+                        <td style="font-weight: 700; font-size: 15px; text-decoration: ${isVoided ? 'line-through' : 'none'}; color: ${isVoided ? '#94a3b8' : ((log.qty_transferred || 0) >= 0 ? '#10b981' : '#ef4444')}">
+                            ${(log.qty_transferred || 0) > 0 ? '+' : ''}${log.qty_transferred || 0}
                         </td>
-                        <td><span class="${stockAlertClass}">${liveShowroomStock} Pcs</span></td>
-                        <td>${actionButton}</td>
+                        <td><span class="${stockAlertClass}">${liveShowroomStock} Pcs</span></td> <td>${actionButton}</td>
                     </tr>
                 `;
             });
@@ -972,6 +956,7 @@
             if(displayedRowsCount === 0) {
                 tbody.innerHTML = '<tr><td colspan="7" class="loading-text">ℹ️ No rows matched the active category/transaction filters.</td></tr>';
             }
+
             updateKPIs(totalRequests, totalIntakeQty, totalMovementQty);
         });
     }
@@ -982,47 +967,123 @@
         document.getElementById('stat-move').textContent = `${move} Pcs`;
     }
 
-    // ─── تابع جدید: استفاده کاملاً انحصاری از warehouse_inventory به عنوان مرجع اصلی گزارش تجمیعی ───
-    async function exportWarehouseShowroomCSV() {
-        if (!navigator.onLine) {
-            alert("⛔ Consolidated report pulling requires an active network connection.");
+    async function voidTransaction(logId, barcode, qtyTransferred) {
+        const password = prompt("🔒 Admin Access Required.\nPlease enter the Manager Password to void this record:");
+        if (password === null) return; 
+        if (password !== ADMIN_PASSWORD) {
+            alert("⛔ Access Denied! Incorrect Admin Password.");
             return;
         }
 
-        const btn = document.getElementById('consolidated-export-btn');
-        btn.textContent = "🔄 Pulling & Merging...";
-        btn.disabled = true;
+        if (!confirm(`Are you sure you want to void this transaction? This will automatically reverse [ ${qtyTransferred} Pcs ] to correct the mistake.`)) {
+            return;
+        }
 
-        try {
-            // ۱. دریافت تمام رکوردها از جدول اصلی و مرجع warehouse_inventory
-            const { data: warehouseProducts, error: whError } = await _supabase
-                .from('warehouse_inventory')
-                .select('Barcode, "Item Name", Category, warehouse_qty');
+        const txPayload = {
+            logId: logId,
+            barcode: barcode,
+            qtyTransferred: qtyTransferred,
+            timestamp: new Date().toISOString()
+        };
 
-            if (whError) throw whError;
-
-            if (!warehouseProducts || warehouseProducts.length === 0) {
-                alert("❌ No records found in the master warehouse_inventory table.");
-                btn.textContent = "📥 Export Warehouse & Showroom CSV";
-                btn.disabled = false;
-                return;
+        if (navigator.onLine) {
+            try {
+                await executeVoidOnServer(txPayload);
+                alert("✅ Success! Transaction successfully voided on server.");
+                loadManagerialReport();
+            } catch (error) {
+                alert(`❌ Server update failed, saving to offline queue instead: ${error.message}`);
+                pushToOfflineQueue(txPayload);
             }
+        } else {
+            pushToOfflineQueue(txPayload);
+            alert("📡 Device is Offline! The correction has been securely queued locally.");
+            loadManagerialReport();
+        }
+    }
 
-            // ۲. دریافت اطلاعات تکمیلی موجودی‌ها از جدول showroom_inventory
-            const { data: showroomData, error: srError } = await _supabase
-                .from('showroom_inventory')
-                .select('Barcode, showroom_qty');
+    async function executeVoidOnServer(payload) {
+        const { data: itemData, error: fetchError } = await _supabase
+            .from('system_inventory')
+            .select('Stock') 
+            .eq('Barcode', payload.barcode)
+            .single();
 
-            if (srError) throw srError;
+        if (fetchError) throw new Error("Item not found on database.");
 
-            // ساخت یک نقشه (Map) سریع از موجودی‌های شوروم بر اساس بارکد
-            let srMap = {};
-            if (showroomData) {
-                showroomData.forEach(item => {
-                    if (item.Barcode) {
-                        srMap[item.Barcode.trim()] = item.showroom_qty || 0;
-                    }
-                });
+        const currentQty = itemData.Stock || 0;
+        const correctedQty = currentQty - payload.qtyTransferred; 
+
+        const { error: updateInvError } = await _supabase
+            .from('system_inventory')
+            .update({ Stock: correctedQty })
+            .eq('Barcode', payload.barcode);
+
+        if (updateInvError) throw updateInvError;
+
+        const { error: updateLogError } = await _supabase
+            .from('transfer_log')
+            .update({ status: 'Voided' })
+            .eq('id', payload.logId);
+
+        if (updateLogError) throw updateLogError;
+    }
+
+    function pushToOfflineQueue(item) {
+        if (!db) return;
+        const transaction = db.transaction(["void_queue"], "readwrite");
+        const store = transaction.objectStore("void_queue");
+        store.add(item);
+
+        transaction.oncomplete = function() {
+            updateOfflineBadgeCount();
+        };
+    }
+
+    function getOfflineQueueItems(callback) {
+        if (!db) { callback([]); return; }
+        const transaction = db.transaction(["void_queue"], "readonly");
+        const store = transaction.objectStore("void_queue");
+        const request = store.getAll();
+        request.onsuccess = function() {
+            callback(request.result || []);
+        };
+    }
+
+    function updateOfflineBadgeCount() {
+        getOfflineQueueItems((items) => {
+            const badge = document.getElementById("offline-queue-count");
+            if (items.length > 0) {
+                badge.textContent = `⏳ ${items.length} Unsynced Fixes`;
+                badge.style.display = "inline-block";
+            } else {
+                badge.style.display = "none";
             }
+        });
+    }
 
-            // ۳
+    async function syncOfflineQueue() {
+        getOfflineQueueItems(async (items) => {
+            if (items.length === 0) return;
+
+            console.log(`Starting background sync for ${items.length} pending corrections...`);
+            
+            const transaction = db.transaction(["void_queue"], "readwrite");
+            const store = transaction.objectStore("void_queue");
+
+            for (const item of items) {
+                try {
+                    await executeVoidOnServer(item);
+                    store.delete(item.id);
+                    console.log(`Successfully synced local ID: ${item.id}`);
+                } catch (err) {
+                    console.error(`Failed to sync item ID ${item.id}:`, err);
+                }
+            }
+            updateOfflineBadgeCount();
+            loadManagerialReport();
+        });
+    }
+</script>
+</body>
+</html>
