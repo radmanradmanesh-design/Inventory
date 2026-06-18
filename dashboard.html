@@ -320,6 +320,7 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
             border: 1px solid #f1f5f9;
             overflow-x: auto;
+            margin-bottom: 16px;
         }
         table {
             width: 100%;
@@ -404,6 +405,52 @@
             transition: background 0.2s;
         }
         .void-btn:hover { background-color: #dc2626; }
+
+        /* پدینگ و فریم بخش صفحه‌بندی */
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 24px;
+            background: #ffffff;
+            border-radius: 12px;
+            border: 1px solid #f1f5f9;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .pagination-info {
+            font-size: 13px;
+            color: #64748b;
+            font-weight: 500;
+        }
+        .pagination-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        .page-btn {
+            padding: 8px 16px;
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            color: #334155;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .page-btn:hover:not(:disabled) {
+            background-color: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+        .page-btn:disabled {
+            background-color: #f8fafc;
+            color: #cbd5e1;
+            cursor: not-allowed;
+        }
+        .page-btn.active {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #3b82f6;
+        }
 
         code {
             background-color: #f1f5f9;
@@ -536,6 +583,16 @@
             </tbody>
         </table>
     </div>
+
+    <!-- بخش کنترل صفحه‌بندی کامپوننت جدید جدول -->
+    <div class="pagination-container" id="pagination-wrapper" style="display: none;">
+        <div class="pagination-info" id="pagination-text-info">Showing 0 to 0 of 0 entries</div>
+        <div class="pagination-buttons">
+            <button class="page-btn" id="pagination-prev-btn" onclick="changeReportPage(-1)">Previous</button>
+            <button class="page-btn active" id="pagination-current-indicator">1</button>
+            <button class="page-btn" id="pagination-next-btn" onclick="changeReportPage(1)">Next</button>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -549,6 +606,11 @@
     let cachedLogs = [];
     let selectedCategories = [];
     let currentTxFilter = 'non-sales';
+
+    // متغیرهای مدیریت فرانت‌اند صفحه‌بندی
+    let finalProcessedRows = []; 
+    let reportCurrentPage = 1;
+    const ROWS_PER_PAGE = 100;
 
     let schemaKeys = {
         system: { barcode: 'Barcode', itemName: 'Item Name', itemCode: 'Item Code', category: 'Category', stock: 'Stock' },
@@ -666,32 +728,22 @@
         }
     }
 
+    // لایه فیلتر پیشرفته: به جای مخفی کردن ردیف‌ها، فیلتر آنی روی آرایه کل داده‌ها اعمال شده و مجدد صفحه‌بندی می‌شود
     function filterReportTable() {
         const valBarcode = document.getElementById('filter-barcode').value.toLowerCase().trim();
         const valName = document.getElementById('filter-name').value.toLowerCase().trim();
         const valOperator = document.getElementById('filter-operator').value.toLowerCase().trim();
 
-        const tbody = document.getElementById('report-tbody');
-        const rows = tbody.getElementsByTagName('tr');
+        // فیلتر کردن ردیف‌های فعال و ساخت زیرمجموعه جدید داده‌ها
+        const filtered = finalProcessedRows.filter(row => {
+            const matchBarcode = row.barcode.toLowerCase().includes(valBarcode);
+            const matchName = row.itemName.toLowerCase().includes(valName);
+            const matchOperator = row.worker.toLowerCase().includes(valOperator);
+            return matchBarcode && matchName && matchOperator;
+        });
 
-        for (let i = 0; i < rows.length; i++) {
-            const row = rows[i];
-            if (row.cells.length < 7) continue;
-
-            const textBarcode = row.cells[1].textContent.toLowerCase();
-            const textName = row.cells[2].textContent.toLowerCase();
-            const textOperator = row.cells[3].textContent.toLowerCase();
-
-            const matchBarcode = textBarcode.includes(valBarcode);
-            const matchName = textName.includes(valName);
-            const matchOperator = textOperator.includes(valOperator);
-
-            if (matchBarcode && matchName && matchOperator) {
-                row.style.display = "";
-            } else {
-                row.style.display = "none";
-            }
-        }
+        reportCurrentPage = 1;
+        renderTableChunk(filtered);
     }
 
     function clearColumnFilterInputs() {
@@ -846,7 +898,6 @@
         loadManagerialReport();
     };
 
-    // مبدل تاریخ لوکال به ایزو بدون تداخل اختلاف ساعت و منطقه زمانی
     function convertLocalDateToISO(dateString, isEndOfDay) {
         if(!dateString) return null;
         const d = new Date(dateString);
@@ -855,8 +906,6 @@
         } else {
             d.setHours(0, 0, 0, 0);
         }
-        
-        // محاسبه آفست منطقه زمانی محلی مرورگر و شبیه‌سازی دقیق ساعت انبار
         const offset = d.getTimezoneOffset();
         const localISO = new Date(d.getTime() - (offset * 60000));
         return localISO.toISOString();
@@ -871,6 +920,7 @@
         errDisplay.style.display = 'none';
         tbody.innerHTML = '<tr><td colspan="7" class="loading-text">🔄 Fetching logs and analyzing activities...</td></tr>';
         clearColumnFilterInputs();
+        document.getElementById('pagination-wrapper').style.display = 'none';
 
         let onlineLogs = [];
         if (navigator.onLine) {
@@ -878,19 +928,16 @@
                 const startISO = convertLocalDateToISO(startDate, false);
                 const endISO = convertLocalDateToISO(endDate, true);
 
-                // ۱. ساخت کوئری پایه به همراه فیلتر دقیق بازه زمانی
                 let query = _supabase
                     .from('transfer_log')
                     .select('*')
                     .gte('created_at', startISO)
                     .lte('created_at', endISO);
 
-                // ۲. انتقال فیلتر نوع تراکنش به سمت دیتابیس جهت جلوگیری از پر شدن کاذب سقف ردیف‌ها
                 if (currentTxFilter === 'non-sales') {
                     query = query.not('worker_name', 'ilike', '%System Auto-Sale%');
                 }
 
-                // ۳. مرتب‌سازی و اعمال سقف مجاز دریافت داده
                 const { data, error: logError } = await query
                     .order('created_at', { ascending: false })
                     .limit(5000);
@@ -970,90 +1017,168 @@
             let totalIntakeQty = 0;
             let totalMovementQty = 0;
 
-            tbody.innerHTML = '';
-            let displayedRowsCount = 0;
+            finalProcessedRows = []; // پاکسازی رکوردهای آرایه کلی
+
             mergedLogs.forEach(log => {
                 const currentBarcode = log.Barcode || log.barcode || '---';
                 const itemName = productMap[currentBarcode] || 'System Item';
                 const itemCategory = itemCategoryMap[currentBarcode] || 'General';
                 const worker = log.worker_name || '';
 
-                // فیلتر دسته‌بندی انتخابی مدیریت
                 if (selectedCategories.length > 0 && !selectedCategories.includes(itemCategory)) {
                     return; 
                 }
 
-                displayedRowsCount++;
-                const liveShowroomStock = showroomStockMap[currentBarcode] !== undefined ? showroomStockMap[currentBarcode] : 0;
                 const qty = Math.abs(log.qty_transferred || 0);
-                const logDate = new Date(log.created_at).toLocaleString('en-GB', { timeZone: 'Asia/Muscat' });
                 const isVoided = log.status && log.status === 'Voided';
 
-                let badgeClass = 'badge movement';
-                if (log.isOfflinePending) {
-                    badgeClass = 'badge pending-sync';
-                } else if (isVoided) {
-                    badgeClass = 'badge voided';
-                } else if (worker.includes('Direct Intake')) {
-                    badgeClass = 'badge intake';
-                    totalIntakeQty += qty;
-                    totalRequests++;
-                } else {
-                    badgeClass = 'badge movement';
-                    totalMovementQty += qty;
-                    totalRequests++;
-                }
-
-                if (worker.includes('System Auto-Sale')) {
-                    badgeClass = 'badge voided';
-                }
-
-                let actionButton = isVoided 
-                    ? `<span style="color: #94a3b8; font-size: 12px;">❌ Voided</span>`
-                    : `<button class="void-btn" onclick="voidTransaction(${log.id}, '${currentBarcode}', ${log.qty_transferred})">🚫 Void</button>`;
-                if (log.isOfflinePending) {
-                    actionButton = `<span style="color: #ea580c; font-size: 12px; font-weight:600;">⏳ Syncing...</span>`;
-                }
-
-                const stockAlertClass = parseInt(liveShowroomStock) <= 10 ? 'showroom-live-indicator low-stock' : 'showroom-live-indicator';
-
-                let qtyColor = '#10b981'; 
-                if (isVoided) {
-                    qtyColor = '#94a3b8'; 
-                } else if (worker.includes('System Auto-Sale') || (log.qty_transferred || 0) < 0) {
-                    qtyColor = '#ef4444'; 
-                }
-
-                let qtySign = '';
                 if (!isVoided) {
-                    if (worker.includes('System Auto-Sale') || (log.qty_transferred || 0) < 0) {
-                        qtySign = '-';
-                    } else if ((log.qty_transferred || 0) > 0) {
-                        qtySign = '+';
+                    if (worker.includes('Direct Intake')) {
+                        totalIntakeQty += qty;
+                        totalRequests++;
+                    } else if (!worker.includes('System Auto-Sale')) {
+                        totalMovementQty += qty;
+                        totalRequests++;
                     }
                 }
 
-                tbody.innerHTML += `
-                    <tr style="${isVoided ? 'opacity: 0.6; background-color: #f8fafc;' : ''}">
-                        <td style="font-size: 13px; font-weight: 600; color: #64748b;">${logDate}</td>
-                        <td><code>${currentBarcode}</code></td>
-                        <td style="font-weight: 600; color: #1e293b; ${isVoided ? 'text-decoration: line-through;' : ''}">${itemName} <span style="font-size:11px; color:#94a3b8; font-weight:normal;">(${itemCategory})</span></td>
-                        <td><span class="${badgeClass}">${isVoided ? 'VOID: ' + worker : worker}</span></td>
-                        <td style="font-weight: 700; font-size: 15px; text-decoration: ${isVoided ? 'line-through' : 'none'}; color: ${qtyColor}; text-align: left;">
-                            ${qtySign}${qty} Pcs
-                        </td>
-                        <td><span class="${stockAlertClass}">${liveShowroomStock} Pcs</span></td> 
-                        <td>${actionButton}</td>
-                    </tr>
-                `;
+                // ارسال پکیج دیتا به آرایه کلی ساختار ردیف‌ها
+                finalProcessedRows.push({
+                    id: log.id,
+                    barcode: currentBarcode,
+                    itemName: itemName,
+                    itemCategory: itemCategory,
+                    worker: worker,
+                    qty_transferred: log.qty_transferred,
+                    isOfflinePending: log.isOfflinePending || false,
+                    status: log.status,
+                    created_at: log.created_at,
+                    liveShowroomStock: showroomStockMap[currentBarcode] !== undefined ? showroomStockMap[currentBarcode] : 0
+                });
             });
 
-            if(displayedRowsCount === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="loading-text">ℹ️ No rows matched the active category/transaction filters.</td></tr>';
+            updateKPIs(totalRequests, totalIntakeQty, totalMovementQty);
+
+            // آغاز لود و رندر تکه اول (صفحه ۱)
+            reportCurrentPage = 1;
+            renderTableChunk(finalProcessedRows);
+        });
+    }
+
+    // تابع رندر کردن تکه‌های ۱۰۰ تایی در دایومنت اصلی
+    function renderTableChunk(dataSource) {
+        const tbody = document.getElementById('report-tbody');
+        tbody.innerHTML = '';
+
+        if(dataSource.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="loading-text">ℹ️ No rows matched the filters.</td></tr>';
+            document.getElementById('pagination-wrapper').style.display = 'none';
+            return;
+        }
+
+        // محاسبه دقیق مرزهای آرایه جاری
+        const totalEntries = dataSource.length;
+        const totalPages = Math.ceil(totalEntries / ROWS_PER_PAGE);
+
+        if(reportCurrentPage > totalPages) reportCurrentPage = totalPages;
+        if(reportCurrentPage < 1) reportCurrentPage = 1;
+
+        const startIndex = (reportCurrentPage - 1) * ROWS_PER_PAGE;
+        const endIndex = Math.min(startIndex + ROWS_PER_PAGE, totalEntries);
+
+        // جداسازی ردیف‌های مربوط به صفحه فعلی
+        const pageItems = dataSource.slice(startIndex, endIndex);
+
+        pageItems.forEach(row => {
+            const qty = Math.abs(row.qty_transferred || 0);
+            const logDate = new Date(row.created_at).toLocaleString('en-GB', { timeZone: 'Asia/Muscat' });
+            const isVoided = row.status && row.status === 'Voided';
+
+            let badgeClass = 'badge movement';
+            if (row.isOfflinePending) {
+                badgeClass = 'badge pending-sync';
+            } else if (isVoided) {
+                badgeClass = 'badge voided';
+            } else if (row.worker.includes('Direct Intake')) {
+                badgeClass = 'badge intake';
+            } else {
+                badgeClass = 'badge movement';
             }
 
-            updateKPIs(totalRequests, totalIntakeQty, totalMovementQty);
+            if (row.worker.includes('System Auto-Sale')) {
+                badgeClass = 'badge voided';
+            }
+
+            let actionButton = isVoided 
+                ? `<span style="color: #94a3b8; font-size: 12px;">❌ Voided</span>`
+                : `<button class="void-btn" onclick="voidTransaction(${row.id}, '${row.barcode}', ${row.qty_transferred})">🚫 Void</button>`;
+            if (row.isOfflinePending) {
+                actionButton = `<span style="color: #ea580c; font-size: 12px; font-weight:600;">⏳ Syncing...</span>`;
+            }
+
+            const stockAlertClass = parseInt(row.liveShowroomStock) <= 10 ? 'showroom-live-indicator low-stock' : 'showroom-live-indicator';
+
+            let qtyColor = '#10b981'; 
+            if (isVoided) {
+                qtyColor = '#94a3b8'; 
+            } else if (row.worker.includes('System Auto-Sale') || (row.qty_transferred || 0) < 0) {
+                qtyColor = '#ef4444'; 
+            }
+
+            let qtySign = '';
+            if (!isVoided) {
+                if (row.worker.includes('System Auto-Sale') || (row.qty_transferred || 0) < 0) {
+                    qtySign = '-';
+                } else if ((row.qty_transferred || 0) > 0) {
+                    qtySign = '+';
+                }
+            }
+
+            tbody.innerHTML += `
+                <tr style="${isVoided ? 'opacity: 0.6; background-color: #f8fafc;' : ''}">
+                    <td style="font-size: 13px; font-weight: 600; color: #64748b;">${logDate}</td>
+                    <td><code>${row.barcode}</code></td>
+                    <td style="font-weight: 600; color: #1e293b; ${isVoided ? 'text-decoration: line-through;' : ''}">${row.itemName} <span style="font-size:11px; color:#94a3b8; font-weight:normal;">(${row.itemCategory})</span></td>
+                    <td><span class="${badgeClass}">${isVoided ? 'VOID: ' + row.worker : row.worker}</span></td>
+                    <td style="font-weight: 700; font-size: 15px; text-decoration: ${isVoided ? 'line-through' : 'none'}; color: ${qtyColor}; text-align: left;">
+                        ${qtySign}${qty} Pcs
+                    </td>
+                    <td><span class="${stockAlertClass}">${row.liveShowroomStock} Pcs</span></td> 
+                    <td>${actionButton}</td>
+                </tr>
+            `;
         });
+
+        // به روزرسانی نوکست، پریویوس و المان‌های فوتر صفحه‌بندی
+        document.getElementById('pagination-wrapper').style.display = 'flex';
+        document.getElementById('pagination-text-info').textContent = `Showing ${startIndex + 1} to ${endIndex} of ${totalEntries} entries`;
+        document.getElementById('pagination-current-indicator').textContent = reportCurrentPage;
+
+        document.getElementById('pagination-prev-btn').disabled = (reportCurrentPage === 1);
+        document.getElementById('pagination-next-btn').disabled = (reportCurrentPage === totalPages);
+    }
+
+    function changeReportPage(direction) {
+        reportCurrentPage += direction;
+        
+        // تشخیص اینکه آیا در حال حاضر فیلتر متنی ستون‌ها فعال است یا کل آرایه لود شود
+        const valBarcode = document.getElementById('filter-barcode').value.toLowerCase().trim();
+        const valName = document.getElementById('filter-name').value.toLowerCase().trim();
+        const valOperator = document.getElementById('filter-operator').value.toLowerCase().trim();
+
+        if (valBarcode || valName || valOperator) {
+            const filtered = finalProcessedRows.filter(row => {
+                return row.barcode.toLowerCase().includes(valBarcode) &&
+                       row.itemName.toLowerCase().includes(valName) &&
+                       row.worker.toLowerCase().includes(valOperator);
+            });
+            renderTableChunk(filtered);
+        } else {
+            renderTableChunk(finalProcessedRows);
+        }
+        
+        // اسکرول نرم به بالای جدول برای راحتی اپراتور
+        document.getElementById('report-table').scrollIntoView({ behavior: 'smooth' });
     }
 
     function updateKPIs(count, intake, move) {
