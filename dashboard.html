@@ -666,7 +666,6 @@
         }
     }
 
-    // لایه فیلتر آنی ستون‌های جدول گزارش (آفلاین و سریع روی کلاینت)
     function filterReportTable() {
         const valBarcode = document.getElementById('filter-barcode').value.toLowerCase().trim();
         const valName = document.getElementById('filter-name').value.toLowerCase().trim();
@@ -677,8 +676,6 @@
 
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
-            
-            // اگر سطر حاوی اطلاعات بارگذاری یا خطا باشد رد شو
             if (row.cells.length < 7) continue;
 
             const textBarcode = row.cells[1].textContent.toLowerCase();
@@ -849,6 +846,22 @@
         loadManagerialReport();
     };
 
+    // مبدل تاریخ لوکال به ایزو بدون تداخل اختلاف ساعت و منطقه زمانی
+    function convertLocalDateToISO(dateString, isEndOfDay) {
+        if(!dateString) return null;
+        const d = new Date(dateString);
+        if (isEndOfDay) {
+            d.setHours(23, 59, 59, 999);
+        } else {
+            d.setHours(0, 0, 0, 0);
+        }
+        
+        // محاسبه آفست منطقه زمانی محلی مرورگر و شبیه‌سازی دقیق ساعت انبار
+        const offset = d.getTimezoneOffset();
+        const localISO = new Date(d.getTime() - (offset * 60000));
+        return localISO.toISOString();
+    }
+
     async function loadManagerialReport() {
         const startDate = document.getElementById('date-start-picker').value;
         const endDate = document.getElementById('date-end-picker').value;
@@ -862,15 +875,26 @@
         let onlineLogs = [];
         if (navigator.onLine) {
             try {
-                const startISO = `${startDate}T00:00:00.000Z`;
-                const endISO = `${endDate}T23:59:59.999Z`;
+                const startISO = convertLocalDateToISO(startDate, false);
+                const endISO = convertLocalDateToISO(endDate, true);
 
-                const { data, error: logError } = await _supabase
+                // ۱. ساخت کوئری پایه به همراه فیلتر دقیق بازه زمانی
+                let query = _supabase
                     .from('transfer_log')
                     .select('*')
                     .gte('created_at', startISO)
-                    .lte('created_at', endISO)
-                    .order('created_at', { ascending: false });
+                    .lte('created_at', endISO);
+
+                // ۲. انتقال فیلتر نوع تراکنش به سمت دیتابیس جهت جلوگیری از پر شدن کاذب سقف ردیف‌ها
+                if (currentTxFilter === 'non-sales') {
+                    query = query.not('worker_name', 'ilike', '%System Auto-Sale%');
+                }
+
+                // ۳. مرتب‌سازی و اعمال سقف مجاز دریافت داده
+                const { data, error: logError } = await query
+                    .order('created_at', { ascending: false })
+                    .limit(5000);
+
                 if (logError) throw logError;
                 onlineLogs = data || [];
                 cachedLogs = onlineLogs;
@@ -954,11 +978,8 @@
                 const itemCategory = itemCategoryMap[currentBarcode] || 'General';
                 const worker = log.worker_name || '';
 
+                // فیلتر دسته‌بندی انتخابی مدیریت
                 if (selectedCategories.length > 0 && !selectedCategories.includes(itemCategory)) {
-                    return; 
-                }
-
-                if (currentTxFilter === 'non-sales' && worker.includes('System Auto-Sale')) {
                     return; 
                 }
 
