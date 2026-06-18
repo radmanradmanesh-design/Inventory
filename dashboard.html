@@ -307,14 +307,6 @@
             border: 1px solid #f1f5f9;
             position: relative;
         }
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
-        }
         .stat-card.total-req::before { background-color: #3b82f6; }
         .stat-card.total-intake::before { background-color: #f59e0b; }
         .stat-card.total-move::before { background-color: #10b981; }
@@ -344,6 +336,20 @@
             text-transform: uppercase;
             font-size: 12px;
             border-bottom: 2px solid #edf2f7;
+        }
+        .filter-row th {
+            padding: 8px 16px;
+            background-color: #f1f5f9;
+            border-bottom: 2px solid #cbd5e1;
+        }
+        .col-filter-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 12px;
+            box-sizing: border-box;
+            font-weight: normal;
         }
         td {
             padding: 16px;
@@ -513,6 +519,15 @@
                     <th>Showroom Live Qty</th>
                     <th>Actions</th>
                 </tr>
+                <tr class="filter-row">
+                    <th></th>
+                    <th><input type="text" id="filter-barcode" class="col-filter-input" placeholder="Filter Barcode..." oninput="filterReportTable()"></th>
+                    <th><input type="text" id="filter-name" class="col-filter-input" placeholder="Filter Item Name..." oninput="filterReportTable()"></th>
+                    <th><input type="text" id="filter-operator" class="col-filter-input" placeholder="Filter Operator..." oninput="filterReportTable()"></th>
+                    <th></th>
+                    <th></th>
+                    <th></th>
+                </tr>
             </thead>
             <tbody id="report-tbody">
                 <tr>
@@ -535,7 +550,6 @@
     let selectedCategories = [];
     let currentTxFilter = 'non-sales';
 
-    // اشیاء نگهداری کلیدهای دینامیک دیتابیس جهت مقابله با حساسیت حروف بزرگ و کوچک
     let schemaKeys = {
         system: { barcode: 'Barcode', itemName: 'Item Name', itemCode: 'Item Code', category: 'Category', stock: 'Stock' },
         showroom: { barcode: 'Barcode', qty: 'showroom_qty' }
@@ -601,7 +615,6 @@
         }
     }
 
-    // بررسی هوشمند ساختار دیتابیس به محض لود شدن جهت پیشگیری از خطای ستون‌ها
     async function detectDatabaseSchema() {
         if (!navigator.onLine) return;
         try {
@@ -651,6 +664,43 @@
         } catch(e) {
             console.error("Error fetching categories:", e);
         }
+    }
+
+    // لایه فیلتر آنی ستون‌های جدول گزارش (آفلاین و سریع روی کلاینت)
+    function filterReportTable() {
+        const valBarcode = document.getElementById('filter-barcode').value.toLowerCase().trim();
+        const valName = document.getElementById('filter-name').value.toLowerCase().trim();
+        const valOperator = document.getElementById('filter-operator').value.toLowerCase().trim();
+
+        const tbody = document.getElementById('report-tbody');
+        const rows = tbody.getElementsByTagName('tr');
+
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            
+            // اگر سطر حاوی اطلاعات بارگذاری یا خطا باشد رد شو
+            if (row.cells.length < 7) continue;
+
+            const textBarcode = row.cells[1].textContent.toLowerCase();
+            const textName = row.cells[2].textContent.toLowerCase();
+            const textOperator = row.cells[3].textContent.toLowerCase();
+
+            const matchBarcode = textBarcode.includes(valBarcode);
+            const matchName = textName.includes(valName);
+            const matchOperator = textOperator.includes(valOperator);
+
+            if (matchBarcode && matchName && matchOperator) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        }
+    }
+
+    function clearColumnFilterInputs() {
+        document.getElementById('filter-barcode').value = '';
+        document.getElementById('filter-name').value = '';
+        document.getElementById('filter-operator').value = '';
     }
 
     async function handleCSVUpload() {
@@ -807,6 +857,7 @@
         
         errDisplay.style.display = 'none';
         tbody.innerHTML = '<tr><td colspan="7" class="loading-text">🔄 Fetching logs and analyzing activities...</td></tr>';
+        clearColumnFilterInputs();
 
         let onlineLogs = [];
         if (navigator.onLine) {
@@ -861,7 +912,6 @@
             let itemCategoryMap = {}; 
             let showroomStockMap = {};
             if (navigator.onLine && uniqueBarcodes.length > 0) {
-                // دریافت کلیه فیلدها جهت جلوگیری از خطای سینتکس ستون‌های بزرگ و کوچک
                 const { data: products } = await _supabase
                     .from('system_inventory')
                     .select('*')
