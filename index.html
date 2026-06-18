@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-color=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Live Camera Stock Control & Location Finder</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
@@ -246,8 +246,8 @@
         <button id="clear-btn" onclick="resetPage()" style="margin-top: 10px; background-color: #718096;">Clear & Reset</button>
     </div>
 </div>
+
 <script>
-    // تنظیمات متصل‌کننده اصلی دیتابیس هوشمند
     const SUPABASE_URL = 'https://qmurpnbrnmyjdxqjhybz.supabase.co'; 
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'; 
      
@@ -266,10 +266,16 @@
     let locBalances = {};
     let currentShowroomQty = 0;
     let html5QrcodeScanner = null;
+    let finalCleanedBarcode = ""; 
+    let dbBarcodeKey = "Barcode"; 
+    let dbShowroomQtyKey = "showroom_qty";
 
-    // استارت اولیه کامپوننت‌ها به محض لود مرورگر
     window.onload = function() {
         startCameraScanner();
+        const savedOperator = localStorage.getItem('sc_operator_name');
+        if (savedOperator) {
+            document.getElementById('operator-name-input').value = savedOperator;
+        }
     };
 
     function saveCurrentOperator() {
@@ -325,7 +331,6 @@
         }
     }
 
-    // متد اصلاح کاراکترهای اسکنر و کوئری دوگانه متن/عدد به Supabase
     async function handleScannedBarcode(barcode) {
         let cleanedBarcode = barcode.toString().trim().replace(/[\r\n\t]/g, "");
         
@@ -340,50 +345,52 @@
         statusDiv.style.display = 'block';
         productInfoDiv.style.display = 'none';
         newLocInput.value = '';
-         
-        const savedOperator = localStorage.getItem('sc_operator_name');
-        if (savedOperator) {
-            document.getElementById('operator-name-input').value = savedOperator;
-        }
 
         if (navigator.onLine) {
             try {
-                // تست اول: بررسی انطباق با مقدار متنی برچسب دیتابیس
+                // ۱. تلاش با فیلد حروف بزرگ (Barcode)
                 let { data: systemData, error: err1 } = await _supabase
                     .from('system_inventory')
                     .select('*')
                     .eq('Barcode', cleanedBarcode)
                     .maybeSingle();
 
-                // تست دوم: در صورت لزوم، حذف صفرهای پشت عدد و بررسی ساختار عددی
+                dbBarcodeKey = "Barcode";
+
+                // ۲. فالبک در صورت عدم یافتن با حروف کوچک (barcode)
                 if (!systemData) {
-                    let numericBarcode = parseInt(cleanedBarcode, 10);
-                    if (!isNaN(numericBarcode)) {
-                        let { data: retryData } = await _supabase
-                            .from('system_inventory')
-                            .select('*')
-                            .eq('Barcode', numericBarcode)
-                            .maybeSingle();
-                        
-                        if (retryData) {
-                            systemData = retryData;
-                            cleanedBarcode = retryData.Barcode.toString(); 
-                        }
+                    let { data: systemDataCheck, error: err2 } = await _supabase
+                        .from('system_inventory')
+                        .select('*')
+                        .eq('barcode', cleanedBarcode)
+                        .maybeSingle();
+                    
+                    if (systemDataCheck) {
+                        systemData = systemDataCheck;
+                        dbBarcodeKey = "barcode";
                     }
                 }
 
                 if (!systemData) {
                     statusDiv.className = 'status error';
-                    statusDiv.textContent = `⚠️ Barcode [ ${cleanedBarcode} ] not found in system table. Check Supabase records.`;
+                    statusDiv.textContent = `⚠️ Barcode [ ${cleanedBarcode} ] not found in system table.`;
                     return;
                 }
 
-                // دریافت مقادیر انبار پالت‌ها و شورووم لایو
-                const { data: whseRows } = await _supabase.from('warehouse_inventory').select('*').eq('Row Labels', cleanedBarcode);
-                const { data: showData } = await _supabase.from('showroom_inventory').select('showroom_qty').eq('Barcode', cleanedBarcode).maybeSingle();
+                finalCleanedBarcode = (systemData[dbBarcodeKey] || cleanedBarcode).toString();
 
-                // کَش اطلاعات جهت لایه حافظه حمایتی آفلاین
-                const payloadToCache = { barcode: cleanedBarcode, systemData, whseRows, showData };
+                const { data: whseRows } = await _supabase.from('warehouse_inventory').select('*').eq('Row Labels', finalCleanedBarcode);
+                
+                // ۳. بررسی ساختار جدول شوروم برای حروف بزرگ و کوچک
+                let { data: showData } = await _supabase.from('showroom_inventory').select('*').eq(dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode', finalCleanedBarcode).maybeSingle();
+                
+                dbShowroomQtyKey = "showroom_qty";
+                if (showData) {
+                    if (showData.showroom_quantity !== undefined) dbShowroomQtyKey = "showroom_quantity";
+                    else if (showData.showroom_qty !== undefined) dbShowroomQtyKey = "showroom_qty";
+                }
+
+                const payloadToCache = { barcode: finalCleanedBarcode, systemData, whseRows, showData, dbBarcodeKey, dbShowroomQtyKey };
                 cacheProductLocally(payloadToCache);
 
                 renderProductDataHTML(systemData, whseRows, showData);
@@ -399,7 +406,6 @@
         }
     }
 
-    // رندر خروجی دیتابیس و نمایش مغایرت‌ها در قالب HTML اختصاصی
     function renderProductDataHTML(systemData, whseRows, showData) {
         currentProduct = systemData;
         locBalances = {};
@@ -432,6 +438,7 @@
         } else {
             locContainer.innerHTML = `<div style="color:#718096; font-size:14px; text-align:center; padding:10px;">⚠️ Not found on any warehouse shelf.</div>`;
             sourceLocSelect.innerHTML = `<option value="Default-Shelf">Default-Shelf (0 available)</option>`;
+            locBalances["Default-Shelf"] = 0;
         }
 
         let systemStock = 0;
@@ -440,12 +447,12 @@
             systemStock = parseInt(rawStock.toString().replace(/,/g, '')) || 0;
         }
          
-        currentShowroomQty = (showData && showData.showroom_qty) ? (parseInt(showData.showroom_qty.toString().replace(/,/g, '')) || 0) : 0;
+        currentShowroomQty = (showData && showData[dbShowroomQtyKey]) ? (parseInt(showData[dbShowroomQtyKey].toString().replace(/,/g, '')) || 0) : 0;
          
         let variance = (totalWarehouseQty + currentShowroomQty) - systemStock;
 
-        document.getElementById('p-name').textContent = systemData['Item Name'] || '---';
-        document.getElementById('p-code').textContent = systemData['Item Code'] || '---';
+        document.getElementById('p-name').textContent = systemData['Item Name'] || systemData['item_name'] || '---';
+        document.getElementById('p-code').textContent = systemData['Item Code'] || systemData['item_code'] || '---';
         document.getElementById('stock-system').textContent = systemStock;
         document.getElementById('stock-warehouse').textContent = totalWarehouseQty;
         document.getElementById('stock-showroom').textContent = currentShowroomQty;
@@ -464,7 +471,6 @@
         document.getElementById('transfer-qty').focus();
     }
 
-    // متدهای لایه مدیریتی ذخیره‌سازی آفلاین مرورگر
     function cacheProductLocally(payload) {
         try {
             localStorage.setItem(`cache_bc_${payload.barcode}`, JSON.stringify(payload));
@@ -477,6 +483,9 @@
             const parsed = JSON.parse(cachedData);
             statusDiv.className = 'status success';
             statusDiv.textContent = '⚠️ Loaded from local cache (OFFLINE MODE)';
+            finalCleanedBarcode = barcode;
+            dbBarcodeKey = parsed.dbBarcodeKey || "Barcode";
+            dbShowroomQtyKey = parsed.dbShowroomQtyKey || "showroom_qty";
             renderProductDataHTML(parsed.systemData, parsed.whseRows, parsed.showData);
         } else {
             statusDiv.className = 'status error';
@@ -484,7 +493,6 @@
         }
     }
 
-    // بدنه اصلی ثبت تغییرات و ارسال داده به ترنسفر لاگ Supabase
     async function submitTransfer() {
         const operatorName = document.getElementById('operator-name-input').value.trim();
         
@@ -496,8 +504,8 @@
         const transferQtyInput = document.getElementById('transfer-qty');
         const qty = parseInt(transferQtyInput.value);
         const txType = typeSelect.value;
-        const barcode = currentProduct['Barcode'];
-        const itemName = currentProduct['Item Name'] || 'Unknown Item';
+        const barcode = finalCleanedBarcode;
+        const itemName = currentProduct ? (currentProduct['Item Name'] || currentProduct['item_name'] || 'Unknown Item') : 'Unknown Item';
          
         let selectedLoc = sourceLocSelect.value;
 
@@ -511,6 +519,11 @@
 
         if (txType === 'out' && qty > currentLocQty) {
             alert('Error: Not enough stock in this specific location!');
+            return;
+        }
+
+        if (txType === 'in' && qty > currentShowroomQty) {
+            alert(`Business Logic Denied: Cannot return more than Showroom current stock. Live Showroom: ${currentShowroomQty}`);
             return;
         }
 
@@ -557,7 +570,11 @@
         }
 
         if (txType !== 'intake') {
-            await _supabase.from('showroom_inventory').upsert({ Barcode: barcode, showroom_qty: newShowroomQty }, { onConflict: 'Barcode' });
+            let showroomPayload = {};
+            showroomPayload[dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode'] = barcode;
+            showroomPayload[dbShowroomQtyKey] = newShowroomQty;
+
+            await _supabase.from('showroom_inventory').upsert(showroomPayload, { onConflict: dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode' });
         }
 
         let logWorkerName = `${operatorName} (Direct Intake to ${selectedLoc})`;
