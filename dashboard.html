@@ -535,6 +535,12 @@
     let selectedCategories = [];
     let currentTxFilter = 'non-sales';
 
+    // اشیاء نگهداری کلیدهای دینامیک دیتابیس جهت مقابله با حساسیت حروف بزرگ و کوچک
+    let schemaKeys = {
+        system: { barcode: 'Barcode', itemName: 'Item Name', itemCode: 'Item Code', category: 'Category', stock: 'Stock' },
+        showroom: { barcode: 'Barcode', qty: 'showroom_qty' }
+    };
+
     document.addEventListener('click', function(e) {
         const wrapper = document.querySelector('.dropdown-check-wrapper');
         if (wrapper && !wrapper.contains(e.target)) {
@@ -595,14 +601,38 @@
         }
     }
 
+    // بررسی هوشمند ساختار دیتابیس به محض لود شدن جهت پیشگیری از خطای ستون‌ها
+    async function detectDatabaseSchema() {
+        if (!navigator.onLine) return;
+        try {
+            const { data: sysSample } = await _supabase.from('system_inventory').select('*').limit(1);
+            if (sysSample && sysSample.length > 0) {
+                const r = sysSample[0];
+                if ('barcode' in r) schemaKeys.system.barcode = 'barcode';
+                if ('item_name' in r) schemaKeys.system.itemName = 'item_name';
+                if ('item_code' in r) schemaKeys.system.itemCode = 'item_code';
+                if ('category' in r) schemaKeys.system.category = 'category';
+                if ('stock' in r) schemaKeys.system.stock = 'stock';
+            }
+
+            const { data: showSample } = await _supabase.from('showroom_inventory').select('*').limit(1);
+            if (showSample && showSample.length > 0) {
+                const r = showSample[0];
+                if ('barcode' in r) schemaKeys.showroom.barcode = 'barcode';
+                if ('showroom_quantity' in r) schemaKeys.showroom.qty = 'showroom_quantity';
+                else if ('showroom_qty' in r) schemaKeys.showroom.qty = 'showroom_qty';
+            }
+        } catch(e) {
+            console.error("Schema tracking error:", e);
+        }
+    }
+
     async function fetchCategoriesFromServer() {
         if (!navigator.onLine) return;
         try {
-            const { data, error } = await _supabase
-                .from('system_inventory')
-                .select('Category');
+            const { data, error } = await _supabase.from('system_inventory').select('*');
             if (!error && data) {
-                const uniqueCats = [...new Set(data.map(item => item.Category).filter(Boolean))];
+                const uniqueCats = [...new Set(data.map(item => item[schemaKeys.system.category]).filter(Boolean))];
                 const container = document.getElementById('category-options-container');
                 container.innerHTML = '';
                 
@@ -658,22 +688,23 @@
 
                 for (let row of csvRows) {
                     const barcode = row['Barcode'] || row['barcode'];
-                    const itemName = row['Item Name'] || row['item name'] || row['ItemName'];
-                    const itemCode = row['Item Code'] || row['item code'] || row['ItemCode'];
-                    const category = row['Category'] || row['category'] || row['Category Name'];
+                    const itemName = row['Item Name'] || row['item name'] || row['ItemName'] || row['item_name'];
+                    const itemCode = row['Item Code'] || row['item code'] || row['ItemCode'] || row['item_code'];
+                    const category = row['Category'] || row['category'] || row['Category Name'] || row['category_name'];
                     let rawStock = row['Stock'] || row['stock'] || row['Quantity'] || row['quantity'] || '0';
 
                     rawStock = String(rawStock).replace(/,/g, ''); 
                     const stock = Math.round(parseFloat(rawStock) || 0);
 
                     if (barcode) {
-                        formattedRows.push({
-                            Barcode: barcode.trim(),
-                            "Item Name": itemName ? itemName.trim() : 'System Product',
-                            "Item Code": itemCode ? itemCode.trim() : '',
-                            Category: category ? category.trim() : 'General',
-                            Stock: stock
-                        });
+                        let payloadRow = {};
+                        payloadRow[schemaKeys.system.barcode] = barcode.trim();
+                        payloadRow[schemaKeys.system.itemName] = itemName ? itemName.trim() : 'System Product';
+                        payloadRow[schemaKeys.system.itemCode] = itemCode ? itemCode.trim() : '';
+                        payloadRow[schemaKeys.system.category] = category ? category.trim() : 'General';
+                        payloadRow[schemaKeys.system.stock] = stock;
+                        
+                        formattedRows.push(payloadRow);
                     }
                 }
 
@@ -687,7 +718,7 @@
                 try {
                     const { error } = await _supabase
                         .from('system_inventory')
-                        .upsert(formattedRows, { onConflict: 'Barcode' });
+                        .upsert(formattedRows, { onConflict: schemaKeys.system.barcode });
                     if (error) throw error;
 
                     alert(`🎉 Excellent! Successfully matched and updated [ ${formattedRows.length} ] products. Showroom levels auto-recalibrated via triggers.`);
@@ -763,6 +794,7 @@
         document.getElementById('date-start-picker').value = firstDay;
         document.getElementById('date-end-picker').value = today;
         
+        await detectDatabaseSchema();
         await fetchCategoriesFromServer();
         loadManagerialReport();
     };
@@ -829,27 +861,29 @@
             let itemCategoryMap = {}; 
             let showroomStockMap = {};
             if (navigator.onLine && uniqueBarcodes.length > 0) {
+                // دریافت کلیه فیلدها جهت جلوگیری از خطای سینتکس ستون‌های بزرگ و کوچک
                 const { data: products } = await _supabase
                     .from('system_inventory')
-                    .select('Barcode, "Item Name", Category')
-                    .in('Barcode', uniqueBarcodes);
+                    .select('*')
+                    .in(schemaKeys.system.barcode, uniqueBarcodes);
                 if (products) {
                     products.forEach(p => { 
-                        productMap[p.Barcode] = p['Item Name']; 
-                        itemCategoryMap[p.Barcode] = p.Category || 'General';
+                        let bcd = p[schemaKeys.system.barcode];
+                        productMap[bcd] = p[schemaKeys.system.itemName]; 
+                        itemCategoryMap[bcd] = p[schemaKeys.system.category] || 'General';
                     });
                 }
 
                 try {
                     const { data: showroomData, error: showErr } = await _supabase
                         .from('showroom_inventory')
-                        .select('Barcode, showroom_qty')
-                        .in('Barcode', uniqueBarcodes);
+                        .select('*')
+                        .in(schemaKeys.showroom.barcode, uniqueBarcodes);
                     if (!showErr && showroomData) {
                         showroomData.forEach(s => {
-                            const bcd = s.Barcode || '';
+                            const bcd = s[schemaKeys.showroom.barcode] || '';
                             if (bcd) {
-                                showroomStockMap[bcd] = s.showroom_qty !== undefined ? s.showroom_qty : 0;
+                                showroomStockMap[bcd] = s[schemaKeys.showroom.qty] !== undefined ? s[schemaKeys.showroom.qty] : 0;
                             }
                         });
                     }
@@ -912,7 +946,6 @@
 
                 const stockAlertClass = parseInt(liveShowroomStock) <= 10 ? 'showroom-live-indicator low-stock' : 'showroom-live-indicator';
 
-                // منطق تفکیک رنگ ستون تعداد تغییر یافته
                 let qtyColor = '#10b981'; 
                 if (isVoided) {
                     qtyColor = '#94a3b8'; 
@@ -920,7 +953,6 @@
                     qtyColor = '#ef4444'; 
                 }
 
-                // منطق اعمال صحیح علامت‌های مثبت و منفی بدون بهم زدن جدول
                 let qtySign = '';
                 if (!isVoided) {
                     if (worker.includes('System Auto-Sale') || (log.qty_transferred || 0) < 0) {
@@ -996,18 +1028,21 @@
     async function executeVoidOnServer(payload) {
         const { data: itemData, error: fetchError } = await _supabase
             .from('system_inventory')
-            .select('Stock') 
-            .eq('Barcode', payload.barcode)
+            .select('*') 
+            .eq(schemaKeys.system.barcode, payload.barcode)
             .single();
         if (fetchError) throw new Error("Item not found on database.");
 
-        const currentQty = itemData.Stock || 0;
+        const currentQty = itemData[schemaKeys.system.stock] || 0;
         const correctedQty = currentQty - payload.qtyTransferred; 
+
+        let updateData = {};
+        updateData[schemaKeys.system.stock] = correctedQty;
 
         const { error: updateInvError } = await _supabase
             .from('system_inventory')
-            .update({ Stock: correctedQty })
-            .eq('Barcode', payload.barcode);
+            .update(updateData)
+            .eq(schemaKeys.system.barcode, payload.barcode);
         if (updateInvError) throw updateInvError;
 
         const { error: updateLogError } = await _supabase
