@@ -3,25 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Persian Blue & Gold - Live Scanner</title>
+    <title>Turquoise & Gold - Premium Scanner Room</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         :root {
-            /* بازبینی و اصلاح دقیق پالت رنگی */
-            --persian-blue: #1c39bb;
-            --persian-blue-dark: #122685;
-            --persian-blue-light: #f0f4ff;
+            /* پالت امضادار: آبی فیروزه‌ای و طلایی شاهانه */
+            --turquoise-main: #06b6d4; /* فیروزه‌ای زنده */
+            --turquoise-dark: #0891b2; /* فیروزه‌ای تیره برای هور و متن */
+            --turquoise-deep: #0e7490; /* فیروزه‌ای عمیق برای کنتراست بالاتر */
+            --turquoise-light: #ecfeff; /* پس‌زمینه لایت فیروزه‌ای */
             
-            --royal-gold: #e5b822; /* طلایی گرم‌تر برای خوانایی بهتر */
+            --royal-gold: #e5b822; /* طلایی متالیک */
             --royal-gold-hover: #cfa319;
-            --royal-gold-light: #fefbeb;
+            --royal-gold-light: #fffbeb;
             
             --dark-slate: #0f172a;
-            --body-bg: #f4f6f9; /* پس‌زمینه روشن و استاندارد انبار */
+            --body-bg: #f0fdfa; /* پس‌زمینه ملایم فیروزه‌ای/نعنایی برای انبار */
             --panel-bg: #ffffff;
-            --text-main: #0f172a; /* مشکی مایل به سرمه‌ای برای متن‌های اصلی */
-            --text-muted: #475569; /* تیره کردن خاکستری‌ها برای کنتراست بالاتر */
+            --text-main: #0f172a;
+            --text-muted: #334155;
             --border: #cbd5e1;
             
             --success: #10b981;
@@ -51,17 +52,17 @@
             align-items: center;
             gap: 8px;
             padding: 11px 20px;
-            background-color: var(--persian-blue);
+            background-color: var(--turquoise-deep);
             color: white;
-            border-radius: 12px;
+            border-radius: 14px;
             font-weight: 600;
             font-size: 13px;
-            box-shadow: 0 4px 12px rgba(28, 57, 187, 0.15);
+            box-shadow: 0 4px 12px rgba(14, 116, 144, 0.2);
             transition: all 0.2s ease;
         }
 
         .nav-btn:hover {
-            background-color: var(--persian-blue-dark);
+            background-color: var(--dark-slate);
             transform: translateY(-1px);
         }
 
@@ -71,8 +72,8 @@
             background: var(--panel-bg);
             padding: 32px 24px;
             border-radius: 24px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
-            border: 1px solid var(--border);
+            box-shadow: 0 10px 30px -5px rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.15);
         }
 
         /* کارد نام اپراتور با هایلایت طلایی */
@@ -88,7 +89,7 @@
             text-align: center;
             margin-top: 0;
             margin-bottom: 24px;
-            color: var(--persian-blue); /* تغییر تیتر به آبی پرشین */
+            color: var(--turquoise-deep); 
             font-size: 24px;
             font-weight: 800;
             letter-spacing: -0.5px;
@@ -96,11 +97,11 @@
 
         .camera-box {
             background-color: #ffffff;
-            border: 2.5px solid var(--persian-blue);
+            border: 3px solid var(--turquoise-main);
             padding: 14px;
             border-radius: 20px;
             margin-bottom: 24px;
-            box-shadow: 0 8px 16px rgba(28, 57, 187, 0.06);
+            box-shadow: 0 8px 20px rgba(6, 182, 212, 0.1);
         }
 
         #reader {
@@ -120,7 +121,7 @@
         label {
             font-size: 12px;
             font-weight: 700;
-            color: var(--persian-blue); /* لیبل‌ها به رنگ تم اصلی */
+            color: var(--turquoise-deep); 
             text-transform: uppercase;
             letter-spacing: 0.75px;
         }
@@ -139,8 +140,8 @@
         }
 
         input:focus, select:focus {
-            border-color: var(--persian-blue);
-            box-shadow: 0 0 0 4px rgba(28, 57, 187, 0.15);
+            border-color: var(--turquoise-main);
+            box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.15);
         }
 
         .status {
@@ -152,7 +153,7 @@
             display: none;
             line-height: 1.4;
         }
-        .status.loading { background-color: var(--persian-blue-light); color: var(--persian-blue); border-left: 5px solid var(--persian-blue); }
+        .status.loading { background-color: var(--turquoise-light); color: var(--turquoise-deep); border-left: 5px solid var(--turquoise-main); }
         .status.success { background-color: #ecfdf5; color: #065f46; border-left: 5px solid var(--success); }
         .status.error { background-color: #fff1f2; color: #9f1239; border-left: 5px solid var(--error); }
          
@@ -201,13 +202,13 @@
         }
         .location-row:last-child { border-bottom: none; }
         .loc-badge {
-            background: var(--persian-blue-light);
-            color: var(--persian-blue);
+            background: var(--turquoise-light);
+            color: var(--turquoise-deep);
             padding: 4px 12px;
             border-radius: 8px;
             font-weight: 700;
             font-size: 12px;
-            border: 1px solid rgba(28, 57, 187, 0.1);
+            border: 1px solid rgba(6, 182, 212, 0.15);
         }
 
         .stock-grid {
@@ -230,31 +231,31 @@
         .stock-count { font-size: 14px; font-weight: 700; padding: 4px 14px; border-radius: 8px; }
         
         .c-system { color: #b45309; background-color: #fef3c7; }
-        .c-showroom { color: var(--persian-blue); background-color: var(--persian-blue-light); border: 1px solid rgba(28, 57, 187, 0.1); }
+        .c-showroom { color: var(--turquoise-deep); background-color: var(--turquoise-light); border: 1px solid rgba(6, 182, 212, 0.2); }
         .c-warehouse { color: #047857; background-color: #d1fae5; }
          
         .diff-neutral { color: #475569; background-color: #f1f5f9; border: 1.5px solid #cbd5e1; }
         .diff-shortage { color: #991b1b; background-color: #fee2e2; border: 1.5px solid #fca5a5; }
         .diff-surplus { color: #065f46; background-color: #d1fae5; border: 1.5px solid #a7f3d0; }
 
-        /* اصلاح دکمه با متن تیره برای خوانایی فوق‌العاده */
+        /* دکمه اکشن طلایی شاهانه با متن تیره برای حداکثر خوانایی و لوکس بودن */
         button.action-btn {
             width: 100%;
             padding: 15px;
             background-color: var(--royal-gold);
-            color: var(--dark-slate); /* متن تیره روی بک‌گراند طلایی */
+            color: var(--dark-slate); 
             border: none;
             border-radius: 14px;
             font-size: 15px;
             cursor: pointer;
             font-weight: 700;
-            box-shadow: 0 4px 14px rgba(229, 184, 34, 0.3);
+            box-shadow: 0 4px 14px rgba(229, 184, 34, 0.35);
             transition: all 0.2s ease;
         }
         button.action-btn:hover { 
             transform: translateY(-1px); 
             background-color: var(--royal-gold-hover);
-            box-shadow: 0 6px 20px rgba(229, 184, 34, 0.4);
+            box-shadow: 0 6px 20px rgba(229, 184, 34, 0.45);
         }
         
         #manual-box {
@@ -265,7 +266,7 @@
         #manual-box button {
             width: auto; 
             padding: 0 24px; 
-            background-color: var(--persian-blue); 
+            background-color: var(--turquoise-main); 
             color: white; 
             border: none; 
             border-radius: 12px; 
@@ -274,7 +275,7 @@
             transition: background 0.2s;
         }
         #manual-box button:hover {
-            background-color: var(--persian-blue-dark);
+            background-color: var(--turquoise-dark);
         }
         
         #clear-btn {
@@ -301,7 +302,7 @@
 <div class="nav-wrapper">
     <a href="dashboard.html" class="nav-btn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 4px;"><path d="M3 3h7v7H3zm11 0h7v7h-7zm0 11h7v7h-7zM3 14h7v7H3z"/></svg>
-        View Management Reports
+        View Management Dashboard
     </a>
 </div>
 
@@ -314,7 +315,7 @@
     <h2>Live Scanner & Location Finder</h2>
      
     <div class="camera-box">
-        <label style="color: var(--persian-blue); font-size: 13px; margin-bottom: 8px; display: block; font-weight: 700;">📷 Align Barcode Inside Frame:</label>
+        <label style="color: var(--turquoise-deep); font-size: 13px; margin-bottom: 8px; display: block; font-weight: 700;">📷 Align Barcode Inside Frame:</label>
         <div id="reader"></div>
          
         <div id="manual-box">
@@ -455,13 +456,13 @@
             submitBtn.textContent = 'Confirm Stock Movement';
             submitBtn.style.backgroundColor = 'var(--royal-gold)';
             submitBtn.style.color = 'var(--dark-slate)';
-            submitBtn.style.boxShadow = '0 4px 14px rgba(229, 184, 34, 0.3)';
+            submitBtn.style.boxShadow = '0 4px 14px rgba(229, 184, 34, 0.35)';
             document.getElementById('loc-select-group').querySelector('label').textContent = "Select Source Location (Deduct from):";
         } else if (txType === 'in') {
             submitBtn.textContent = 'Confirm & Return Stock';
-            submitBtn.style.backgroundColor = 'var(--persian-blue)';
+            submitBtn.style.backgroundColor = 'var(--turquoise-main)';
             submitBtn.style.color = '#ffffff';
-            submitBtn.style.boxShadow = '0 4px 14px rgba(28, 57, 187, 0.2)';
+            submitBtn.style.boxShadow = '0 4px 14px rgba(6, 182, 212, 0.3)';
             document.getElementById('loc-select-group').querySelector('label').textContent = "Select Target Location (Add to):";
         } else if (txType === 'intake') {
             submitBtn.textContent = '➕ Add New Physical Stock to Warehouse';
