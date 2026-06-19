@@ -3,224 +3,360 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Live Camera Stock Control & Location Finder</title>
+    <title>Persian Blue & Gold - Live Scanner</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
+        :root {
+            /* بازبینی و اصلاح دقیق پالت رنگی */
+            --persian-blue: #1c39bb;
+            --persian-blue-dark: #122685;
+            --persian-blue-light: #f0f4ff;
+            
+            --royal-gold: #e5b822; /* طلایی گرم‌تر برای خوانایی بهتر */
+            --royal-gold-hover: #cfa319;
+            --royal-gold-light: #fefbeb;
+            
+            --dark-slate: #0f172a;
+            --body-bg: #f4f6f9; /* پس‌زمینه روشن و استاندارد انبار */
+            --panel-bg: #ffffff;
+            --text-main: #0f172a; /* مشکی مایل به سرمه‌ای برای متن‌های اصلی */
+            --text-muted: #475569; /* تیره کردن خاکستری‌ها برای کنتراست بالاتر */
+            --border: #cbd5e1;
+            
+            --success: #10b981;
+            --error: #f43f5e;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
             margin: 0;
-            padding: 12px;
-            background-color: #f4f6f9;
-            color: #333;
+            padding: 24px 12px;
+            background-color: var(--body-bg);
+            min-height: 100vh;
+            color: var(--text-main);
             direction: ltr;
+            -webkit-font-smoothing: antialiased;
         }
-        .container {
-            max-width: 500px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 20px;
+
+        .nav-wrapper {
+            max-width: 520px;
+            margin: 0 auto 16px auto;
+            text-align: center;
+        }
+
+        .nav-btn {
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 20px;
+            background-color: var(--persian-blue);
+            color: white;
             border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            font-weight: 600;
+            font-size: 13px;
+            box-shadow: 0 4px 12px rgba(28, 57, 187, 0.15);
+            transition: all 0.2s ease;
         }
+
+        .nav-btn:hover {
+            background-color: var(--persian-blue-dark);
+            transform: translateY(-1px);
+        }
+
+        .container {
+            max-width: 520px;
+            margin: 0 auto;
+            background: var(--panel-bg);
+            padding: 32px 24px;
+            border-radius: 24px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border);
+        }
+
+        /* کارد نام اپراتور با هایلایت طلایی */
+        .operator-box {
+            background: var(--royal-gold-light);
+            padding: 16px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            border: 1.5px solid rgba(229, 184, 34, 0.3);
+        }
+
         h2 {
             text-align: center;
             margin-top: 0;
-            margin-bottom: 20px;
-            color: #1e293b;
-            font-size: 22px;
+            margin-bottom: 24px;
+            color: var(--persian-blue); /* تغییر تیتر به آبی پرشین */
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
         }
+
         .camera-box {
-            background-color: #f8fafc;
-            border: 2px solid #3182ce;
-            padding: 10px;
-            border-radius: 12px;
-            margin-bottom: 16px;
-            overflow: hidden;
+            background-color: #ffffff;
+            border: 2.5px solid var(--persian-blue);
+            padding: 14px;
+            border-radius: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 16px rgba(28, 57, 187, 0.06);
         }
+
         #reader {
             width: 100%;
             background: #000;
-            border-radius: 8px;
+            border-radius: 12px;
+            overflow: hidden;
         }
+
         .form-group {
-            margin-bottom: 16px;
+            margin-bottom: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
+
         label {
-            display: block;
-            margin-bottom: 6px;
-            font-weight: 600;
-            color: #4a5568;
-            font-size: 14px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--persian-blue); /* لیبل‌ها به رنگ تم اصلی */
+            text-transform: uppercase;
+            letter-spacing: 0.75px;
         }
+
         input[type="text"], input[type="number"], select {
             width: 100%;
-            padding: 14px;
-            border: 1.5px solid #cbd5e1;
-            border-radius: 8px;
+            padding: 12px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
             box-sizing: border-box;
-            font-size: 16px;
+            font-size: 15px;
+            color: var(--text-main);
+            background-color: #fff;
+            outline: none;
+            transition: all 0.2s ease;
         }
+
+        input:focus, select:focus {
+            border-color: var(--persian-blue);
+            box-shadow: 0 0 0 4px rgba(28, 57, 187, 0.15);
+        }
+
         .status {
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 16px;
-            font-weight: 600;
+            padding: 14px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            font-weight: 700;
             font-size: 14px;
             display: none;
             line-height: 1.4;
         }
-        .status.loading { display: block; background-color: #ebf8ff; color: #2b6cb0; border-left: 4px solid #3182ce; }
-        .status.success { display: block; background-color: #f0fff4; color: #2f855a; border-left: 4px solid #38a169; }
-        .status.error { display: block; background-color: #fff5f5; color: #c53030; border-left: 4px solid #e53e3e; }
+        .status.loading { background-color: var(--persian-blue-light); color: var(--persian-blue); border-left: 5px solid var(--persian-blue); }
+        .status.success { background-color: #ecfdf5; color: #065f46; border-left: 5px solid var(--success); }
+        .status.error { background-color: #fff1f2; color: #9f1239; border-left: 5px solid var(--error); }
          
         #product-info {
             display: none;
-            background: #f8fafc;
-            padding: 16px;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
+            background: #ffffff;
             margin-bottom: 16px;
         }
-        #product-info p {
+
+        .info-card {
+            background: #fff;
+            padding: 18px;
+            border-radius: 16px;
+            border: 1.5px solid var(--border);
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .info-card p {
             margin: 10px 0;
-            font-size: 15px;
-            color: #4a5568;
+            font-size: 14px;
+            color: var(--text-muted);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px dashed #e2e8f0;
-            padding-bottom: 8px;
+            border-bottom: 1px dashed var(--border);
+            padding-bottom: 10px;
         }
-        .value { font-weight: 700; color: #1a202c; }
+        .info-card p:last-child { border-bottom: none; padding-bottom: 0; }
+        .value { font-weight: 700; color: var(--text-main); font-size: 15px; }
          
         .location-container {
             background: #fff;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            padding: 10px;
-            margin-top: 8px;
+            border: 1.5px solid var(--border);
+            border-radius: 14px;
+            padding: 14px;
+            margin-top: 6px;
+            margin-bottom: 20px;
         }
         .location-row {
             display: flex;
             justify-content: space-between;
-            padding: 6px 0;
+            align-items: center;
+            padding: 10px 0;
             border-bottom: 1px solid #f1f5f9;
         }
         .location-row:last-child { border-bottom: none; }
         .loc-badge {
-            background: #edf2f7;
-            color: #2d3748;
-            padding: 2px 8px;
-            border-radius: 4px;
+            background: var(--persian-blue-light);
+            color: var(--persian-blue);
+            padding: 4px 12px;
+            border-radius: 8px;
             font-weight: 700;
-            font-size: 13px;
+            font-size: 12px;
+            border: 1px solid rgba(28, 57, 187, 0.1);
         }
 
         .stock-grid {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 8px;
-            margin-top: 12px;
-            margin-bottom: 12px;
+            gap: 10px;
+            margin-top: 8px;
+            margin-bottom: 20px;
         }
         .stock-box {
             background: #fff;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
-            text-align: center;
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: 1.5px solid var(--border);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        .stock-title { font-size: 13px; color: #475569; font-weight: 600; }
-        .stock-count { font-size: 16px; font-weight: 700; padding: 3px 10px; border-radius: 6px; }
+        .stock-title { font-size: 13px; color: var(--text-muted); font-weight: 600; }
+        .stock-count { font-size: 14px; font-weight: 700; padding: 4px 14px; border-radius: 8px; }
+        
         .c-system { color: #b45309; background-color: #fef3c7; }
-        .c-showroom { color: #1e40af; background-color: #dbeafe; border: 1.5px solid #bfdbfe; }
+        .c-showroom { color: var(--persian-blue); background-color: var(--persian-blue-light); border: 1px solid rgba(28, 57, 187, 0.1); }
         .c-warehouse { color: #047857; background-color: #d1fae5; }
          
-        .diff-neutral { color: #4b5563; background-color: #f3f4f6; }
+        .diff-neutral { color: #475569; background-color: #f1f5f9; border: 1.5px solid #cbd5e1; }
         .diff-shortage { color: #991b1b; background-color: #fee2e2; border: 1.5px solid #fca5a5; }
         .diff-surplus { color: #065f46; background-color: #d1fae5; border: 1.5px solid #a7f3d0; }
 
-        button {
+        /* اصلاح دکمه با متن تیره برای خوانایی فوق‌العاده */
+        button.action-btn {
             width: 100%;
-            padding: 14px;
-            background-color: #38a169;
-            color: white;
+            padding: 15px;
+            background-color: var(--royal-gold);
+            color: var(--dark-slate); /* متن تیره روی بک‌گراند طلایی */
             border: none;
-            border-radius: 8px;
-            font-size: 16px;
+            border-radius: 14px;
+            font-size: 15px;
             cursor: pointer;
             font-weight: 700;
+            box-shadow: 0 4px 14px rgba(229, 184, 34, 0.3);
+            transition: all 0.2s ease;
         }
-         
+        button.action-btn:hover { 
+            transform: translateY(-1px); 
+            background-color: var(--royal-gold-hover);
+            box-shadow: 0 6px 20px rgba(229, 184, 34, 0.4);
+        }
+        
         #manual-box {
-            margin-top: 10px;
+            margin-top: 14px;
             display: flex;
-            gap: 6px;
+            gap: 10px;
+        }
+        #manual-box button {
+            width: auto; 
+            padding: 0 24px; 
+            background-color: var(--persian-blue); 
+            color: white; 
+            border: none; 
+            border-radius: 12px; 
+            font-weight: 700; 
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        #manual-box button:hover {
+            background-color: var(--persian-blue-dark);
+        }
+        
+        #clear-btn {
+            margin-top: 12px; 
+            background-color: transparent; 
+            color: var(--text-muted); 
+            border: 1.5px solid var(--border); 
+            padding: 12px; 
+            width: 100%; 
+            border-radius: 14px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.2s;
+        }
+        #clear-btn:hover {
+            background-color: #f1f5f9;
+            color: var(--dark-slate);
+            border-color: var(--text-muted);
         }
     </style>
 </head>
 <body>
 
-<div style="text-align: center; margin-bottom: 15px;">
-    <a href="dashboard.html" style="text-decoration: none; display: inline-block; padding: 8px 16px; background-color: #1e293b; color: white; border-radius: 6px; font-weight: 600; font-size: 13px;">
-        📊 View Management Reports
+<div class="nav-wrapper">
+    <a href="dashboard.html" class="nav-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 4px;"><path d="M3 3h7v7H3zm11 0h7v7h-7zm0 11h7v7h-7zM3 14h7v7H3z"/></svg>
+        View Management Reports
     </a>
 </div>
 
 <div class="container">
-    <div id="operator-selection-box" style="background: #ffffff; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
-        <label for="operator-name-input" style="font-weight: 600; display: block; margin-bottom: 8px; color: #334155; font-family: sans-serif;">Operator Name / ID:</label>
-        <input type="text" id="operator-name-input" oninput="saveCurrentOperator()" placeholder="Enter your name or ID" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; font-size: 16px; box-sizing: border-box;">
+    <div class="operator-box">
+        <label for="operator-name-input" style="color: var(--dark-slate);">Operator Name / ID *</label>
+        <input type="text" id="operator-name-input" oninput="saveCurrentOperator()" placeholder="Enter your official identification..." style="margin-top: 6px;">
     </div>
 
     <h2>Live Scanner & Location Finder</h2>
      
     <div class="camera-box">
-        <label style="color: #2b6cb0; font-size: 15px; margin-bottom: 10px;">📷 Align Barcode Inside Frame:</label>
+        <label style="color: var(--persian-blue); font-size: 13px; margin-bottom: 8px; display: block; font-weight: 700;">📷 Align Barcode Inside Frame:</label>
         <div id="reader"></div>
          
         <div id="manual-box">
-            <input type="text" id="barcode-input" placeholder="Or enter barcode manually..." autocomplete="off">
-            <button onclick="handleManualSubmit()" style="width: auto; padding: 0 20px; background-color: #4a5568;">Find</button>
+            <input type="text" id="barcode-input" placeholder="Or type barcode manually..." autocomplete="off">
+            <button onclick="handleManualSubmit()">Find</button>
         </div>
     </div>
 
     <div id="status-div" class="status"></div>
 
     <div id="product-info">
-        <p><strong>Item Name:</strong> <span id="p-name" class="value">---</span></p>
-        <p><strong>Item Code:</strong> <span id="p-code" class="value">---</span></p>
+        <div class="info-card">
+            <p><strong>Item Name</strong> <span id="p-name" class="value">---</span></p>
+            <p><strong>Item Code</strong> <span id="p-code" class="value">---</span></p>
+        </div>
          
-        <label style="margin-top: 15px; display: block; font-weight: bold; color: #4a5568;">Stock Allocations:</label>
+        <label>Core Inventory Fleet</label>
         <div class="stock-grid">
             <div class="stock-box">
                 <span class="stock-title">System Stock</span>
                 <span id="stock-system" class="stock-count c-system">0</span>
             </div>
             <div class="stock-box">
-                <span class="stock-title">Warehouse Total Stock</span>
+                <span class="stock-title">Warehouse Stock</span>
                 <span id="stock-warehouse" class="stock-count c-warehouse">0</span>
             </div>
             <div class="stock-box">
                 <span class="stock-title">Showroom Stock (LIVE)</span>
                 <span id="stock-showroom" class="stock-count c-showroom">0</span>
             </div>
-            <div id="variance-box" class="stock-box" style="margin-top: 4px; border: 1.5px solid #cbd5e1;">
-                <span class="stock-title" style="font-weight: 700;">Total Discrepancy</span>
-                <span id="stock-variance" class="stock-count" style="font-size: 18px;">0</span>
+            <div id="variance-box" class="stock-box" style="margin-top: 4px;">
+                <span class="stock-title" style="font-weight: 700;">Discrepancy Variance</span>
+                <span id="stock-variance" class="stock-count" style="font-size: 16px;">0</span>
             </div>
         </div>
 
-        <label style="margin-top: 15px; display: block; font-weight: bold; color: #2b6cb0;">📍 Physical Locations inside Warehouse:</label>
+        <label>📍 Warehouse Physical Coordinates:</label>
         <div id="location-list" class="location-container"></div>
          
         <div class="form-group" style="margin-top: 20px;">
-            <label for="transaction-type">Transaction Type:</label>
-            <select id="transaction-type" onchange="handleTypeChange()">
+            <label for="transaction-type">Transaction Type Action</label>
+            <select id="transaction-type" onchange="handleTypeChange()" style="margin-top: 4px;">
                 <option value="out">Move to Showroom (Whse -> Showroom)</option>
                 <option value="in">Return to Warehouse (Showroom -> Whse)</option>
                 <option value="intake">➕ Direct Stock Intake (Add New Qty to Whse Shelf)</option>
@@ -228,27 +364,27 @@
         </div>
 
         <div class="form-group" id="loc-select-group">
-            <label for="source-location">Select Warehouse Location for Action:</label>
-            <select id="source-location"></select>
+            <label for="source-location">Target Warehouse Shelf Location</label>
+            <select id="source-location" style="margin-top: 4px;"></select>
         </div>
 
         <div class="form-group" id="new-loc-group" style="display: none;">
-            <label for="new-location-input">Or Enter New Location Name (e.g. Shelf-C5):</label>
-            <input type="text" id="new-location-input" placeholder="Type new shelf name...">
+            <label for="new-location-input">Define Brand New Location Name</label>
+            <input type="text" id="new-location-input" placeholder="e.g. Shelf-C5" style="margin-top: 4px;">
         </div>
 
-        <div class="form-group">
-            <label for="transfer-qty">Quantity:</label>
-            <input type="number" id="transfer-qty" min="1" inputmode="numeric" placeholder="Enter quantity">
+        <div class="form-group" style="margin-bottom: 24px;">
+            <label for="transfer-qty">Transaction Qty</label>
+            <input type="number" id="transfer-qty" min="1" inputmode="numeric" placeholder="Enter transfer quantity" style="margin-top: 4px;">
         </div>
          
-        <button id="submit-btn" onclick="submitTransfer()">Confirm Stock Movement</button>
-        <button id="clear-btn" onclick="resetPage()" style="margin-top: 10px; background-color: #718096;">Clear & Reset</button>
+        <button id="submit-btn" class="action-btn" onclick="submitTransfer()">Confirm Stock Movement</button>
+        <button id="clear-btn" onclick="resetPage()">Clear & Flush Registry</button>
     </div>
 </div>
 
 <script>
-    const SUPABASE_URL = 'https://qmurpnbrnmyjdxqjhybz.supabase.co'; 
+    const SUPABASE_URL = 'https://qmurpnbrnmyjdxqjhybz.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'; 
      
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -289,13 +425,13 @@
             qrbox: { width: 280, height: 150 }, 
             aspectRatio: 1.0
         }, false);
-         
         html5QrcodeScanner.render(onScanSuccess, onScanFailure);
     }
 
     function onScanSuccess(decodedText, decodedResult) {
         if (decodedText) {
-            try { new AudioContext().createOscillator().connect(new AudioContext().destination); } catch(e){}
+            try { new AudioContext().createOscillator().connect(new AudioContext().destination);
+            } catch(e){}
             handleScannedBarcode(decodedText.trim());
         }
     }
@@ -314,26 +450,31 @@
     function handleTypeChange() {
         const txType = typeSelect.value;
         newLocGroup.style.display = 'none';
-
+        
         if (txType === 'out') {
             submitBtn.textContent = 'Confirm Stock Movement';
-            submitBtn.style.backgroundColor = '#38a169';
+            submitBtn.style.backgroundColor = 'var(--royal-gold)';
+            submitBtn.style.color = 'var(--dark-slate)';
+            submitBtn.style.boxShadow = '0 4px 14px rgba(229, 184, 34, 0.3)';
             document.getElementById('loc-select-group').querySelector('label').textContent = "Select Source Location (Deduct from):";
         } else if (txType === 'in') {
             submitBtn.textContent = 'Confirm & Return Stock';
-            submitBtn.style.backgroundColor = '#3182ce';
+            submitBtn.style.backgroundColor = 'var(--persian-blue)';
+            submitBtn.style.color = '#ffffff';
+            submitBtn.style.boxShadow = '0 4px 14px rgba(28, 57, 187, 0.2)';
             document.getElementById('loc-select-group').querySelector('label').textContent = "Select Target Location (Add to):";
         } else if (txType === 'intake') {
             submitBtn.textContent = '➕ Add New Physical Stock to Warehouse';
-            submitBtn.style.backgroundColor = '#d97706'; 
+            submitBtn.style.backgroundColor = '#10b981'; 
+            submitBtn.style.color = '#ffffff';
+            submitBtn.style.boxShadow = '0 4px 14px rgba(16, 185, 129, 0.2)';
             document.getElementById('loc-select-group').querySelector('label').textContent = "Select Existing Shelf:";
-            newLocGroup.style.display = 'block'; 
+            newLocGroup.style.display = 'block';
         }
     }
 
     async function handleScannedBarcode(barcode) {
         let cleanedBarcode = barcode.toString().trim().replace(/[\r\n\t]/g, "");
-        
         if (!cleanedBarcode) {
             statusDiv.className = 'status error';
             statusDiv.textContent = '❌ Scanned barcode is empty!';
@@ -348,7 +489,6 @@
 
         if (navigator.onLine) {
             try {
-                // ۱. تلاش با فیلد حروف بزرگ (Barcode)
                 let { data: systemData, error: err1 } = await _supabase
                     .from('system_inventory')
                     .select('*')
@@ -357,14 +497,13 @@
 
                 dbBarcodeKey = "Barcode";
 
-                // ۲. فالبک در صورت عدم یافتن با حروف کوچک (barcode)
                 if (!systemData) {
                     let { data: systemDataCheck, error: err2 } = await _supabase
                         .from('system_inventory')
                         .select('*')
                         .eq('barcode', cleanedBarcode)
                         .maybeSingle();
-                    
+
                     if (systemDataCheck) {
                         systemData = systemDataCheck;
                         dbBarcodeKey = "barcode";
@@ -378,12 +517,9 @@
                 }
 
                 finalCleanedBarcode = (systemData[dbBarcodeKey] || cleanedBarcode).toString();
-
                 const { data: whseRows } = await _supabase.from('warehouse_inventory').select('*').eq('Row Labels', finalCleanedBarcode);
                 
-                // ۳. بررسی ساختار جدول شوروم برای حروف بزرگ و کوچک
                 let { data: showData } = await _supabase.from('showroom_inventory').select('*').eq(dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode', finalCleanedBarcode).maybeSingle();
-                
                 dbShowroomQtyKey = "showroom_qty";
                 if (showData) {
                     if (showData.showroom_quantity !== undefined) dbShowroomQtyKey = "showroom_quantity";
@@ -420,7 +556,7 @@
                 let rawVal = row['Value'] ? row['Value'].toString().replace(/,/g, '') : '0';
                 let qty = parseInt(rawVal) || 0;
                 let locName = row['Attribute'];
-                 
+                
                 if(qty > 0 && locName && locName !== 'Grand Total' && locName.trim() !== '') {
                     totalWarehouseQty += qty;
                     locBalances[locName] = (locBalances[locName] || 0) + qty;
@@ -495,7 +631,6 @@
 
     async function submitTransfer() {
         const operatorName = document.getElementById('operator-name-input').value.trim();
-        
         if (!operatorName) {
             alert("Action Denied: Please enter your Operator Name/ID at the top of the page before scanning!");
             return;
@@ -508,33 +643,19 @@
         const itemName = currentProduct ? (currentProduct['Item Name'] || currentProduct['item_name'] || 'Unknown Item') : 'Unknown Item';
          
         let selectedLoc = sourceLocSelect.value;
-
         if (!qty || qty <= 0) { alert('Enter valid quantity'); return; }
 
-        if (txType === 'intake' && newLocInput.value.trim() !== '') {
-            selectedLoc = newLocInput.value.trim();
-        }
+        if (txType === 'intake' && newLocInput.value.trim() !== '') { selectedLoc = newLocInput.value.trim(); }
 
         let currentLocQty = locBalances[selectedLoc] || 0;
+        if (txType === 'out' && qty > currentLocQty) { alert('Error: Not enough stock in this specific location!'); return; }
 
-        if (txType === 'out' && qty > currentLocQty) {
-            alert('Error: Not enough stock in this specific location!');
-            return;
-        }
-
-        if (txType === 'in' && qty > currentShowroomQty) {
-            alert(`Business Logic Denied: Cannot return more than Showroom current stock. Live Showroom: ${currentShowroomQty}`);
-            return;
-        }
+        if (txType === 'in' && qty > currentShowroomQty) { alert(`Business Logic Denied: Cannot return more than Showroom current stock. Live Showroom: ${currentShowroomQty}`); return; }
 
         let actionMessage = "";
-        if (txType === 'intake') {
-            actionMessage = `🔹 TRANSACTION TYPE: Direct Stock Intake\n📦 ITEM: ${itemName}\n🔢 QTY TO ADD: +${qty} pcs\n📍 TARGET SHELF: [ ${selectedLoc} ]`;
-        } else if (txType === 'out') {
-            actionMessage = `🔹 TRANSACTION TYPE: Move to Showroom\n📦 ITEM: ${itemName}\n🔢 QTY TO REMOVE FROM WHSE: -${qty} pcs\n📍 FROM SHELF: [ ${selectedLoc} ]`;
-        } else if (txType === 'in') {
-            actionMessage = `🔹 TRANSACTION TYPE: Return to Warehouse\n📦 ITEM: ${itemName}\n🔢 QTY TO ADD BACK TO WHSE: +${qty} pcs\n📍 TARGET SHELF: [ ${selectedLoc} ]`;
-        }
+        if (txType === 'intake') { actionMessage = `🔹 TRANSACTION TYPE: Direct Stock Intake\n📦 ITEM: ${itemName}\n🔢 QTY TO ADD: +${qty} pcs\n📍 TARGET SHELF: [ ${selectedLoc} ]`; } 
+        else if (txType === 'out') { actionMessage = `🔹 TRANSACTION TYPE: Move to Showroom\n📦 ITEM: ${itemName}\n🔢 QTY TO REMOVE FROM WHSE: -${qty} pcs\n📍 FROM SHELF: [ ${selectedLoc} ]`; } 
+        else if (txType === 'in') { actionMessage = `🔹 TRANSACTION TYPE: Return to Warehouse\n📦 ITEM: ${itemName}\n🔢 QTY TO ADD BACK TO WHSE: +${qty} pcs\n📍 TARGET SHELF: [ ${selectedLoc} ]`; }
 
         const confirmAction = confirm(`${actionMessage}\n\nAre you sure you want to update the database?`);
         if (!confirmAction) return; 
@@ -544,24 +665,13 @@
 
         let newLocQty = currentLocQty;
         let newShowroomQty = currentShowroomQty;
-
-        if (txType === 'out') {
-            newLocQty = currentLocQty - qty;
-            newShowroomQty = currentShowroomQty + qty;
-        } else if (txType === 'in') {
-            newLocQty = currentLocQty + qty;
-            newShowroomQty = currentShowroomQty - qty;
-        } else if (txType === 'intake') {
-            newLocQty = currentLocQty + qty; 
-        }
+        if (txType === 'out') { newLocQty = currentLocQty - qty; newShowroomQty = currentShowroomQty + qty; } 
+        else if (txType === 'in') { newLocQty = currentLocQty + qty; newShowroomQty = currentShowroomQty - qty; } 
+        else if (txType === 'intake') { newLocQty = currentLocQty + qty; }
 
         const { error: whseError } = await _supabase
             .from('warehouse_inventory')
-            .upsert(
-                { "Row Labels": barcode, "Attribute": selectedLoc, "Value": newLocQty }, 
-                { onConflict: 'Row Labels,Attribute' }
-            );
-
+            .upsert({ "Row Labels": barcode, "Attribute": selectedLoc, "Value": newLocQty }, { onConflict: 'Row Labels,Attribute' });
         if (whseError) {
             alert(`Warehouse Update Error: ${whseError.message}`);
             statusDiv.className = 'status error';
@@ -573,7 +683,6 @@
             let showroomPayload = {};
             showroomPayload[dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode'] = barcode;
             showroomPayload[dbShowroomQtyKey] = newShowroomQty;
-
             await _supabase.from('showroom_inventory').upsert(showroomPayload, { onConflict: dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode' });
         }
 
@@ -582,14 +691,7 @@
         if (txType === 'out') { logWorkerName = `${operatorName} (Shelf ${selectedLoc} -> Showroom)`; logQty = qty; }
         if (txType === 'in') { logWorkerName = `${operatorName} (Showroom -> Shelf ${selectedLoc})`; logQty = -qty; }
          
-        const { error: logError } = await _supabase
-            .from('transfer_log')
-            .insert([{ 
-                Barcode: barcode, 
-                qty_transferred: logQty, 
-                worker_name: logWorkerName 
-            }]);
-
+        const { error: logError } = await _supabase.from('transfer_log').insert([{ Barcode: barcode, qty_transferred: logQty, worker_name: logWorkerName }]);
         if (logError) {
             console.error("Log Error Details:", logError);
             alert(`⚠️ Log Saving Failed!\nError: ${logError.message}\n\n(Stock was updated, but log wasn't saved)`);
@@ -613,7 +715,6 @@
         statusDiv.textContent = '';
         statusDiv.className = 'status';
         barcodeInput.focus();
-        
         const savedOperator = localStorage.getItem('sc_operator_name');
         if (savedOperator) {
             document.getElementById('operator-name-input').value = savedOperator;
