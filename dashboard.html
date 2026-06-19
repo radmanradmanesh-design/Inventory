@@ -3,159 +3,213 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Warehouse Management Control Panel</title>
+    <title>Turquoise & Gold - Executive Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
+        :root {
+            /* پالت امضادار تجاری: آبی فیروزه‌ای و طلایی شاهانه */
+            --turquoise-main: #06b6d4;      /* فیروزه‌ای زنده */
+            --turquoise-dark: #0891b2;      /* فیروزه‌ای تیره */
+            --turquoise-deep: #0e7490;      /* فیروزه‌ای عمیق */
+            --turquoise-light: #ecfeff;     /* فیروزه‌ای لایت */
+            
+            --royal-gold: #e5b822;          /* طلایی متالیک */
+            --royal-gold-hover: #cfa319;    /* طلایی تیره */
+            --royal-gold-light: #fffbeb;    /* طلایی لایت */
+            
+            --dark-slate: #0f172a;          /* سرمه‌ای تیره/مشکی مدرن */
+            --body-bg: #f0fdfa;             /* پس‌زمینه فیروزه‌ای بسیار ملایم */
+            --panel-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --border: #e2e8f0;
+            
+            --success: #10b981;
+            --error: #ef4444;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
             margin: 0;
-            padding: 16px;
-            background-color: #f8fafc;
-            color: #334155;
+            padding: 24px 16px;
+            background-color: var(--body-bg);
+            color: var(--text-main);
             -webkit-font-smoothing: antialiased;
         }
+
         .dashboard-container {
-            max-width: 1200px;
+            max-width: 1280px;
             margin: 0 auto;
         }
         
         .nav-wrapper {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
+
+        /* دکمه بازگشت فیروزه‌ای عمیق */
         .back-btn {
             text-decoration: none;
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 12px 24px;
-            background-color: #10b981;
+            padding: 12px 26px;
+            background-color: var(--turquoise-deep);
             color: white;
-            border-radius: 8px;
+            border-radius: 14px;
             font-weight: 600;
             font-size: 14px;
-            box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);
-            transition: all 0.2s;
+            box-shadow: 0 4px 14px rgba(14, 116, 144, 0.25);
+            transition: all 0.2s ease;
         }
         .back-btn:hover {
-            background-color: #059669;
+            background-color: var(--dark-slate);
             transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(15, 23, 42, 0.2);
         }
+
+        /* هدر پرمیوم */
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 24px;
-            background: #ffffff;
-            padding: 20px 24px;
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            border: 1px solid #f1f5f9;
+            background: var(--panel-bg);
+            padding: 24px 28px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.05);
+            border: 1px solid rgba(6, 182, 212, 0.15);
         }
-        h1 { margin: 0; font-size: 22px; color: #0f172a; font-weight: 700; }
+        h1 { 
+            margin: 0; 
+            font-size: 24px; 
+            color: var(--turquoise-deep); 
+            font-weight: 800; 
+            letter-spacing: -0.5px;
+        }
         
         .status-badges {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             align-items: center;
         }
         .live-badge {
             background: #e2e8f0;
             color: #64748b;
-            padding: 6px 12px;
-            border-radius: 20px;
+            padding: 8px 16px;
+            border-radius: 30px;
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 700;
             transition: all 0.3s ease;
         }
         .live-badge.online {
             background-color: #dcfce7;
             color: #15803d;
+            border: 1px solid #bbf7d0;
         }
         .live-badge.offline {
             background-color: #fee2e2;
             color: #b91c1c;
+            border: 1px solid #fca5a5;
         }
         .queue-badge {
-            background-color: #fef3c7;
-            color: #d97706;
-            padding: 6px 12px;
-            border-radius: 20px;
+            background-color: var(--royal-gold-light);
+            color: #b45309;
+            padding: 8px 16px;
+            border-radius: 30px;
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 700;
+            border: 1px solid rgba(229, 184, 34, 0.3);
             display: none;
         }
         
+        /* پنل آپلود تراز اول */
         .upload-section {
-            background: #ffffff;
-            padding: 24px;
-            border-radius: 12px;
+            background: var(--panel-bg);
+            padding: 28px;
+            border-radius: 20px;
             margin-bottom: 24px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            border: 1px solid #e2e8f0;
-            border-left: 5px solid #3b82f6;
+            box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.05);
+            border: 1px solid var(--border);
+            border-left: 6px solid var(--turquoise-main);
         }
         .upload-title {
-            font-size: 16px;
-            font-weight: 700;
-            color: #1e293b;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--dark-slate);
             margin-bottom: 6px;
             display: flex;
             align-items: center;
             gap: 8px;
         }
         .upload-subtitle {
-            font-size: 13px;
-            color: #64748b;
-            margin-bottom: 16px;
+            font-size: 13.5px;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+            line-height: 1.5;
         }
         .upload-row {
             display: flex;
-            gap: 14px;
+            gap: 16px;
             align-items: center;
             flex-wrap: wrap;
         }
         .file-input-wrapper {
             position: relative;
             flex: 1;
-            min-width: 260px;
+            min-width: 280px;
         }
         input[type="file"] {
             width: 100%;
-            padding: 10px;
-            background: #f8fafc;
-            border: 1.5px dashed #cbd5e1;
-            border-radius: 8px;
+            padding: 12px;
+            background: var(--turquoise-light);
+            border: 2px dashed rgba(6, 182, 212, 0.3);
+            border-radius: 12px;
             font-size: 14px;
             cursor: pointer;
-        }
-        .sync-btn {
-            padding: 12px 28px;
-            background-color: #2563eb;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 14px;
+            box-sizing: border-box;
+            color: var(--turquoise-deep);
             font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+            transition: all 0.2s;
         }
-        .sync-btn:hover { background-color: #1d4ed8; }
+        input[type="file"]:hover {
+            border-color: var(--turquoise-main);
+            background: #e0f2fe;
+        }
+
+        /* دکمه سینک با طلایی لوکس */
+        .sync-btn {
+            padding: 14px 32px;
+            background-color: var(--royal-gold);
+            color: var(--dark-slate);
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 14px rgba(229, 184, 34, 0.35);
+        }
+        .sync-btn:hover { 
+            background-color: var(--royal-gold-hover); 
+            box-shadow: 0 6px 20px rgba(229, 184, 34, 0.45);
+        }
         .sync-btn:disabled {
-            background-color: #94a3b8;
+            background-color: #cbd5e1;
+            color: #94a3b8;
             cursor: not-allowed;
             box-shadow: none;
         }
 
+        /* بخش فیلترهای پیشرفته */
         .filter-box {
-            background: #ffffff;
-            padding: 24px;
-            border-radius: 12px;
+            background: var(--panel-bg);
+            padding: 26px;
+            border-radius: 20px;
             margin-bottom: 24px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            border: 1px solid #f1f5f9;
+            box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.05);
+            border: 1px solid var(--border);
             display: flex;
             gap: 20px;
             align-items: flex-end;
@@ -166,133 +220,150 @@
             flex-direction: column;
             gap: 8px;
             flex: 1;
-            min-width: 200px;
+            min-width: 220px;
             position: relative;
         }
-        label { font-size: 13px; font-weight: 600; color: #64748b; text-transform: uppercase; }
+        label { 
+            font-size: 12px; 
+            font-weight: 700; 
+            color: var(--turquoise-deep); 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px;
+        }
         input[type="date"] {
-            padding: 12px;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 8px;
-            font-size: 15px;
-            background-color: #f8fafc;
+            padding: 12px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            font-size: 14px;
+            background-color: #fff;
+            color: var(--dark-slate);
             outline: none;
+            box-sizing: border-box;
+            transition: all 0.2s;
         }
         input[type="date"]:focus {
-            border-color: #3b82f6;
-            background-color: #fff;
+            border-color: var(--turquoise-main);
+            box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.12);
         }
 
+        /* دراپ‌داون مولتی‌سلکت فیروزه‌ای */
         .dropdown-check-wrapper {
             position: relative;
             width: 100%;
         }
         .dropdown-check-trigger {
-            padding: 12px;
-            border: 1.5px solid #e2e8f0;
-            border-radius: 8px;
+            padding: 12px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
             font-size: 14px;
-            background-color: #f8fafc;
+            background-color: #fff;
             cursor: pointer;
             display: flex;
             justify-content: space-between;
             align-items: center;
             user-select: none;
+            box-sizing: border-box;
+            font-weight: 600;
+            color: var(--text-muted);
         }
         .dropdown-check-trigger:after {
             content: '▼';
             font-size: 10px;
-            color: #64748b;
+            color: var(--turquoise-main);
         }
         .dropdown-check-content {
             display: none;
             position: absolute;
-            top: 100%;
+            top: 105%;
             left: 0;
             right: 0;
             background: #ffffff;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            max-height: 220px;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 14px;
+            max-height: 240px;
             overflow-y: auto;
             z-index: 1000;
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-            padding: 8px 0;
+            box-shadow: 0 12px 30px rgba(14, 116, 144, 0.12);
+            padding: 10px 0;
         }
-        .dropdown-check-content.show {
-            display: block;
-        }
+        .dropdown-check-content.show { display: block; }
         .dropdown-option-item {
-            padding: 8px 14px;
+            padding: 10px 16px;
             display: flex;
             align-items: center;
-            gap: 10px;
-            font-size: 13px;
+            gap: 12px;
+            font-size: 13.5px;
             cursor: pointer;
+            font-weight: 500;
         }
-        .dropdown-option-item:hover {
-            background-color: #f1f5f9;
-        }
+        .dropdown-option-item:hover { background-color: var(--turquoise-light); color: var(--turquoise-deep); }
         .dropdown-option-item input[type="checkbox"] {
             cursor: pointer;
-            width: 16px;
-            height: 16px;
+            width: 18px;
+            height: 18px;
+            accent-color: var(--turquoise-main);
         }
         .dropdown-actions {
-            border-bottom: 1px solid #e2e8f0;
-            padding-bottom: 6px;
-            margin-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+            margin-bottom: 8px;
             display: flex;
             justify-content: space-around;
         }
         .dropdown-actions button {
             background: none;
             border: none;
-            color: #2563eb;
+            color: var(--turquoise-deep);
             font-size: 12px;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
         }
+        .dropdown-actions button:hover { color: var(--turquoise-main); }
 
+        /* سوییچ فیلتر تراکنش */
         .toggle-filter-container {
             display: flex;
             background: #f1f5f9;
             padding: 4px;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            border: 1px solid var(--border);
         }
         .toggle-btn {
-            padding: 10px 16px;
+            padding: 11px 18px;
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 700;
             border: none;
             background: none;
-            color: #64748b;
+            color: var(--text-muted);
             cursor: pointer;
-            border-radius: 6px;
+            border-radius: 8px;
             transition: all 0.2s;
         }
         .toggle-btn.active {
-            background: #ffffff;
-            color: #0f172a;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            background: var(--turquoise-deep);
+            color: white;
+            box-shadow: 0 4px 10px rgba(14, 116, 144, 0.15);
         }
 
+        /* دکمه تولید گزارش فیروزه‌ای اصلی */
         .generate-btn {
-            padding: 13px 28px;
-            background-color: #3b82f6;
+            padding: 14px 32px;
+            background-color: var(--turquoise-main);
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             font-size: 15px;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
-            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 14px rgba(6, 182, 212, 0.25);
         }
         .generate-btn:hover {
-            background-color: #2563eb;
+            background-color: var(--turquoise-dark);
+            box-shadow: 0 6px 20px rgba(6, 182, 212, 0.35);
         }
 
+        /* گرید کارت‌های آماری شاخص (KPI) */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -300,86 +371,103 @@
             margin-bottom: 24px;
         }
         .stat-card {
-            background: #ffffff;
-            padding: 24px;
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            border: 1px solid #f1f5f9;
+            background: var(--panel-bg);
+            padding: 26px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.04);
+            border: 1px solid var(--border);
             position: relative;
+            overflow: hidden;
         }
-        .stat-card.total-req::before { background-color: #3b82f6; }
-        .stat-card.total-intake::before { background-color: #f59e0b; }
-        .stat-card.total-move::before { background-color: #10b981; }
+        /* لاین امضای کارت‌ها */
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+        }
+        .stat-card.total-req::before { background: var(--turquoise-main); }
+        .stat-card.total-intake::before { background: var(--royal-gold); }
+        .stat-card.total-move::before { background: var(--success); }
         
-        .stat-title { font-size: 13px; color: #64748b; font-weight: 600; text-transform: uppercase; }
-        .stat-value { font-size: 32px; font-weight: 700; margin-top: 10px; color: #1e293b; }
+        .stat-title { font-size: 12.5px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value { font-size: 34px; font-weight: 800; margin-top: 10px; color: var(--dark-slate); letter-spacing: -0.5px; }
 
+        /* جدول VIP لوکس و بیزینسی */
         .report-table-box {
-            background: #ffffff;
-            border-radius: 12px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            border: 1px solid #f1f5f9;
-            overflow-x: auto;
+            background: var(--panel-bg);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px -5px rgba(6, 182, 212, 0.05);
+            border: 1px solid rgba(6, 182, 212, 0.12);
+            overflow: hidden;
             margin-bottom: 16px;
         }
         table {
             width: 100%;
             border-collapse: collapse;
             text-align: left;
-            font-size: 14px;
+            font-size: 14.5px;
             min-width: 950px;
         }
         th {
-            background-color: #f8fafc;
-            color: #64748b;
-            padding: 16px;
-            font-weight: 600;
+            background-color: #0f172a; /* بک‌گراند تیره شیک برای هدر */
+            color: #f8fafc;
+            padding: 18px 16px;
+            font-weight: 700;
             text-transform: uppercase;
             font-size: 12px;
-            border-bottom: 2px solid #edf2f7;
+            letter-spacing: 0.5px;
         }
         .filter-row th {
-            padding: 8px 16px;
-            background-color: #f1f5f9;
-            border-bottom: 2px solid #cbd5e1;
+            padding: 10px 14px;
+            background-color: #1e293b;
+            border-top: 1px solid #334155;
         }
         .col-filter-input {
             width: 100%;
-            padding: 8px;
-            border: 1px solid #cbd5e1;
-            border-radius: 6px;
-            font-size: 12px;
+            padding: 9px 12px;
+            border: 1px solid #475569;
+            border-radius: 8px;
+            font-size: 12.5px;
             box-sizing: border-box;
             font-weight: normal;
+            background-color: #334155;
+            color: #fff;
+            outline: none;
+            transition: all 0.2s;
         }
+        .col-filter-input::placeholder { color: #94a3b8; }
+        .col-filter-input:focus { border-color: var(--turquoise-main); background-color: #0f172a; }
+        
         td {
-            padding: 16px;
+            padding: 18px 16px;
             border-bottom: 1px solid #f1f5f9;
-            color: #475569;
+            color: #334155;
             vertical-align: middle;
         }
-        tr:hover td { background-color: #f8fafc; }
+        tr:hover td { background-color: var(--turquoise-light); }
         
+        /* نشان‌ها (Badges) */
         .badge {
             display: inline-block;
-            padding: 6px 12px;
-            border-radius: 6px;
+            padding: 6px 14px;
+            border-radius: 8px;
             font-size: 12px;
-            font-weight: 600;
+            font-weight: 700;
         }
-        .badge.intake { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
+        .badge.intake { background: var(--royal-gold-light); color: #b45309; border: 1px solid rgba(229, 184, 34, 0.3); }
         .badge.movement { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
         .badge.voided { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; text-decoration: line-through; }
         .badge.pending-sync { background: #ffedd5; color: #ea580c; border: 1px solid #fed7aa; animation: pulse 2s infinite; }
         
         .showroom-live-indicator {
             display: inline-block;
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-weight: 700;
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-weight: 800;
             font-size: 13px;
             background-color: #f1f5f9;
-            color: #334155;
+            color: var(--dark-slate);
         }
         .showroom-live-indicator.low-stock {
             background-color: #fee2e2;
@@ -393,93 +481,106 @@
             100% { opacity: 0.6; }
         }
 
+        /* دکمه ووید قرمز نئونی */
         .void-btn {
-            background-color: #ef4444;
+            background-color: var(--error);
             color: white;
             border: none;
-            padding: 6px 12px;
-            border-radius: 6px;
+            padding: 7px 14px;
+            border-radius: 8px;
             font-size: 12px;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: all 0.2s;
+            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.2);
         }
-        .void-btn:hover { background-color: #dc2626; }
+        .void-btn:hover { background-color: #dc2626; box-shadow: 0 6px 14px rgba(239, 68, 68, 0.3); }
 
-        /* پدینگ و فریم بخش صفحه‌بندی */
+        /* فوتر صفحه‌بندی لوکس */
         .pagination-container {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 14px 24px;
-            background: #ffffff;
-            border-radius: 12px;
-            border: 1px solid #f1f5f9;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            padding: 16px 28px;
+            background: var(--panel-bg);
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 25px -5px rgba(6, 182, 212, 0.04);
         }
         .pagination-info {
-            font-size: 13px;
-            color: #64748b;
-            font-weight: 500;
+            font-size: 13.5px;
+            color: var(--text-muted);
+            font-weight: 600;
         }
         .pagination-buttons {
             display: flex;
             gap: 8px;
         }
         .page-btn {
-            padding: 8px 16px;
+            padding: 10px 18px;
             background-color: #ffffff;
-            border: 1px solid #e2e8f0;
-            color: #334155;
-            border-radius: 6px;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            border-radius: 8px;
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
             transition: all 0.2s;
         }
         .page-btn:hover:not(:disabled) {
-            background-color: #f1f5f9;
-            border-color: #cbd5e1;
+            background-color: var(--turquoise-light);
+            border-color: rgba(6, 182, 212, 0.3);
+            color: var(--turquoise-deep);
         }
         .page-btn:disabled {
             background-color: #f8fafc;
             color: #cbd5e1;
             cursor: not-allowed;
+            border-color: var(--border);
         }
         .page-btn.active {
-            background-color: #3b82f6;
+            background-color: var(--turquoise-deep);
             color: white;
-            border-color: #3b82f6;
+            border-color: var(--turquoise-deep);
+            box-shadow: 0 4px 10px rgba(14, 116, 144, 0.15);
         }
 
         code {
-            background-color: #f1f5f9;
+            background-color: var(--turquoise-light);
             padding: 4px 8px;
-            border-radius: 4px;
-            font-family: monospace;
-            color: #0f172a;
+            border-radius: 6px;
+            font-family: "SF Mono", Consolas, monospace;
+            color: var(--turquoise-deep);
+            font-weight: 700;
+            font-size: 13px;
+            border: 1px solid rgba(6, 182, 212, 0.12);
         }
         .loading-text {
-            padding: 50px;
+            padding: 60px;
             text-align: center;
-            color: #64748b;
-            font-size: 15px;
+            color: var(--text-muted);
+            font-size: 15.5px;
+            font-weight: 600;
         }
         .error-box {
             background-color: #fef2f2;
             color: #991b1b;
-            padding: 16px;
-            border-radius: 8px;
+            padding: 18px;
+            border-radius: 14px;
             border: 1px solid #fca5a5;
             margin-bottom: 24px;
             display: none;
+            font-weight: 600;
         }
     </style>
 </head>
 <body>
 
 <div class="nav-wrapper">
-    <a href="index.html" class="back-btn">📷 Return to Live Scanner</a>
+    <a href="index.html" class="back-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        Return to Premium Live Scanner
+    </a>
 </div>
 
 <div class="dashboard-container">
@@ -531,8 +632,8 @@
         <div class="form-group">
             <label>Transaction Type</label>
             <div class="toggle-filter-container">
-                <button id="tx-filter-non-sales" class="toggle-btn active" onclick="setTxFilter('non-sales')">Excl. Sales (Default)</button>
-                <button id="tx-filter-all" class="toggle-btn" onclick="setTxFilter('all')">All Transactions</button>
+                <button id="tx-filter-non-sales" class="toggle-btn active" onclick="setTxFilter('non-sales')">Excl. Sales</button>
+                <button id="tx-filter-all" class="toggle-btn" onclick="setTxFilter('all')">All Activities</button>
             </div>
         </div>
 
@@ -584,7 +685,6 @@
         </table>
     </div>
 
-    <!-- بخش کنترل صفحه‌بندی کامپوننت جدید جدول -->
     <div class="pagination-container" id="pagination-wrapper" style="display: none;">
         <div class="pagination-info" id="pagination-text-info">Showing 0 to 0 of 0 entries</div>
         <div class="pagination-buttons">
@@ -607,7 +707,6 @@
     let selectedCategories = [];
     let currentTxFilter = 'non-sales';
 
-    // متغیرهای مدیریت فرانت‌اند صفحه‌بندی
     let finalProcessedRows = []; 
     let reportCurrentPage = 1;
     const ROWS_PER_PAGE = 100;
@@ -728,13 +827,11 @@
         }
     }
 
-    // لایه فیلتر پیشرفته: به جای مخفی کردن ردیف‌ها، فیلتر آنی روی آرایه کل داده‌ها اعمال شده و مجدد صفحه‌بندی می‌شود
     function filterReportTable() {
         const valBarcode = document.getElementById('filter-barcode').value.toLowerCase().trim();
         const valName = document.getElementById('filter-name').value.toLowerCase().trim();
         const valOperator = document.getElementById('filter-operator').value.toLowerCase().trim();
 
-        // فیلتر کردن ردیف‌های فعال و ساخت زیرمجموعه جدید داده‌ها
         const filtered = finalProcessedRows.filter(row => {
             const matchBarcode = row.barcode.toLowerCase().includes(valBarcode);
             const matchName = row.itemName.toLowerCase().includes(valName);
@@ -823,7 +920,7 @@
                     alert(`🎉 Excellent! Successfully matched and updated [ ${formattedRows.length} ] products. Showroom levels auto-recalibrated via triggers.`);
                     fileInput.value = ""; 
                     await fetchCategoriesFromServer();
-                    loadManagerialReport();
+                    loadManagerReport();
                 } catch (err) {
                     console.error(err);
                     errDisplay.textContent = `🚨 Upsert Engine Error: ${err.message || 'Check database constraints.'}`;
@@ -1017,7 +1114,7 @@
             let totalIntakeQty = 0;
             let totalMovementQty = 0;
 
-            finalProcessedRows = []; // پاکسازی رکوردهای آرایه کلی
+            finalProcessedRows = []; 
 
             mergedLogs.forEach(log => {
                 const currentBarcode = log.Barcode || log.barcode || '---';
@@ -1042,7 +1139,6 @@
                     }
                 }
 
-                // ارسال پکیج دیتا به آرایه کلی ساختار ردیف‌ها
                 finalProcessedRows.push({
                     id: log.id,
                     barcode: currentBarcode,
@@ -1059,13 +1155,11 @@
 
             updateKPIs(totalRequests, totalIntakeQty, totalMovementQty);
 
-            // آغاز لود و رندر تکه اول (صفحه ۱)
             reportCurrentPage = 1;
             renderTableChunk(finalProcessedRows);
         });
     }
 
-    // تابع رندر کردن تکه‌های ۱۰۰ تایی در دایومنت اصلی
     function renderTableChunk(dataSource) {
         const tbody = document.getElementById('report-tbody');
         tbody.innerHTML = '';
@@ -1076,7 +1170,6 @@
             return;
         }
 
-        // محاسبه دقیق مرزهای آرایه جاری
         const totalEntries = dataSource.length;
         const totalPages = Math.ceil(totalEntries / ROWS_PER_PAGE);
 
@@ -1086,7 +1179,6 @@
         const startIndex = (reportCurrentPage - 1) * ROWS_PER_PAGE;
         const endIndex = Math.min(startIndex + ROWS_PER_PAGE, totalEntries);
 
-        // جداسازی ردیف‌های مربوط به صفحه فعلی
         const pageItems = dataSource.slice(startIndex, endIndex);
 
         pageItems.forEach(row => {
@@ -1110,7 +1202,7 @@
             }
 
             let actionButton = isVoided 
-                ? `<span style="color: #94a3b8; font-size: 12px;">❌ Voided</span>`
+                ? `<span style="color: #94a3b8; font-size: 12px; font-weight:700;">❌ Voided</span>`
                 : `<button class="void-btn" onclick="voidTransaction(${row.id}, '${row.barcode}', ${row.qty_transferred})">🚫 Void</button>`;
             if (row.isOfflinePending) {
                 actionButton = `<span style="color: #ea580c; font-size: 12px; font-weight:600;">⏳ Syncing...</span>`;
@@ -1135,12 +1227,12 @@
             }
 
             tbody.innerHTML += `
-                <tr style="${isVoided ? 'opacity: 0.6; background-color: #f8fafc;' : ''}">
-                    <td style="font-size: 13px; font-weight: 600; color: #64748b;">${logDate}</td>
+                <tr style="${isVoided ? 'opacity: 0.55; background-color: #f8fafc;' : ''}">
+                    <td style="font-size: 13px; font-weight: 700; color: var(--text-muted);">${logDate}</td>
                     <td><code>${row.barcode}</code></td>
-                    <td style="font-weight: 600; color: #1e293b; ${isVoided ? 'text-decoration: line-through;' : ''}">${row.itemName} <span style="font-size:11px; color:#94a3b8; font-weight:normal;">(${row.itemCategory})</span></td>
+                    <td style="font-weight: 700; color: var(--dark-slate); ${isVoided ? 'text-decoration: line-through;' : ''}">${row.itemName} <span style="font-size:11px; color:#64748b; font-weight:500;">(${row.itemCategory})</span></td>
                     <td><span class="${badgeClass}">${isVoided ? 'VOID: ' + row.worker : row.worker}</span></td>
-                    <td style="font-weight: 700; font-size: 15px; text-decoration: ${isVoided ? 'line-through' : 'none'}; color: ${qtyColor}; text-align: left;">
+                    <td style="font-weight: 800; font-size: 15px; text-decoration: ${isVoided ? 'line-through' : 'none'}; color: ${qtyColor};">
                         ${qtySign}${qty} Pcs
                     </td>
                     <td><span class="${stockAlertClass}">${row.liveShowroomStock} Pcs</span></td> 
@@ -1149,7 +1241,6 @@
             `;
         });
 
-        // به روزرسانی نوکست، پریویوس و المان‌های فوتر صفحه‌بندی
         document.getElementById('pagination-wrapper').style.display = 'flex';
         document.getElementById('pagination-text-info').textContent = `Showing ${startIndex + 1} to ${endIndex} of ${totalEntries} entries`;
         document.getElementById('pagination-current-indicator').textContent = reportCurrentPage;
@@ -1161,7 +1252,6 @@
     function changeReportPage(direction) {
         reportCurrentPage += direction;
         
-        // تشخیص اینکه آیا در حال حاضر فیلتر متنی ستون‌ها فعال است یا کل آرایه لود شود
         const valBarcode = document.getElementById('filter-barcode').value.toLowerCase().trim();
         const valName = document.getElementById('filter-name').value.toLowerCase().trim();
         const valOperator = document.getElementById('filter-operator').value.toLowerCase().trim();
@@ -1177,7 +1267,6 @@
             renderTableChunk(finalProcessedRows);
         }
         
-        // اسکرول نرم به بالای جدول برای راحتی اپراتور
         document.getElementById('report-table').scrollIntoView({ behavior: 'smooth' });
     }
 
