@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authorized Operators Management</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --turquoise-main: #06b6d4;
+            --turquoise-deep: #0e7490;
+            --turquoise-light: #ecfeff;
+            --royal-gold: #e5b822;
+            --dark-slate: #0f172a;
+            --body-bg: #f8fafc;
+            --panel-bg: #ffffff;
+            --text-main: #0f172a;
+            --border: #e2e8f0;
+            --error: #ef4444;
+            --success: #10b981;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--body-bg);
+            color: var(--text-main);
+            padding: 24px;
+            margin: 0;
+            direction: ltr;
+        }
+
+        .container {
+            max-width: 850px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: var(--panel-bg);
+            padding: 20px 24px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h2 { margin: 0; color: var(--dark-slate); font-size: 22px; font-weight: 700; }
+
+        .back-btn {
+            text-decoration: none; background: var(--dark-slate); color: white;
+            padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
+            transition: background 0.2s;
+        }
+        .back-btn:hover { background: var(--turquoise-deep); }
+
+        .form-box {
+            background: var(--panel-bg); padding: 24px; border-radius: 12px;
+            border: 1px solid var(--border); margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+            display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;
+        }
+
+        .form-group { flex: 1; min-width: 200px; }
+        .form-group.short { flex: 0 0 130px; min-width: 130px; }
+
+        label { display: block; font-size: 13px; color: #64748b; font-weight: 600; margin-bottom: 8px; }
+        
+        input {
+            width: 100%; padding: 12px; border: 1.5px solid var(--border); border-radius: 8px;
+            outline: none; font-size: 14px; box-sizing: border-box;
+        }
+        input:focus { border-color: var(--turquoise-main); }
+
+        .submit-btn {
+            background: var(--turquoise-main); color: white; border: none;
+            padding: 13px 28px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 14px;
+            transition: background 0.2s; height: 45px;
+        }
+        .submit-btn:hover { background: var(--turquoise-deep); }
+
+        .table-responsive {
+            background: white; border-radius: 12px; border: 1px solid var(--border);
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03); overflow: hidden;
+        }
+
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { padding: 16px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+        th { background: #f8fafc; color: #64748b; font-weight: 600; font-size: 13px; }
+        
+        .status-badge {
+            padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; inline-block;
+        }
+        .status-badge.active { background: #dcfce7; color: #15803d; }
+        .status-badge.inactive { background: #fee2e2; color: #b91c1c; }
+
+        .action-btn {
+            background: none; border: none; color: var(--turquoise-deep); cursor: pointer; 
+            font-weight: 600; font-size: 13px; padding: 0; text-decoration: underline;
+        }
+        .action-btn.suspend { color: var(--error); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2>👥 Security Access Panel: Authorized Operators</h2>
+        <a href="dashboard.html" class="back-btn">← Control Panel</a>
+    </div>
+
+    <div class="form-box">
+        <div class="form-group">
+            <label>Full Name</label>
+            <input type="text" id="operator-name" placeholder="e.g. John Doe">
+        </div>
+        <div class="form-group short">
+            <label>Backup PIN (4 Digits)</label>
+            <input type="password" id="operator-pin" maxlength="4" placeholder="••••" style="text-align: center; font-family: monospace; letter-spacing: 3px;">
+        </div>
+        <button class="submit-btn" onclick="addNewOperator()">+ Add Operator</button>
+    </div>
+
+    <div class="table-responsive">
+        <table>
+            <thead>
+                <tr>
+                    <th>Full Name</th>
+                    <th>Backup PIN</th>
+                    <th>Biometric Status</th>
+                    <th>System Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="operators-tbody">
+                <tr>
+                    <td colspan="5" style="text-align: center; color: #64748b; padding: 30px;">Loading access registry...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // Supabase Core Configuration Keys
+    const SUPABASE_URL = 'https://qmurpnbrnmyjdxqjhybz.supabase.co'; 
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec';
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    window.onload = function() {
+        loadOperatorsRegistry();
+    };
+
+    // Fetch and sync active operator dataset from Supabase
+    async function loadOperatorsRegistry() {
+        const tbody = document.getElementById('operators-tbody');
+        
+        const { data, error } = await _supabase
+            .from('authorized_operators')
+            .select('*')
+            .order('id', { ascending: false });
+
+        if (error) {
+            tbody.innerHTML = `<tr><td colspan="5" style="color:var(--error); text-align:center; padding:20px;">Failed to read registry: ${error.message}</td></tr>`;
+            return;
+        }
+
+        if(data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#64748b; padding:20px;">No operators registered in the system.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = '';
+        data.forEach(op => {
+            const hasBiometrics = op.biometric_credential_id ? "🧬 Linked" : "❌ Not Configured";
+            tbody.innerHTML += `
+                <tr>
+                    <td style="font-weight: 600; color: var(--dark-slate);">${op.full_name}</td>
+                    <td style="font-family: monospace; letter-spacing: 2px; color: #64748b;">••••</td>
+                    <td style="font-size: 13px; font-weight: 500; color: ${op.biometric_credential_id ? '#10b981' : '#64748b'}">${hasBiometrics}</td>
+                    <td>
+                        <span class="status-badge ${op.is_active ? 'active' : 'inactive'}">
+                            ${op.is_active ? 'Active Access' : 'Suspended'}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="action-btn ${op.is_active ? 'suspend' : ''}" onclick="toggleOperatorStatus(${op.id}, ${op.is_active})">
+                            ${op.is_active ? 'Change to Suspend' : 'Activate Access'}
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    // Insert new personnel data into Supabase
+    async function addNewOperator() {
+        const nameInput = document.getElementById('operator-name');
+        const pinInput = document.getElementById('operator-pin');
+
+        if(!nameInput.value.trim() || pinInput.value.length !== 4 || isNaN(pinInput.value)) {
+            alert('Validation Error: Please provide a valid Full Name and a 4-digit numeric PIN.');
+            return;
+        }
+
+        const { error } = await _supabase
+            .from('authorized_operators')
+            .insert([{ 
+                full_name: nameInput.value.trim(), 
+                pin_code: pinInput.value.trim() 
+            }]);
+
+        if (error) {
+            alert('Database Submission Failed: ' + error.message);
+        } else {
+            nameInput.value = '';
+            pinInput.value = '';
+            alert('Success: New operator registered into the secure access control system.');
+            loadOperatorsRegistry();
+        }
+    }
+
+    // Toggle operational permission status (Active vs Suspended)
+    async function toggleOperatorStatus(id, currentStatus) {
+        const confirmation = confirm("Are you sure you want to alter this operator's system access privileges?");
+        if(!confirmation) return;
+
+        const { error } = await _supabase
+            .from('authorized_operators')
+            .update({ is_active: !currentStatus })
+            .eq('id', id);
+
+        if(error) {
+            alert('Status update failed: ' + error.message);
+        } else {
+            loadOperatorsRegistry();
+        }
+    }
+</script>
+</body>
+</html>
