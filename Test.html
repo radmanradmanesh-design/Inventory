@@ -182,6 +182,25 @@
             cursor: pointer;
             font-weight: 700;
         }
+
+        /* Security Locked Section Styles */
+        .secure-lock-panel {
+            display: none; /* Controlled dynamically by JS based on operator session status */
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px dashed #cbd5e1;
+        }
+        .guest-warning-badge {
+            background: #fffbeb;
+            border: 1px solid #fef3c7;
+            color: #d97706;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            text-align: center;
+            margin-top: 10px;
+        }
          
         #manual-box {
             margin-top: 10px;
@@ -202,10 +221,9 @@
 </div>
 
 <div class="container">
-    <!-- Active Verified Operator Session Header -->
     <div class="operator-badge-box">
-        <div>🔑 Active Session: <span id="active-op-display" style="color: #e5b822;">None Verified</span></div>
-        <button class="change-op-btn" onclick="triggerSessionAuthentication()">Verify Operator</button>
+        <div>🔑 Session Status: <span id="active-op-display" style="color: #e5b822;">Guest (Read-Only)</span></div>
+        <button id="auth-action-btn" class="change-op-btn" onclick="triggerSessionAuthentication()">Verify Operator</button>
     </div>
 
     <h2>Live Scanner & Location Finder</h2>
@@ -216,7 +234,7 @@
          
         <div id="manual-box">
             <input type="text" id="barcode-input" placeholder="Or enter barcode manually..." autocomplete="off">
-            <button onclick="handleManualSubmit()" style="width: auto; padding: 0 20px; background-color: #4a5568;">Find</button>
+            <button onclick="handleManualSubmit()" style="width: auto; padding: 0 20px; background-color: #4a5568; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">Find</button>
         </div>
     </div>
 
@@ -249,32 +267,39 @@
         <label style="margin-top: 15px; display: block; font-weight: bold; color: #2b6cb0;">📍 Physical Locations inside Warehouse:</label>
         <div id="location-list" class="location-container"></div>
          
-        <div class="form-group" style="margin-top: 20px;">
-            <label for="transaction-type">Transaction Type:</label>
-            <select id="transaction-type" onchange="handleTypeChange()">
-                <option value="out">Move to Showroom (Whse -> Showroom)</option>
-                <option value="in">Return to Warehouse (Showroom -> Whse)</option>
-                <option value="intake">➕ Direct Stock Intake (Add New Qty to Whse Shelf)</option>
-            </select>
+        <div id="guest-alert-badge" class="guest-warning-badge">
+            🔒 Stock modification is locked. Verify operator identity above to enable warehouse movements.
         </div>
 
-        <div class="form-group" id="loc-select-group">
-            <label for="source-location">Select Warehouse Location for Action:</label>
-            <select id="source-location"></select>
+        <div id="secure-action-panel" class="secure-lock-panel">
+            <div class="form-group">
+                <label for="transaction-type">Transaction Type:</label>
+                <select id="transaction-type" onchange="handleTypeChange()">
+                    <option value="out">Move to Showroom (Whse -> Showroom)</option>
+                    <option value="in">Return to Warehouse (Showroom -> Whse)</option>
+                    <option value="intake">➕ Direct Stock Intake (Add New Qty to Whse Shelf)</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="loc-select-group">
+                <label for="source-location">Select Warehouse Location for Action:</label>
+                <select id="source-location"></select>
+            </div>
+
+            <div class="form-group" id="new-loc-group" style="display: none;">
+                <label for="new-location-input">Or Enter New Location Name (e.g. Shelf-C5):</label>
+                <input type="text" id="new-location-input" placeholder="Type new shelf name...">
+            </div>
+
+            <div class="form-group">
+                <label for="transfer-qty">Quantity:</label>
+                <input type="number" id="transfer-qty" min="1" inputmode="numeric" placeholder="Enter quantity">
+            </div>
+             
+            <button id="submit-btn" onclick="submitTransfer()">Confirm Stock Movement</button>
         </div>
 
-        <div class="form-group" id="new-loc-group" style="display: none;">
-            <label for="new-location-input">Or Enter New Location Name (e.g. Shelf-C5):</label>
-            <input type="text" id="new-location-input" placeholder="Type new shelf name...">
-        </div>
-
-        <div class="form-group">
-            <label for="transfer-qty">Quantity:</label>
-            <input type="number" id="transfer-qty" min="1" inputmode="numeric" placeholder="Enter quantity">
-        </div>
-         
-        <button id="submit-btn" onclick="submitTransfer()">Confirm Stock Movement</button>
-        <button id="clear-btn" onclick="resetPage()" style="margin-top: 10px; background-color: #718096;">Clear & Reset</button>
+        <button id="clear-btn" onclick="resetPage()" style="margin-top: 15px; background-color: #718096;">Clear & Reset</button>
     </div>
 </div>
 
@@ -300,7 +325,6 @@
     let dbBarcodeKey = "Barcode"; 
     let dbShowroomQtyKey = "showroom_qty";
 
-    // Active verified operator memory session
     let activeOperatorSession = null;
 
     window.onload = function() {
@@ -313,18 +337,32 @@
         if (cached) {
             activeOperatorSession = JSON.parse(cached);
             document.getElementById('active-op-display').textContent = activeOperatorSession.full_name;
+            document.getElementById('auth-action-btn').textContent = "Logout";
+            document.getElementById('secure-action-panel').style.display = 'block';
+            document.getElementById('guest-alert-badge').style.display = 'none';
         } else {
-            document.getElementById('active-op-display').textContent = "None Verified";
+            document.getElementById('active-op-display').textContent = "Guest (Read-Only)";
+            document.getElementById('auth-action-btn').textContent = "Verify Operator";
+            document.getElementById('secure-action-panel').style.display = 'none';
+            document.getElementById('guest-alert-badge').style.display = 'block';
         }
     }
 
-    // High-performance cryptographic WebAuthn & backup gateway
     async function triggerSessionAuthentication() {
-        const inputPin = prompt("🔑 Security Access Gate:\nPlease enter your 4-digit security PIN to initiate session:");
+        // If already logged in, click acts as a logout toggle
+        if (activeOperatorSession) {
+            localStorage.removeItem('sc_verified_operator');
+            activeOperatorSession = null;
+            restoreActiveOperatorSession();
+            alert("Session terminated. Reverted back to Guest mode.");
+            return;
+        }
+
+        const inputPin = prompt("🔑 Security Access Gate:\nPlease enter your 4-digit security PIN to unlock stock mutation panels:");
         if (!inputPin) return false;
 
         statusDiv.className = 'status loading';
-        statusDiv.textContent = 'Verifying biometric security signature...';
+        statusDiv.textContent = 'Verifying secure identity profile...';
         statusDiv.style.display = 'block';
 
         const { data, error } = await _supabase
@@ -339,14 +377,9 @@
             return false;
         }
 
-        // Native Hardware WebAuthn API Trigger for Fingerprint / Face ID
-        if (window.PublicKeyCredential) {
-            console.log("Biometric interface active. Verification complete.");
-        }
-
         activeOperatorSession = data;
         localStorage.setItem('sc_verified_operator', JSON.stringify(data));
-        document.getElementById('active-op-display').textContent = data.full_name;
+        restoreActiveOperatorSession();
         
         statusDiv.className = 'status success';
         statusDiv.textContent = `Access granted. Operator verified: ${data.full_name}`;
@@ -414,6 +447,8 @@
         productInfoDiv.style.display = 'none';
         newLocInput.value = '';
 
+        finalCleanedBarcode = cleanedBarcode;
+
         if (navigator.onLine) {
             try {
                 let { data: systemData } = await _supabase
@@ -436,13 +471,10 @@
                     }
                 }
 
-                if (!systemData) {
-                    statusDiv.className = 'status error';
-                    statusDiv.textContent = `⚠️ SKU/Barcode [ ${cleanedBarcode} ] not cataloged in inventory database.`;
-                    return;
+                if (systemData) {
+                    finalCleanedBarcode = (systemData[dbBarcodeKey] || cleanedBarcode).toString();
                 }
 
-                finalCleanedBarcode = (systemData[dbBarcodeKey] || cleanedBarcode).toString();
                 const { data: whseRows } = await _supabase.from('warehouse_inventory').select('*').eq('Row Labels', finalCleanedBarcode);
                 
                 let { data: showData } = await _supabase.from('showroom_inventory').select('*').eq(dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode', finalCleanedBarcode).maybeSingle();
@@ -512,8 +544,8 @@
         currentShowroomQty = (showData && showData[dbShowroomQtyKey]) ? (parseInt(showData[dbShowroomQtyKey].toString().replace(/,/g, '')) || 0) : 0;
         let variance = (totalWarehouseQty + currentShowroomQty) - systemStock;
 
-        document.getElementById('p-name').textContent = systemData['Item Name'] || systemData['item_name'] || '---';
-        document.getElementById('p-code').textContent = systemData['Item Code'] || systemData['item_code'] || '---';
+        document.getElementById('p-name').textContent = systemData ? (systemData['Item Name'] || systemData['item_name'] || '---') : '---';
+        document.getElementById('p-code').textContent = systemData ? (systemData['Item Code'] || systemData['item_code'] || '---') : '---';
         document.getElementById('stock-system').textContent = systemStock;
         document.getElementById('stock-warehouse').textContent = totalWarehouseQty;
         document.getElementById('stock-showroom').textContent = currentShowroomQty;
@@ -529,7 +561,6 @@
         productInfoDiv.style.display = 'block';
         typeSelect.value = 'out';
         handleTypeChange();
-        document.getElementById('transfer-qty').focus();
     }
 
     function loadProductFromCache(barcode) {
@@ -549,11 +580,9 @@
     }
 
     async function submitTransfer() {
-        // Enforce dynamic active authorization check prior to executing transaction
         if (!activeOperatorSession) {
-            alert("Action Prevented: Security session inactive. Please complete authentication criteria first.");
-            const verified = await triggerSessionAuthentication();
-            if (!verified) return;
+            alert("Action Prevented: Security session expired or inactive.");
+            return;
         }
 
         const transferQtyInput = document.getElementById('transfer-qty');
@@ -638,7 +667,7 @@
     function resetPage() {
         barcodeInput.value = '';
         newLocInput.value = '';
-        document.getElementById('transfer-qty').value = '';
+        if(document.getElementById('transfer-qty')) document.getElementById('transfer-qty').value = '';
         productInfoDiv.style.display = 'none';
         statusDiv.style.display = 'none';
         statusDiv.textContent = '';
