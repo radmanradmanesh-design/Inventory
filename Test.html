@@ -8,22 +8,19 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         :root {
-            /* پالت امضادار: آبی فیروزه‌ای و طلایی شاهانه */
-            --turquoise-main: #06b6d4; /* فیروزه‌ای زنده */
-            --turquoise-dark: #0891b2; /* فیروزه‌ای تیره برای هور و متن */
-            --turquoise-deep: #0e7490; /* فیروزه‌ای عمیق برای کنتراست بالاتر */
-            --turquoise-light: #ecfeff; /* پس‌زمینه لایت فیروزه‌ای */
-            
-            --royal-gold: #e5b822; /* طلایی متالیک */
+            --turquoise-main: #06b6d4;
+            --turquoise-dark: #0891b2;
+            --turquoise-deep: #0e7490;
+            --turquoise-light: #ecfeff;
+            --royal-gold: #e5b822;
             --royal-gold-hover: #cfa319;
             --royal-gold-light: #fffbeb;
             --dark-slate: #0f172a;
-            --body-bg: #f0fdfa; /* پس‌زمینه ملایم فیروزه‌ای/نعنایی برای انبار */
+            --body-bg: #f0fdfa;
             --panel-bg: #ffffff;
             --text-main: #0f172a;
             --text-muted: #334155;
             --border: #cbd5e1;
-            
             --success: #10b981;
             --error: #f43f5e;
         }
@@ -75,7 +72,6 @@
             border: 1px solid rgba(6, 182, 212, 0.15);
         }
 
-        /* کارد نام اپراتور با هایلایت طلایی */
         .operator-box {
             background: var(--royal-gold-light);
             padding: 16px;
@@ -486,7 +482,7 @@
 
         if (navigator.onLine) {
             try {
-                // تلاش اول برای یافتن بارکد با حروف بزرگ
+                // دقیقا مثل ساختار کد اصلی و اولیه خودتان
                 let { data: systemData, error: err1 } = await _supabase
                     .from('system_inventory')
                     .select('*')
@@ -495,7 +491,6 @@
                 
                 dbBarcodeKey = "Barcode";
 
-                // اگر پیدا نشد، تلاش دوم با حروف کوچک
                 if (!systemData) {
                     let { data: systemDataCheck, error: err2 } = await _supabase
                         .from('system_inventory')
@@ -508,7 +503,6 @@
                     }
                 }
 
-                // اگر کلاً در جدول اصلی سیستم پیدا نشد
                 if (!systemData) {
                     statusDiv.className = 'status error';
                     statusDiv.textContent = `⚠️ Barcode [ ${cleanedBarcode} ] not found in system table.`;
@@ -516,8 +510,6 @@
                 }
 
                 finalCleanedBarcode = (systemData[dbBarcodeKey] || cleanedBarcode).toString();
-                
-                // لود همزمان اطلاعات انبار و شاوروم
                 const { data: whseRows } = await _supabase.from('warehouse_inventory').select('*').eq('Row Labels', finalCleanedBarcode);
                 let { data: showData } = await _supabase.from('showroom_inventory').select('*').eq(dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode', finalCleanedBarcode).maybeSingle();
                 
@@ -530,7 +522,6 @@
                 const payloadToCache = { barcode: finalCleanedBarcode, systemData, whseRows, showData, dbBarcodeKey, dbShowroomQtyKey };
                 cacheProductLocally(payloadToCache);
 
-                // ارسال به تابع رندر برای نمایش روی UI
                 renderProductDataHTML(systemData, whseRows, showData);
 
             } catch (e) {
@@ -545,13 +536,6 @@
     }
 
     function renderProductDataHTML(systemData, whseRows, showData) {
-        // مکانیزم دفاعی جهت جلوگیری از کرش اسکریپت در صورت خالی بودن دیتای ورودی
-        if (!systemData) {
-            statusDiv.className = 'status error';
-            statusDiv.textContent = '❌ Critical Error: Data structures are blank.';
-            return;
-        }
-
         currentProduct = systemData;
         locBalances = {};
         let totalWarehouseQty = 0;
@@ -566,6 +550,7 @@
                 let qty = parseInt(rawVal) || 0;
                 let locName = row['Attribute'];
                 
+                // تغییر شرط به qty !== 0 تا موجودی‌های منفی (مثل ۴۱۰-) هم بدون مشکل لود شوند
                 if(qty !== 0 && locName && locName !== 'Grand Total' && locName.trim() !== '') {
                     totalWarehouseQty += qty;
                     locBalances[locName] = (locBalances[locName] || 0) + qty;
@@ -586,23 +571,22 @@
             locBalances["Default-Shelf"] = 0;
         }
 
-        // استخراج فیلد صحیح موجودی سیستم (هماهنگ با حروف کوچک و بزرگ دیتابیس شما)
-        let rawStock = systemData['Stock'] || systemData['stock'] || systemData['STOCK'] || '0';
-        let systemStock = parseInt(rawStock.toString().replace(/,/g, ''));
-        if (isNaN(systemStock)) systemStock = 0;
+        let systemStock = 0;
+        if (systemData) {
+            let rawStock = systemData['Stock'] || systemData['stock'] || systemData['STOCK'] || '0';
+            systemStock = parseInt(rawStock.toString().replace(/,/g, '')) || 0;
+        }
          
         currentShowroomQty = (showData && showData[dbShowroomQtyKey]) ? (parseInt(showData[dbShowroomQtyKey].toString().replace(/,/g, '')) || 0) : 0;
          
-        // محاسبه واریانس و مغایرت انبار
         let variance = (totalWarehouseQty + currentShowroomQty) - systemStock;
 
-        // تزریق مقادیر واقعی به المان‌های صفحه
         document.getElementById('p-name').textContent = systemData['Item Name'] || systemData['item_name'] || '---';
         document.getElementById('p-code').textContent = systemData['Item Code'] || systemData['item_code'] || '---';
         document.getElementById('stock-system').textContent = systemStock;
         document.getElementById('stock-warehouse').textContent = totalWarehouseQty;
         document.getElementById('stock-showroom').textContent = currentShowroomQty;
-        
+
         const varianceElement = document.getElementById('stock-variance');
         const varianceBox = document.getElementById('variance-box');
         if (variance === 0) { 
