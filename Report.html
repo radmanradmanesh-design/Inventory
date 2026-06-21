@@ -5,99 +5,89 @@
     <title>Discrepancy Report</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root {
-            --turquoise-main: #06b6d4;
-            --royal-gold: #e5b822;
-            --dark-slate: #0f172a;
-        }
+        :root { --turquoise-main: #06b6d4; --royal-gold: #e5b822; --dark-slate: #0f172a; }
         body { font-family: sans-serif; background: #f0fdfa; padding: 20px; }
         .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th { background-color: var(--dark-slate); color: var(--royal-gold); padding: 12px; font-size: 14px; }
         td { padding: 10px; border-bottom: 1px solid #cbd5e1; text-align: center; }
-        .filter-input, .filter-select { width: 90%; padding: 5px; border: 1px solid #cbd5e1; border-radius: 4px; }
-        .btn-refresh { background-color: var(--turquoise-main); color: white; padding: 10px 20px; border: none; cursor: pointer; font-weight: bold; }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
+        .btn { padding: 10px 15px; border: none; cursor: pointer; color: white; border-radius: 4px; font-weight: bold; }
+        .btn-refresh { background-color: var(--turquoise-main); }
+        .btn-excel { background-color: #10b981; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>Inventory Discrepancy Report</h1>
-    <button class="btn-refresh" onclick="fetchReport()">Refresh Data</button>
+    <div class="controls">
+        <button class="btn btn-refresh" onclick="fetchReport()">Refresh Data</button>
+        <button class="btn btn-excel" onclick="exportToCSV()">Export to Excel (CSV)</button>
+        <span id="page-info"></span>
+    </div>
 
     <table id="report-table">
         <thead>
-            <tr>
-                <th>Barcode<br><input type="text" class="filter-input" onkeyup="filterTable(0)" placeholder="Search..."></th>
-                <th>Item Name<br><input type="text" class="filter-input" onkeyup="filterTable(1)" placeholder="Search..."></th>
-                <th>Category<br>
-                    <select class="filter-select" onchange="filterTableByCategory(this.value)">
-                        <option value="">All Categories</option>
-                    </select>
-                </th>
-                <th>Physical Stock</th>
-                <th>System Stock</th>
-                <th>Difference</th>
-            </tr>
+            <tr><th>Barcode</th><th>Item Name</th><th>Category</th><th>Physical Stock</th><th>System Stock</th><th>Difference</th></tr>
         </thead>
         <tbody id="report-body"></tbody>
     </table>
+    <div id="pagination" style="margin-top:20px;"></div>
 </div>
 
 <script>
-    // مقداردهی کلاینت _supabase (مانند سایر صفحات شما)
-    // جایگزین کردن URL و KEY با مقادیر اصلی پروژه
     const _supabase = supabase.createClient('https://qmurpnbrnmyjdxqjhybz.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec');
+    
+    let allData = [];
+    const pageSize = 50;
 
     async function fetchReport() {
-        const tbody = document.getElementById('report-body');
-        tbody.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
-
+        document.getElementById('report-body').innerHTML = '<tr><td colspan="6">Loading 33,000+ records... Please wait.</td></tr>';
         const { data, error } = await _supabase.from('inventory_discrepancy_report').select('*');
         if (error) { alert("Error: " + error.message); return; }
         
-        tbody.innerHTML = '';
-        const categories = new Set();
-
-        data.forEach(item => {
-            categories.add(item.Category);
-            const diffColor = item.Difference !== 0 ? 'red' : 'green';
-            tbody.innerHTML += `<tr>
-                <td>${item.Barcode}</td>
-                <td>${item["Item Name"]}</td>
-                <td>${item.Category}</td>
-                <td>${item["Physical Stock"]}</td>
-                <td>${item["System Stock"]}</td>
-                <td style="color: ${diffColor}; font-weight: bold;">${item.Difference}</td>
-            </tr>`;
-        });
-
-        // پر کردن منوی کشویی
-        const dropdown = document.querySelector('.filter-select');
-        dropdown.innerHTML = '<option value="">All Categories</option>';
-        categories.forEach(cat => {
-            dropdown.innerHTML += `<option value="${cat}">${cat}</option>`;
-        });
+        allData = data;
+        renderPage(1);
     }
 
-    function filterTable(colIndex) {
-        const filter = document.getElementsByClassName("filter-input")[colIndex].value.toUpperCase();
-        const rows = document.getElementById("report-body").getElementsByTagName("tr");
-        for (let row of rows) {
-            const cell = row.getElementsByTagName("td")[colIndex];
-            row.style.display = cell.textContent.toUpperCase().includes(filter) ? "" : "none";
+    function renderPage(page) {
+        const tbody = document.getElementById('report-body');
+        const start = (page - 1) * pageSize;
+        const pageData = allData.slice(start, start + pageSize);
+        
+        tbody.innerHTML = pageData.map(item => `<tr>
+            <td>${item.Barcode}</td>
+            <td>${item["Item Name"]}</td>
+            <td>${item.Category}</td>
+            <td>${item["Physical Stock"]}</td>
+            <td>${item["System Stock"]}</td>
+            <td style="color: ${item.Difference !== 0 ? 'red' : 'green'}; font-weight: bold;">${item.Difference}</td>
+        </tr>`).join('');
+
+        document.getElementById('page-info').textContent = ` Page ${page} of ${Math.ceil(allData.length / pageSize)}`;
+        
+        // ایجاد دکمه‌های ساده برای صفحات
+        let pgn = "";
+        for(let i=1; i<=Math.min(10, Math.ceil(allData.length/pageSize)); i++) {
+            pgn += `<button onclick="renderPage(${i})">${i}</button> `;
         }
+        document.getElementById('pagination').innerHTML = pgn;
     }
 
-    function filterTableByCategory(value) {
-        const rows = document.getElementById("report-body").getElementsByTagName("tr");
-        for (let row of rows) {
-            const cell = row.getElementsByTagName("td")[2];
-            row.style.display = (value === "" || cell.textContent === value) ? "" : "none";
-        }
+    function exportToCSV() {
+        let csv = "Barcode,Item Name,Category,Physical Stock,System Stock,Difference\n";
+        allData.forEach(row => {
+            csv += `${row.Barcode},"${row["Item Name"]}","${row.Category}",${row["Physical Stock"]},${row["System Stock"]},${row.Difference}\n`;
+        });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Discrepancy_Report.csv';
+        a.click();
     }
 
-    // لود اولیه
     fetchReport();
 </script>
 </body>
