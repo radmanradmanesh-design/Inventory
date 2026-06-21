@@ -2,21 +2,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Full Inventory Discrepancy Report</title>
+    <title>Final Inventory Report</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; background: #f4f6f7; }
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f4f6f7; }
         .container { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .controls { display: flex; gap: 10px; margin-bottom: 20px; }
-        .btn { padding: 10px 20px; cursor: pointer; border: none; border-radius: 5px; color: white; font-weight: bold; font-size: 14px; }
-        .btn-load { background: #0984e3; }
-        .btn-export { background: #00b894; }
+        .btn { padding: 10px 20px; cursor: pointer; border: none; border-radius: 5px; color: white; font-weight: bold; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; font-size: 14px; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; font-size: 13px; }
         th { background: #2d3436; color: white; }
         #pagination { margin-top: 20px; display: flex; gap: 5px; flex-wrap: wrap; }
-        .page-btn { padding: 5px 12px; cursor: pointer; border: 1px solid #ddd; background: #fff; border-radius: 3px; }
-        .page-btn:hover { background: #f1f1f1; }
+        .page-btn { padding: 5px 10px; cursor: pointer; border: 1px solid #ddd; background: #fff; }
     </style>
 </head>
 <body>
@@ -24,16 +21,17 @@
 <div class="container">
     <h2>Inventory Discrepancy Report</h2>
     <div class="controls">
-        <button class="btn btn-load" onclick="runFullReport()">Load & Calculate 33k+ Records</button>
-        <button class="btn btn-export" onclick="exportToCSV()">Download Full CSV</button>
+        <button class="btn" style="background:#0984e3" onclick="runFullReport()">Load & Calculate</button>
+        <button class="btn" style="background:#00b894" onclick="exportToCSV()">Download Full CSV</button>
     </div>
-    <div id="status" style="font-weight: bold; color: #636e72;">Status: Click the button to start loading...</div>
+    <div id="status" style="font-weight: bold; color: #636e72;">Status: Ready</div>
 
     <table id="report-table">
         <thead>
             <tr>
                 <th>Barcode</th>
                 <th>Item Name</th>
+                <th>Category</th>
                 <th>System</th>
                 <th>Warehouse (GT)</th>
                 <th>Showroom</th>
@@ -47,7 +45,6 @@
 </div>
 
 <script>
-    // تنظیمات ارتباط با سوپابیس
     const _supabase = supabase.createClient(
         'https://qmurpnbrnmyjdxqjhybz.supabase.co', 
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'
@@ -56,23 +53,20 @@
     let finalData = [];
     const pageSize = 50;
 
-    // تابع برای دریافت تمام داده‌ها از یک جدول با رعایت محدودیت ۱۰۰۰ تایی
     async function fetchAll(tableName) {
         let allData = [];
         let from = 0, to = 999;
         while (true) {
-            const { data, error } = await _supabase.from(tableName).select('*').range(from, to);
-            if (error || !data || data.length === 0) break;
+            const { data } = await _supabase.from(tableName).select('*').range(from, to);
+            if (!data || data.length === 0) break;
             allData = allData.concat(data);
-            from += 1000;
-            to += 1000;
+            from += 1000; to += 1000;
         }
         return allData;
     }
 
-    // تابع اصلی پردازش داده‌ها
     async function runFullReport() {
-        document.getElementById('status').textContent = "Status: Fetching all 33k+ records from 3 tables. Please wait...";
+        document.getElementById('status').textContent = "Status: Processing...";
         
         const [sys, wh, sh] = await Promise.all([
             fetchAll('system_inventory'),
@@ -82,56 +76,52 @@
 
         const map = {};
 
-        // پردازش موجودی سیستم
+        // سیستم (شامل نام و کتگوری)
         sys.forEach(i => {
-            map[i.Barcode] = { name: i["Item Name"] || "N/A", sys: Number(i.Stock || 0), wh: 0, sh: 0 };
+            map[i.Barcode] = { 
+                name: i["Item Name"] || "N/A", 
+                cat: i.Category || "N/A", 
+                sys: Number(i.Stock || 0), 
+                wh: 0, 
+                sh: 0 
+            };
         });
 
-        // ۱. پردازش انبار - فقط مقادیر انبار
+        // انبار (مقدار خالص)
         wh.forEach(i => {
-            if (i.Attribute && i.Attribute.trim() === 'Grand Total') {
+            if (i.Attribute?.trim() === 'Grand Total') {
                 const bc = i["Row Labels"];
-                if (map[bc]) {
-                    map[bc].wh = Number(String(i.Value || "0").replace(/,/g, ''));
-                }
+                if (map[bc]) map[bc].wh = Number(String(i.Value || "0").replace(/,/g, ''));
             }
         });
 
-        // ۲. پردازش شو روم - فقط مقادیر شو روم
+        // شو روم (مقدار خالص)
         sh.forEach(i => {
-            if (map[i.Barcode]) {
-                map[i.Barcode].sh = Number(i.showroom_qty || 0);
-            }
+            if (map[i.Barcode]) map[i.Barcode].sh = Number(i.showroom_qty || 0);
         });
 
-        // ۳. محاسبه نهایی (بدون تکرار)
+        // محاسبه نهایی بدون تداخل ستون‌ها
         finalData = Object.keys(map).map(bc => ({
             Barcode: bc, 
             Name: map[bc].name, 
+            Cat: map[bc].cat,
             Sys: map[bc].sys, 
             Wh: map[bc].wh, 
             Sh: map[bc].sh, 
-            Phys: map[bc].wh + map[bc].sh, // جمعِ دقیقِ این دو ستون
+            Phys: map[bc].wh + map[bc].sh, 
             Diff: (map[bc].wh + map[bc].sh) - map[bc].sys
-     
         }));
 
-        document.getElementById('status').textContent = "Status: Done! " + finalData.length + " records processed.";
+        document.getElementById('status').textContent = "Status: Completed.";
         renderPage(1);
     }
 
-    // تابع رندر کردن صفحه
     function renderPage(page) {
         const start = (page - 1) * pageSize;
         const pageData = finalData.slice(start, start + pageSize);
-        
         document.getElementById('report-body').innerHTML = pageData.map(i => `<tr>
-            <td>${i.Barcode}</td>
-            <td>${i.Name}</td>
-            <td>${i.Sys}</td>
-            <td>${i.Wh}</td>
-            <td>${i.Sh}</td>
-            <td>${i.Phys}</td>
+            <td>${i.Barcode}</td><td>${i.Name}</td><td>${i.Cat}</td><td>${i.Sys}</td>
+            <td>${i.Wh}</td><td>${i.Sh}</td><td>${i.Phys}</td>
             <td style="color:${i.Diff!==0?'red':'green'}; font-weight:bold;">${i.Diff}</td>
         </tr>`).join('');
         
@@ -140,15 +130,13 @@
             `<button class="page-btn" onclick="renderPage(${i+1})">${i+1}</button>`).join('');
     }
 
-    // تابع خروجی گرفتن اکسل
     function exportToCSV() {
         if(!finalData.length) return;
-        let csv = "Barcode,Item Name,System,Warehouse,Showroom,Physical Total,Difference\n";
-        finalData.forEach(i => csv += `${i.Barcode},"${i.Name.replace(/"/g, '""')}",${i.Sys},${i.Wh},${i.Sh},${i.Phys},${i.Diff}\n`);
+        let csv = "Barcode,Item Name,Category,System,Warehouse,Showroom,Physical Total,Difference\n";
+        finalData.forEach(i => csv += `${i.Barcode},"${i.Name.replace(/"/g, '""')}","${i.Cat.replace(/"/g, '""')}",${i.Sys},${i.Wh},${i.Sh},${i.Phys},${i.Diff}\n`);
         const a = document.createElement('a');
         a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-        a.download = 'Full_Discrepancy_Report.csv';
-        a.click();
+        a.download = 'Inventory_Report_Final.csv'; a.click();
     }
 </script>
 </body>
