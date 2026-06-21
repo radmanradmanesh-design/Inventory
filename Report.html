@@ -8,83 +8,91 @@
         :root { --turquoise-main: #06b6d4; --royal-gold: #e5b822; --dark-slate: #0f172a; }
         body { font-family: sans-serif; background: #f0fdfa; padding: 20px; }
         .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th { background-color: var(--dark-slate); color: var(--royal-gold); padding: 12px; font-size: 14px; }
-        td { padding: 10px; border-bottom: 1px solid #cbd5e1; text-align: center; }
-        .controls { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background-color: var(--dark-slate); color: var(--royal-gold); padding: 10px; font-size: 13px; text-align: center; }
+        td { padding: 8px; border-bottom: 1px solid #ddd; text-align: center; }
+        .filter-input { width: 90%; padding: 4px; margin-top: 5px; font-size: 11px; }
         .btn { padding: 10px 15px; border: none; cursor: pointer; color: white; border-radius: 4px; font-weight: bold; }
-        .btn-refresh { background-color: var(--turquoise-main); }
-        .btn-excel { background-color: #10b981; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>Inventory Discrepancy Report</h1>
-    <div class="controls">
-        <button class="btn btn-refresh" onclick="fetchReport()">Refresh Data</button>
-        <button class="btn btn-excel" onclick="exportToCSV()">Export to Excel (CSV)</button>
-        <span id="page-info"></span>
+    <div style="margin-bottom: 20px;">
+        <button class="btn" style="background:#06b6d4" onclick="fetchReport()">Refresh All Data</button>
+        <button class="btn" style="background:#10b981" onclick="exportToCSV()">Full Export to Excel</button>
+        <span id="page-info" style="margin-left:15px;"></span>
     </div>
 
     <table id="report-table">
         <thead>
-            <tr><th>Barcode</th><th>Item Name</th><th>Category</th><th>Physical Stock</th><th>System Stock</th><th>Difference</th></tr>
+            <tr>
+                <th>Barcode<br><input type="text" class="filter-input" id="f0" onkeyup="applyFilters()" placeholder="Search..."></th>
+                <th>Item Name<br><input type="text" class="filter-input" id="f1" onkeyup="applyFilters()" placeholder="Search..."></th>
+                <th>Category<br><input type="text" class="filter-input" id="f2" onkeyup="applyFilters()" placeholder="Search..."></th>
+                <th>Physical Stock</th><th>System Stock</th><th>Difference</th>
+            </tr>
         </thead>
         <tbody id="report-body"></tbody>
     </table>
-    <div id="pagination" style="margin-top:20px;"></div>
+    <div id="pagination" style="margin-top: 20px;"></div>
 </div>
 
 <script>
     const _supabase = supabase.createClient('https://qmurpnbrnmyjdxqjhybz.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec');
     
     let allData = [];
+    let filteredData = [];
     const pageSize = 50;
 
     async function fetchReport() {
-        document.getElementById('report-body').innerHTML = '<tr><td colspan="6">Loading 33,000+ records... Please wait.</td></tr>';
+        document.getElementById('report-body').innerHTML = '<tr><td colspan="6">Loading 33,000+ records...</td></tr>';
         const { data, error } = await _supabase.from('inventory_discrepancy_report').select('*');
-        if (error) { alert("Error: " + error.message); return; }
-        
+        if (error) { alert(error.message); return; }
         allData = data;
+        filteredData = data;
+        renderPage(1);
+    }
+
+    function applyFilters() {
+        const f0 = document.getElementById('f0').value.toUpperCase();
+        const f1 = document.getElementById('f1').value.toUpperCase();
+        const f2 = document.getElementById('f2').value.toUpperCase();
+        
+        filteredData = allData.filter(item => 
+            String(item.Barcode).toUpperCase().includes(f0) &&
+            String(item["Item Name"]).toUpperCase().includes(f1) &&
+            String(item.Category).toUpperCase().includes(f2)
+        );
         renderPage(1);
     }
 
     function renderPage(page) {
         const tbody = document.getElementById('report-body');
         const start = (page - 1) * pageSize;
-        const pageData = allData.slice(start, start + pageSize);
+        const pageData = filteredData.slice(start, start + pageSize);
         
         tbody.innerHTML = pageData.map(item => `<tr>
-            <td>${item.Barcode}</td>
-            <td>${item["Item Name"]}</td>
-            <td>${item.Category}</td>
-            <td>${item["Physical Stock"]}</td>
-            <td>${item["System Stock"]}</td>
-            <td style="color: ${item.Difference !== 0 ? 'red' : 'green'}; font-weight: bold;">${item.Difference}</td>
+            <td>${item.Barcode}</td><td>${item["Item Name"]}</td><td>${item.Category}</td>
+            <td>${item["Physical Stock"]}</td><td>${item["System Stock"]}</td>
+            <td style="color:${item.Difference!==0?'red':'green'}">${item.Difference}</td>
         </tr>`).join('');
 
-        document.getElementById('page-info').textContent = ` Page ${page} of ${Math.ceil(allData.length / pageSize)}`;
-        
-        // ایجاد دکمه‌های ساده برای صفحات
-        let pgn = "";
-        for(let i=1; i<=Math.min(10, Math.ceil(allData.length/pageSize)); i++) {
-            pgn += `<button onclick="renderPage(${i})">${i}</button> `;
-        }
-        document.getElementById('pagination').innerHTML = pgn;
+        document.getElementById('page-info').textContent = `Showing ${filteredData.length} records (Page ${page})`;
     }
 
     function exportToCSV() {
         let csv = "Barcode,Item Name,Category,Physical Stock,System Stock,Difference\n";
-        allData.forEach(row => {
-            csv += `${row.Barcode},"${row["Item Name"]}","${row.Category}",${row["Physical Stock"]},${row["System Stock"]},${row.Difference}\n`;
+        // استفاده از filteredData برای خروجی گرفتن از نتایج فیلتر شده یا کل داده‌ها
+        filteredData.forEach(row => {
+            csv += `${row.Barcode},"${String(row["Item Name"]).replace(/"/g, '""')}","${String(row.Category).replace(/"/g, '""')}",${row["Physical Stock"]},${row["System Stock"]},${row.Difference}\n`;
         });
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'Discrepancy_Report.csv';
+        a.download = 'Discrepancy_Report_Full.csv';
         a.click();
     }
 
