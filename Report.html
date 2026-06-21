@@ -5,7 +5,7 @@
     <title>Inventory Discrepancy Report</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background: #f4f6f7; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; background: #f4f6f7; }
         .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { border: 1px solid #ccc; padding: 10px; text-align: left; font-size: 14px; }
@@ -16,7 +16,7 @@
 <body>
 
 <div class="container">
-    <h2>Discrepancy Report (Total Records: <span id="total-count">0</span>)</h2>
+    <h2>Discrepancy Report (Total Records Loaded: <span id="total-count">0</span>)</h2>
     <button class="btn" style="background:#0984e3" onclick="init()">Refresh Data</button>
     <button class="btn" style="background:#00b894" onclick="exportToCSV()">Export Full Excel (CSV)</button>
 
@@ -41,16 +41,38 @@
     let globalData = [];
 
     async function init() {
-        document.getElementById('report-body').innerHTML = '<tr><td colspan="6">Loading 33,000+ records... Please wait.</td></tr>';
+        const tbody = document.getElementById('report-body');
+        tbody.innerHTML = '<tr><td colspan="6">Fetching all records from database... Please wait.</td></tr>';
         
-        const { data, error } = await _supabase.from('inventory_discrepancy_report').select('*');
-        if (error) { alert("Error: " + error.message); return; }
-        
-        globalData = data;
-        document.getElementById('total-count').textContent = data.length;
-        
-        // Render first 100 records for performance
-        renderTable(data.slice(0, 100));
+        let allData = [];
+        let from = 0;
+        let to = 999;
+        let keepFetching = true;
+
+        // Loop to bypass 1000 row API limit
+        while (keepFetching) {
+            const { data, error } = await _supabase
+                .from('inventory_discrepancy_report')
+                .select('*')
+                .range(from, to);
+
+            if (error) {
+                alert("Error: " + error.message);
+                return;
+            }
+
+            if (data && data.length > 0) {
+                allData = allData.concat(data);
+                from += 1000;
+                to += 1000;
+            } else {
+                keepFetching = false;
+            }
+        }
+
+        globalData = allData;
+        document.getElementById('total-count').textContent = globalData.length;
+        renderTable(globalData.slice(0, 100)); // Show preview of 100
     }
 
     function renderTable(dataArray) {
@@ -69,7 +91,6 @@
         if (globalData.length === 0) return alert("No data available!");
         let csv = "Barcode,Item Name,Category,Physical Stock,System Stock,Difference\n";
         globalData.forEach(row => {
-            // Using template literal with proper escaping for CSV
             csv += `${row.Barcode},"${String(row["Item Name"]).replace(/"/g, '""')}","${String(row.Category).replace(/"/g, '""')}",${row["Physical Stock"]},${row["System Stock"]},${row.Difference}\n`;
         });
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -80,6 +101,7 @@
         a.click();
     }
 
+    // Auto-load on start
     init();
 </script>
 </body>
