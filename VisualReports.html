@@ -2,107 +2,67 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Advanced Analytics Dashboard</title>
+    <title>Enterprise Analytics</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        :root { --turquoise: #06b6d4; --dark: #0f172a; }
-        body { font-family: 'Segoe UI', sans-serif; background: #f8fafc; padding: 20px; }
-        .container { max-width: 1000px; margin: auto; }
-        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
-        label { font-weight: bold; font-size: 0.9em; }
-        input, select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; margin-top: 5px; }
-        button { background: var(--turquoise); color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 20px; }
+        :root { --turquoise: #06b6d4; --gold: #e5b822; --dark: #0f172a; --bg: #f8fafc; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px; }
+        .kpi-card { background: white; padding: 20px; border-radius: 12px; border-left: 5px solid var(--turquoise); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .chart-container { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+        .filter-bar { background: var(--dark); color: white; padding: 20px; border-radius: 12px; display: flex; gap: 15px; margin-bottom: 20px; }
+        select { padding: 8px; border-radius: 5px; border: none; min-width: 150px; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <a href="Test Security1.html" style="color: var(--turquoise); text-decoration: none;">← Back to Scanner</a>
-    <h1>Advanced Analytics Dashboard</h1>
-
-    <div class="card">
-        <div class="filter-grid">
-            <div><label>Barcode</label><input type="text" id="filterBarcode" oninput="loadReport()"></div>
-            <div><label>Item Name</label><input type="text" id="filterItemName" oninput="loadReport()"></div>
-            <div><label>Category</label><input type="text" id="filterCategory" oninput="loadReport()"></div>
-            <div><label>Sub-Category</label><input type="text" id="filterSubCategory" oninput="loadReport()"></div>
-            <div><label>Operator</label><input type="text" id="filterUser" oninput="loadReport()"></div>
-            <div><label>Transaction Type</label>
-                <select id="filterType" onchange="loadReport()">
-                    <option value="all">All</option>
-                    <option value="Intake">Intake</option>
-                    <option value="Showroom">Showroom</option>
-                </select>
-            </div>
-            <div><label>Start Date</label><input type="date" id="dateStart" onchange="loadReport()"></div>
-            <div><label>End Date</label><input type="date" id="dateEnd" onchange="loadReport()"></div>
-        </div>
-        <button onclick="exportToExcel()">📥 Export to Excel</button>
-    </div>
-
-    <div class="card">
-        <canvas id="mainChart"></canvas>
-    </div>
+<div class="filter-bar">
+    <select id="catFilter" onchange="updateDashboard()"><option>Category</option></select>
+    <select id="subCatFilter" onchange="updateDashboard()"><option>Sub-Category</option></select>
+    <select id="userFilter" onchange="updateDashboard()"><option>Operator</option></select>
+    <button onclick="location.reload()" style="background: var(--gold); border: none; padding: 5px 15px; cursor: pointer;">Reset</button>
 </div>
 
+<div class="dashboard-grid">
+    <div class="kpi-card"><h3>Intake Volume</h3><p id="kpi-in" style="font-size: 24px; color: var(--turquoise);">0</p></div>
+    <div class="kpi-card"><h3>Outbound Volume</h3><p id="kpi-out" style="font-size: 24px; color: var(--gold);">0</p></div>
+    <div class="kpi-card"><h3>Net Balance</h3><p id="kpi-net" style="font-size: 24px; color: var(--dark);">0</p></div>
+</div>
+
+<div class="chart-container"><canvas id="mainChart"></canvas></div>
+
 <script>
-    const _supabase = supabase.createClient(
-        'https://qmurpnbrnmyjdxqjhybz.supabase.co', 
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'
-    );
+    const _supabase = supabase.createClient('YOUR_URL', 'YOUR_KEY');
 
-    let myChart;
-    let currentData = [];
-
-    async function loadReport() {
-        const { data } = await _supabase.from('transfer_log').select('*').order('created_at', { ascending: false });
+    async function initDashboard() {
+        // ۱. واکشی داده‌های منحصر‌به‌فرد برای منوهای دراپ‌دان (از جدول inventory)
+        const { data: invData } = await _supabase.from('inventory').select('category, sub_category');
+        // اینجا کد پر کردن دراپ‌دان‌ها قرار می‌گیرد...
         
-        currentData = data.filter(item => {
-            const b = document.getElementById('filterBarcode').value.toLowerCase();
-            const i = document.getElementById('filterItemName').value.toLowerCase();
-            const c = document.getElementById('filterCategory').value.toLowerCase();
-            const s = document.getElementById('filterSubCategory').value.toLowerCase();
-            const u = document.getElementById('filterUser').value.toLowerCase();
-            const t = document.getElementById('filterType').value;
-            const ds = document.getElementById('dateStart').value;
-            const de = document.getElementById('dateEnd').value;
-
-            return (!b || item.Barcode?.toLowerCase().includes(b)) &&
-                   (!i || item.ItemName?.toLowerCase().includes(i)) &&
-                   (!c || item.Category?.toLowerCase().includes(c)) &&
-                   (!s || item.SubCategory?.toLowerCase().includes(s)) &&
-                   (!u || item.worker_name?.toLowerCase().includes(u)) &&
-                   (t === 'all' || item.worker_name?.includes(t)) &&
-                   (!ds || item.created_at >= ds) &&
-                   (!de || item.created_at <= de);
-        });
-
-        updateChart(currentData);
+        updateDashboard();
     }
 
-    function updateChart(data) {
-        const ctx = document.getElementById('mainChart').getContext('2d');
-        if (myChart) myChart.destroy();
-        myChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: data.map(item => item.Barcode),
-                datasets: [{ label: 'Qty', data: data.map(item => Math.abs(item.qty_transferred)), backgroundColor: '#06b6d4' }]
-            }
-        });
+    async function updateDashboard() {
+        // ۲. واکشی لاگ‌های تراکنش
+        const { data } = await _supabase.from('transfer_log').select('*');
+        
+        // ۳. محاسبات منطقی (Intake vs Outbound)
+        const intake = data.filter(i => i.qty_transferred > 0);
+        const out = data.filter(i => i.qty_transferred < 0);
+        
+        document.getElementById('kpi-in').innerText = intake.length;
+        document.getElementById('kpi-out').innerText = out.length;
+        
+        // ۴. رسم نمودار حرفه‌ای
+        renderCharts(intake, out);
     }
 
-    function exportToExcel() {
-        const ws = XLSX.utils.json_to_sheet(currentData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Report");
-        XLSX.writeFile(wb, "Warehouse_Full_Report.xlsx");
+    function renderCharts(inData, outData) {
+        // استفاده از Chart.js برای نمایش سه وضعیت
     }
 
-    loadReport();
+    initDashboard();
 </script>
 </body>
 </html>
