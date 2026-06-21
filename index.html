@@ -3,28 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title> Premium Scanner Room </title>
+    <title>Turquoise & Gold - Premium Scanner Room</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         :root {
-            /* پالت امضادار: آبی فیروزه‌ای و طلایی شاهانه */
-            --turquoise-main: #06b6d4; /* فیروزه‌ای زنده */
-            --turquoise-dark: #0891b2; /* فیروزه‌ای تیره برای هور و متن */
-            --turquoise-deep: #0e7490; /* فیروزه‌ای عمیق برای کنتراست بالاتر */
-            --turquoise-light: #ecfeff; /* پس‌زمینه لایت فیروزه‌ای */
-            
-            --royal-gold: #e5b822; /* طلایی متالیک */
+            --turquoise-main: #06b6d4; 
+            --turquoise-dark: #0891b2; 
+            --turquoise-deep: #0e7490; 
+            --turquoise-light: #ecfeff; 
+            --royal-gold: #e5b822; 
             --royal-gold-hover: #cfa319;
             --royal-gold-light: #fffbeb;
-            
             --dark-slate: #0f172a;
-            --body-bg: #f0fdfa; /* پس‌زمینه ملایم فیروزه‌ای/نعنایی برای انبار */
+            --body-bg: #f0fdfa; 
             --panel-bg: #ffffff;
             --text-main: #0f172a;
             --text-muted: #334155;
             --border: #cbd5e1;
-            
             --success: #10b981;
             --error: #f43f5e;
         }
@@ -76,7 +72,6 @@
             border: 1px solid rgba(6, 182, 212, 0.15);
         }
 
-        /* کارد نام اپراتور با هایلایت طلایی */
         .operator-box {
             background: var(--royal-gold-light);
             padding: 16px;
@@ -238,7 +233,6 @@
         .diff-shortage { color: #991b1b; background-color: #fee2e2; border: 1.5px solid #fca5a5; }
         .diff-surplus { color: #065f46; background-color: #d1fae5; border: 1.5px solid #a7f3d0; }
 
-        /* دکمه اکشن طلایی شاهانه با متن تیره برای حداکثر خوانایی و لوکس بودن */
         button.action-btn {
             width: 100%;
             padding: 15px;
@@ -253,7 +247,7 @@
             transition: all 0.2s ease;
         }
         button.action-btn:hover { 
-            transform: translateY(-1px); 
+            transform: translateY(-1px);
             background-color: var(--royal-gold-hover);
             box-shadow: 0 6px 20px rgba(229, 184, 34, 0.45);
         }
@@ -264,7 +258,7 @@
             gap: 10px;
         }
         #manual-box button {
-            width: auto; 
+            width: auto;
             padding: 0 24px; 
             background-color: var(--turquoise-main); 
             color: white; 
@@ -279,7 +273,7 @@
         }
         
         #clear-btn {
-            margin-top: 12px; 
+            margin-top: 12px;
             background-color: transparent; 
             color: var(--text-muted); 
             border: 1.5px solid var(--border); 
@@ -287,7 +281,7 @@
             width: 100%; 
             border-radius: 14px; 
             font-weight: 600; 
-            cursor: pointer; 
+            cursor: pointer;
             transition: all 0.2s;
         }
         #clear-btn:hover {
@@ -295,12 +289,86 @@
             color: var(--dark-slate);
             border-color: var(--text-muted);
         }
+
+        /* --- STYLES FOR SECURITY LOCK OVERLAY SYSTEM --- */
+        #security-lock-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #0f172a;
+            z-index: 99999;
+            display: flex; /* تغییر از none به flex برای نمایش اجباری تا زمان احراز هویت */
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .auth-card {
+            background: #ffffff;
+            width: 100%;
+            max-width: 400px;
+            padding: 30px 24px;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        .auth-title { color: #0e7490; font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+        .auth-subtitle { color: #475569; font-size: 13px; margin-bottom: 24px; line-height: 1.4; }
+        .pin-dots-container { display: flex; justify-content: center; gap: 16px; margin-bottom: 24px; }
+        .pin-dot { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 50%; transition: all 0.1s ease; }
+        .pin-dot.active { background-color: #e5b822; border-color: #e5b822; transform: scale(1.1); }
+        .pin-pad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 280px; margin: 0 auto 20px auto; }
+        .pad-btn { background: #f1f5f9; border: none; padding: 18px; border-radius: 16px; font-size: 18px; font-weight: 700; color: #0f172a; cursor: pointer; transition: background 0.1s; }
+        .pad-btn:active { background: #cbd5e1; }
+        .biometric-action-btn { width: 100%; padding: 14px; background-color: #06b6d4; color: white; border: none; border-radius: 14px; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(6, 182, 212, 0.2); }
+        .biometric-action-btn:active { background-color: #0891b2; }
+        .auth-status-msg { min-height: 20px; font-size: 13px; font-weight: 600; margin-top: 12px; }
     </style>
 </head>
 <body>
 
+<div id="security-lock-screen">
+    <div class="auth-card">
+        <div class="auth-title">Security Verification</div>
+        <div class="auth-subtitle">Scan your biometrics or enter your 4-digit security PIN to unlock the workstation.</div>
+        
+        <button id="biometric-trigger-btn" class="biometric-action-btn" onclick="triggerBiometricAuth()">
+            <span>🔒 Use Fingerprint / FaceID</span>
+        </button>
+        
+        <div style="margin: 16px 0; color: #94a3b8; font-size: 12px; font-weight: 600;">— OR USE SECURE ACCESS —</div>
+
+        <div class="pin-dots-container">
+            <div class="pin-dot" id="dot-1"></div>
+            <div class="pin-dot" id="dot-2"></div>
+            <div class="pin-dot" id="dot-3"></div>
+            <div class="pin-dot" id="dot-4"></div>
+        </div>
+
+        <div class="pin-pad-grid">
+            <button class="pad-btn" onclick="pressPinKey('1')">1</button>
+            <button class="pad-btn" onclick="pressPinKey('2')">2</button>
+            <button class="pad-btn" onclick="pressPinKey('3')">3</button>
+            <button class="pad-btn" onclick="pressPinKey('4')">4</button>
+            <button class="pad-btn" onclick="pressPinKey('5')">5</button>
+            <button class="pad-btn" onclick="pressPinKey('6')">6</button>
+            <button class="pad-btn" onclick="pressPinKey('7')">7</button>
+            <button class="pad-btn" onclick="pressPinKey('8')">8</button>
+            <button class="pad-btn" onclick="pressPinKey('9')">9</button>
+            <button class="pad-btn" style="background:transparent; color:#ef4444; font-size:14px;" onclick="clearPin()">Clear</button>
+            <button class="pad-btn" onclick="pressPinKey('0')">0</button>
+            <button class="pad-btn" style="background:transparent; color:#64748b; font-size:14px;" onclick="backspacePin()">⌫</button>
+        </div>
+
+        <button id="guest-trigger-btn" class="pad-btn" style="width: 100%; max-width: 280px; margin: 12px auto 0 auto; background: #f8fafc; border: 1.5px solid #cbd5e1; color: #475569; font-size: 14px; display: block;" onclick="loginAsGuest()">
+            👀 Continue as Guest (View Only)
+        </button>
+
+        <div id="auth-message-log" class="auth-status-msg"></div>
+    </div>
+</div>
+
 <div class="nav-wrapper">
-    <a href="dashboard.html" class="nav-btn">
+    <a href="dashboard.html" id="dashboard-link" class="nav-btn">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 4px;"><path d="M3 3h7v7H3zm11 0h7v7h-7zm0 11h7v7h-7zM3 14h7v7H3z"/></svg>
         View Management Dashboard
     </a>
@@ -308,8 +376,8 @@
 
 <div class="container">
     <div class="operator-box">
-        <label for="operator-name-input" style="color: var(--dark-slate);">Operator Name / ID *</label>
-        <input type="text" id="operator-name-input" oninput="saveCurrentOperator()" placeholder="Enter your official identification..." style="margin-top: 6px;">
+        <label style="color: var(--dark-slate); display: block; margin-bottom: 4px;">ACTIVE WORKSTATION OPERATOR</label>
+        <div id="active-operator-display" style="font-size: 16px; font-weight: 700; color: var(--turquoise-deep);">Securing Session...</div>
     </div>
 
     <h2>Live Scanner & Location Finder</h2>
@@ -330,8 +398,9 @@
         <div class="info-card">
             <p><strong>Item Name</strong> <span id="p-name" class="value">---</span></p>
             <p><strong>Item Code</strong> <span id="p-code" class="value">---</span></p>
+            <p><strong>Selling Price</strong> <span id="p-price" class="value" style="color: var(--success);">---</span></p>
         </div>
-         
+
         <label>Core Inventory Fleet</label>
         <div class="stock-grid">
             <div class="stock-box">
@@ -355,31 +424,34 @@
         <label>📍 Warehouse Physical Coordinates:</label>
         <div id="location-list" class="location-container"></div>
          
-        <div class="form-group" style="margin-top: 20px;">
-            <label for="transaction-type">Transaction Type Action</label>
-            <select id="transaction-type" onchange="handleTypeChange()" style="margin-top: 4px;">
-                <option value="out">Move to Showroom (Whse -> Showroom)</option>
-                <option value="in">Return to Warehouse (Showroom -> Whse)</option>
-                <option value="intake">➕ Direct Stock Intake (Add New Qty to Whse Shelf)</option>
-            </select>
-        </div>
+        <div id="transaction-panel">
+            <div class="form-group" style="margin-top: 20px;">
+                <label for="transaction-type">Transaction Type Action</label>
+                <select id="transaction-type" onchange="handleTypeChange()" style="margin-top: 4px;">
+                    <option value="out">Move to Showroom (Whse -> Showroom)</option>
+                    <option value="in">Return to Warehouse (Showroom -> Whse)</option>
+                    <option value="intake">➕ Direct Stock Intake (Add New Qty to Whse Shelf)</option>
+                </select>
+            </div>
 
-        <div class="form-group" id="loc-select-group">
-            <label for="source-location">Target Warehouse Shelf Location</label>
-            <select id="source-location" style="margin-top: 4px;"></select>
-        </div>
+            <div class="form-group" id="loc-select-group">
+                <label for="source-location">Select Source Location (Deduct from):</label>
+                <select id="source-location" style="margin-top: 4px;"></select>
+            </div>
 
-        <div class="form-group" id="new-loc-group" style="display: none;">
-            <label for="new-location-input">Define Brand New Location Name</label>
-            <input type="text" id="new-location-input" placeholder="e.g. Shelf-C5" style="margin-top: 4px;">
-        </div>
+            <div class="form-group" id="new-loc-group" style="display: none;">
+                <label for="new-location-input">Define Brand New Location Name</label>
+                <input type="text" id="new-location-input" placeholder="e.g. Shelf-C5" style="margin-top: 4px;">
+            </div>
 
-        <div class="form-group" style="margin-bottom: 24px;">
-            <label for="transfer-qty">Transaction Qty</label>
-            <input type="number" id="transfer-qty" min="1" inputmode="numeric" placeholder="Enter transfer quantity" style="margin-top: 4px;">
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label for="transfer-qty">Transaction Qty</label>
+                <input type="number" id="transfer-qty" min="1" inputmode="numeric" placeholder="Enter transfer quantity" style="margin-top: 4px;">
+            </div>
+             
+            <button id="submit-btn" class="action-btn" onclick="submitTransfer()">Confirm Stock Movement</button>
         </div>
-         
-        <button id="submit-btn" class="action-btn" onclick="submitTransfer()">Confirm Stock Movement</button>
+        
         <button id="clear-btn" onclick="resetPage()">Clear & Flush Registry</button>
     </div>
 </div>
@@ -407,18 +479,295 @@
     let dbBarcodeKey = "Barcode"; 
     let dbShowroomQtyKey = "showroom_qty";
 
+    let currentPin = "";
+    const SESSION_LIFETIME = 24 * 60 * 60 * 1000; 
+    let currentActiveOperatorName = "";
+
     window.onload = function() {
         startCameraScanner();
-        const savedOperator = localStorage.getItem('sc_operator_name');
-        if (savedOperator) {
-            document.getElementById('operator-name-input').value = savedOperator;
-        }
+        checkDailySession(); 
     };
 
-    function saveCurrentOperator() {
-        const operatorName = document.getElementById('operator-name-input').value.trim();
-        localStorage.setItem('sc_operator_name', operatorName);
+    function checkDailySession() {
+        const savedSession = localStorage.getItem('sc_auth_session');
+        if (savedSession) {
+            try {
+                const sessionData = JSON.parse(savedSession);
+                const now = new Date().getTime();
+                
+                if (now - sessionData.loginTime < SESSION_LIFETIME) {
+                    document.getElementById('security-lock-screen').style.display = 'none';
+                    currentActiveOperatorName = sessionData.operatorName;
+                    document.getElementById('active-operator-display').textContent = `${sessionData.operatorName} (${sessionData.role.toUpperCase()})`;
+                    applyRoleAccessControl(sessionData.role);
+                    return;
+                }
+            } catch (e) {
+                console.error("Session reading failed, clearing corrupted data.", e);
+            }
+        }
+        document.getElementById('security-lock-screen').style.display = 'flex';
+        triggerBiometricAuth();
     }
+
+    function pressPinKey(num) {
+        if (currentPin.length < 4) {
+            currentPin += num;
+            updatePinDots();
+        }
+        if (currentPin.length === 4) {
+            verifyPinWithSupabase(currentPin);
+        }
+    }
+
+    function clearPin() {
+        currentPin = "";
+        updatePinDots();
+        document.getElementById('auth-message-log').textContent = "";
+    }
+
+    function backspacePin() {
+        if (currentPin.length > 0) {
+            currentPin = currentPin.slice(0, -1);
+            updatePinDots();
+        }
+    }
+
+    function updatePinDots() {
+        for (let i = 1; i <= 4; i++) {
+            const dot = document.getElementById(`dot-${i}`);
+            if (i <= currentPin.length) { dot.classList.add('active'); } 
+            else { dot.classList.remove('active'); }
+        }
+    }
+
+    function loginAsGuest() {
+        const msgArea = document.getElementById('auth-message-log');
+        msgArea.style.color = "#475569";
+        msgArea.textContent = "Accessing as Guest (View-Only Picker)...";
+        
+        setTimeout(() => {
+            const guestSession = {
+                role: 'guest',
+                operatorName: 'Guest Picker',
+                loginTime: new Date().getTime()
+            };
+            localStorage.setItem('sc_auth_session', JSON.stringify(guestSession));
+            
+            document.getElementById('security-lock-screen').style.display = 'none';
+            currentActiveOperatorName = "Guest Picker";
+            document.getElementById('active-operator-display').textContent = "Guest Picker (GUEST)";
+            applyRoleAccessControl('guest');
+        }, 600);
+    }
+
+    async function verifyPinWithSupabase(pin) {
+        const msgArea = document.getElementById('auth-message-log');
+        msgArea.style.color = "#e5b822";
+        msgArea.textContent = "Verifying secure PIN...";
+
+        try {
+            const { data: operators, error } = await _supabase
+                .from('authorized_operators')
+                .select('*')
+                .eq('pin_code', pin)
+                .eq('is_active', true);
+
+            if (error) throw error;
+
+            if (!operators || operators.length === 0) {
+                msgArea.style.color = "#ef4444";
+                msgArea.textContent = "Invalid PIN code. Access Denied.";
+                setTimeout(clearPin, 1500);
+                return;
+            }
+
+            const currentOperator = operators[0];
+
+            if (!currentOperator.biometric_credential_id || !currentOperator.biometric_public_key) {
+                msgArea.style.color = "#06b6d4";
+                msgArea.textContent = `Welcome ${currentOperator.full_name}! Biometric setup required.`;
+                setTimeout(() => { startBiometricRegistration(currentOperator); }, 1000);
+                return;
+            }
+
+            msgArea.style.color = "#22c55e";
+            msgArea.textContent = "Verification Successful! Unlocking...";
+
+            setTimeout(() => {
+                completeSuccessfulLogin(currentOperator);
+            }, 800);
+
+        } catch (err) {
+            console.error(err);
+            msgArea.style.color = "#ef4444";
+            msgArea.textContent = "Connection error. Please try again.";
+            setTimeout(clearPin, 2000);
+        }
+    }
+
+    async function startBiometricRegistration(operator) {
+        const msgArea = document.getElementById('auth-message-log');
+        if (!window.PublicKeyCredential) {
+            msgArea.style.color = "#ef4444";
+            msgArea.textContent = "Biometric hardware unsupported. Bypassing with PIN...";
+            setTimeout(() => { completeSuccessfulLogin(operator); }, 1500);
+            return;
+        }
+
+        try {
+            msgArea.style.color = "#06b6d4";
+            msgArea.textContent = "Touch your fingerprint sensor or verify your Face ID...";
+
+            const randomChallenge = new Uint8Array(32);
+            window.crypto.getRandomValues(randomChallenge);
+            const userIdBuffer = new TextEncoder().encode(operator.id.toString());
+
+            const creationOptions = {
+                publicKey: {
+                    challenge: randomChallenge,
+                    rp: { name: "Radman Warehouse System", id: window.location.hostname },
+                    user: { id: userIdBuffer, name: operator.full_name, displayName: operator.full_name },
+                    pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+                    timeout: 60000,
+                    authenticatorSelection: { userVerification: "required" },
+                    attestation: "none"
+                }
+            };
+
+            const credential = await navigator.credentials.create(creationOptions);
+
+            if (credential) {
+                const credentialIdBase64 = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
+                const publicKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(credential.response.attestationObject)));
+
+                const { error } = await _supabase
+                    .from('authorized_operators')
+                    .update({
+                        biometric_credential_id: credentialIdBase64,
+                        biometric_public_key: publicKeyBase64
+                    })
+                    .eq('id', operator.id);
+
+                if (error) throw error;
+
+                msgArea.style.color = "#22c55e";
+                msgArea.textContent = "Biometrics successfully linked! Unlocking...";
+                completeSuccessfulLogin(operator);
+            }
+        } catch (err) {
+            console.error(err);
+            msgArea.style.color = "#ef4444";
+            msgArea.textContent = "Biometric registration failed. Bypassing...";
+            setTimeout(() => { completeSuccessfulLogin(operator); }, 1500);
+        }
+    }
+
+    async function triggerBiometricAuth() {
+        const msgArea = document.getElementById('auth-message-log');
+        if (!window.PublicKeyCredential) return;
+
+        try {
+            const randomChallenge = new Uint8Array(32);
+            window.crypto.getRandomValues(randomChallenge);
+
+            const assertionOptions = {
+                publicKey: { challenge: randomChallenge, timeout: 60000, userVerification: "required", rpId: window.location.hostname }
+            };
+
+            const assertion = await navigator.credentials.get(assertionOptions);
+            if (assertion) {
+                msgArea.style.color = "#06b6d4";
+                msgArea.textContent = "Verifying biometrics matrix...";
+
+                const detectedIdBase64 = btoa(String.fromCharCode(...new Uint8Array(assertion.rawId)));
+
+                const { data: operators, error } = await _supabase
+                    .from('authorized_operators')
+                    .select('*')
+                    .eq('biometric_credential_id', detectedIdBase64)
+                    .eq('is_active', true);
+
+                if (error) throw error;
+
+                if (!operators || operators.length === 0) {
+                    msgArea.style.color = "#ef4444";
+                    msgArea.textContent = "Biometrics match unrecognized or revoked operator.";
+                    return;
+                }
+
+                msgArea.style.color = "#22c55e";
+                msgArea.textContent = `Authorized! Welcome, ${operators[0].full_name}.`;
+                completeSuccessfulLogin(operators[0]);
+            }
+        } catch (err) {
+            console.log("Biometric scan idle/dismissed.", err);
+        }
+    }
+
+    function completeSuccessfulLogin(operator) {
+    // پاک کردن نشست قبلی (اگر مهمان بوده)
+    localStorage.removeItem('sc_auth_session');
+    
+    const secureSession = {
+        role: operator.role || 'guest',
+        operatorName: operator.full_name,
+        loginTime: new Date().getTime()
+    };
+    localStorage.setItem('sc_auth_session', JSON.stringify(secureSession));
+    
+    // مخفی کردن صفحه لاگین و اعمال تغییرات
+    document.getElementById('security-lock-screen').style.display = 'none';
+    currentActiveOperatorName = operator.full_name;
+    document.getElementById('active-operator-display').textContent = `${operator.full_name} (${secureSession.role.toUpperCase()})`;
+    
+    // اعمال مجدد دسترسی‌ها و حذف بنر مهمان
+    applyRoleAccessControl(secureSession.role);
+    
+    const guestBanner = document.getElementById('picker-view-notice');
+    if (guestBanner) guestBanner.remove();
+    
+    clearPin();
+}
+
+    function applyRoleAccessControl(role) {
+        const txPanel = document.getElementById('transaction-panel');
+        const dashLink = document.getElementById('dashboard-link');
+
+        if (txPanel) txPanel.style.display = 'block';
+        if (dashLink) dashLink.style.display = 'inline-flex';
+
+        if (role === 'guest') {
+            if (txPanel) txPanel.style.display = 'none';
+            if (dashLink) dashLink.style.display = 'none';
+            injectGuestWarningBanner();
+        } else if (role === 'operator') {
+            if (dashLink) dashLink.style.display = 'none';
+        }
+    }
+
+    function injectGuestWarningBanner() {
+    if (document.getElementById('picker-view-notice')) return;
+    
+    const banner = document.createElement('div');
+    banner.id = 'picker-view-notice';
+    banner.style.cssText = "background: #fff1f2; border: 1.5px dashed var(--error); color: #9f1239; padding: 16px; border-radius: 14px; text-align: center; font-size: 13px; font-weight: 700; margin-top: 16px; line-height: 1.4;";
+    
+    banner.innerHTML = `
+        ℹ️ VIEW-ONLY ACCESS: You are logged in as a Cargo Picker.<br>
+        <button onclick="reAuthenticate()" style="margin-top: 10px; padding: 8px 16px; background: #9f1239; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 12px;">
+            🔒Upgrade Your Access
+        </button>
+    `;
+    
+    document.getElementById('product-info').appendChild(banner);
+}
+
+// تابع جدید برای باز کردن دوباره صفحه لاگین
+function reAuthenticate() {
+    document.getElementById('security-lock-screen').style.display = 'flex';
+    document.getElementById('auth-message-log').textContent = "لطفاً برای ارتقاء نقش، پین خود را وارد کنید.";
+}
 
     function startCameraScanner() {
         html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
@@ -431,8 +780,7 @@
 
     function onScanSuccess(decodedText, decodedResult) {
         if (decodedText) {
-            try { new AudioContext().createOscillator().connect(new AudioContext().destination);
-            } catch(e){}
+            try { new AudioContext().createOscillator().connect(new AudioContext().destination); } catch(e){}
             handleScannedBarcode(decodedText.trim());
         }
     }
@@ -451,7 +799,6 @@
     function handleTypeChange() {
         const txType = typeSelect.value;
         newLocGroup.style.display = 'none';
-        
         if (txType === 'out') {
             submitBtn.textContent = 'Confirm Stock Movement';
             submitBtn.style.backgroundColor = 'var(--royal-gold)';
@@ -475,73 +822,78 @@
     }
 
     async function handleScannedBarcode(barcode) {
-        let cleanedBarcode = barcode.toString().trim().replace(/[\r\n\t]/g, "");
-        if (!cleanedBarcode) {
-            statusDiv.className = 'status error';
-            statusDiv.textContent = '❌ Scanned barcode is empty!';
-            return;
-        }
+    let cleanedBarcode = barcode.toString().trim().replace(/[\r\n\t]/g, "");
+    if (!cleanedBarcode) {
+        statusDiv.className = 'status error';
+        statusDiv.textContent = '❌ Scanned barcode is empty!';
+        return;
+    }
 
-        statusDiv.className = 'status loading';
-        statusDiv.textContent = `Searching database for [ ${cleanedBarcode} ]...`;
-        statusDiv.style.display = 'block';
-        productInfoDiv.style.display = 'none';
-        newLocInput.value = '';
+    statusDiv.className = 'status loading';
+    statusDiv.textContent = `Searching database for [ ${cleanedBarcode} ]...`;
+    statusDiv.style.display = 'block';
+    productInfoDiv.style.display = 'none';
+    newLocInput.value = '';
 
-        if (navigator.onLine) {
-            try {
-                let { data: systemData, error: err1 } = await _supabase
+    const pastNotice = document.getElementById('picker-view-notice');
+    if (pastNotice) pastNotice.remove();
+
+    if (navigator.onLine) {
+        try {
+            // کوئری اول: اضافه شدن ستون قیمت
+            let { data: systemData, error: err1 } = await _supabase
+                .from('system_inventory')
+                .select('*, "Selling Price (Inc VAT)"')
+                .eq('Barcode', cleanedBarcode)
+                .maybeSingle();
+            
+            dbBarcodeKey = "Barcode";
+
+            if (!systemData) {
+                // کوئری دوم (در صورت عدم یافتن در اولی): اضافه شدن ستون قیمت
+                let { data: systemDataCheck, error: err2 } = await _supabase
                     .from('system_inventory')
-                    .select('*')
-                    .eq('Barcode', cleanedBarcode)
+                    .select('*, "Selling Price (Inc VAT)"')
+                    .eq('barcode', cleanedBarcode)
                     .maybeSingle();
-
-                dbBarcodeKey = "Barcode";
-
-                if (!systemData) {
-                    let { data: systemDataCheck, error: err2 } = await _supabase
-                        .from('system_inventory')
-                        .select('*')
-                        .eq('barcode', cleanedBarcode)
-                        .maybeSingle();
-
-                    if (systemDataCheck) {
-                        systemData = systemDataCheck;
-                        dbBarcodeKey = "barcode";
-                    }
-                }
-
-                if (!systemData) {
-                    statusDiv.className = 'status error';
-                    statusDiv.textContent = `⚠️ Barcode [ ${cleanedBarcode} ] not found in system table.`;
-                    return;
-                }
-
-                finalCleanedBarcode = (systemData[dbBarcodeKey] || cleanedBarcode).toString();
-                const { data: whseRows } = await _supabase.from('warehouse_inventory').select('*').eq('Row Labels', finalCleanedBarcode);
                 
-                let { data: showData } = await _supabase.from('showroom_inventory').select('*').eq(dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode', finalCleanedBarcode).maybeSingle();
-                dbShowroomQtyKey = "showroom_qty";
-                if (showData) {
-                    if (showData.showroom_quantity !== undefined) dbShowroomQtyKey = "showroom_quantity";
-                    else if (showData.showroom_qty !== undefined) dbShowroomQtyKey = "showroom_qty";
+                if (systemDataCheck) {
+                    systemData = systemDataCheck;
+                    dbBarcodeKey = "barcode";
                 }
-
-                const payloadToCache = { barcode: finalCleanedBarcode, systemData, whseRows, showData, dbBarcodeKey, dbShowroomQtyKey };
-                cacheProductLocally(payloadToCache);
-
-                renderProductDataHTML(systemData, whseRows, showData);
-
-            } catch (e) {
-                console.error("Database linkage error:", e);
-                statusDiv.className = 'status error';
-                statusDiv.textContent = 'Database linkage temporary issue. Trying local cache...';
-                loadProductFromCache(cleanedBarcode);
             }
-        } else {
+
+            if (!systemData) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `⚠️ Barcode [ ${cleanedBarcode} ] not found in system table.`;
+                return;
+            }
+
+            finalCleanedBarcode = (systemData[dbBarcodeKey] || cleanedBarcode).toString();
+            const { data: whseRows } = await _supabase.from('warehouse_inventory').select('*').eq('Row Labels', finalCleanedBarcode);
+            let { data: showData } = await _supabase.from('showroom_inventory').select('*').eq(dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode', finalCleanedBarcode).maybeSingle();
+            
+            dbShowroomQtyKey = "showroom_qty";
+            if (showData) {
+                if (showData.showroom_quantity !== undefined) dbShowroomQtyKey = "showroom_quantity";
+                else if (showData.showroom_qty !== undefined) dbShowroomQtyKey = "showroom_qty";
+            }
+
+            const payloadToCache = { barcode: finalCleanedBarcode, systemData, whseRows, showData, dbBarcodeKey, dbShowroomQtyKey };
+            cacheProductLocally(payloadToCache);
+
+            renderProductDataHTML(systemData, whseRows, showData);
+
+        } catch (e) {
+            console.error("Database linkage error:", e);
+            statusDiv.className = 'status error';
+            statusDiv.textContent = 'Database linkage temporary issue. Trying local cache...';
             loadProductFromCache(cleanedBarcode);
         }
+    } else {
+        loadProductFromCache(cleanedBarcode);
     }
+}
 
     function renderProductDataHTML(systemData, whseRows, showData) {
         currentProduct = systemData;
@@ -574,7 +926,7 @@
             });
         } else {
             locContainer.innerHTML = `<div style="color:#718096; font-size:14px; text-align:center; padding:10px;">⚠️ Not found on any warehouse shelf.</div>`;
-            sourceLocSelect.innerHTML = `<option value="Default-Shelf">Default-Shelf (0 available)</option>`;
+            sourceLocSelect.innerHTML += `<option value="Default-Shelf">Default-Shelf (0 available)</option>`;
             locBalances["Default-Shelf"] = 0;
         }
 
@@ -584,7 +936,8 @@
             systemStock = parseInt(rawStock.toString().replace(/,/g, '')) || 0;
         }
          
-        currentShowroomQty = (showData && showData[dbShowroomQtyKey]) ? (parseInt(showData[dbShowroomQtyKey].toString().replace(/,/g, '')) || 0) : 0;
+        currentShowroomQty = (showData && showData[dbShowroomQtyKey]) ?
+            (parseInt(showData[dbShowroomQtyKey].toString().replace(/,/g, '')) || 0) : 0;
          
         let variance = (totalWarehouseQty + currentShowroomQty) - systemStock;
 
@@ -593,25 +946,45 @@
         document.getElementById('stock-system').textContent = systemStock;
         document.getElementById('stock-warehouse').textContent = totalWarehouseQty;
         document.getElementById('stock-showroom').textContent = currentShowroomQty;
-
+        
         const varianceElement = document.getElementById('stock-variance');
         const varianceBox = document.getElementById('variance-box');
-        if (variance === 0) { varianceBox.className = "stock-box diff-neutral"; varianceElement.textContent = "Matched (0)"; }
-        else if (variance < 0) { varianceBox.className = "stock-box diff-shortage"; varianceElement.textContent = `Shortage (${variance})`; }
-        else { varianceBox.className = "stock-box diff-surplus"; varianceElement.textContent = `Surplus (+${variance})`; }
+        if (variance === 0) { 
+            varianceBox.className = "stock-box diff-neutral";
+            varianceElement.textContent = "Matched (0)";
+        } else if (variance < 0) { 
+            varianceBox.className = "stock-box diff-shortage";
+            varianceElement.textContent = `Shortage (${variance})`;
+        } else { 
+            varianceBox.className = "stock-box diff-surplus";
+            varianceElement.textContent = `Surplus (+${variance})`;
+        }
 
         statusDiv.className = 'status success';
         statusDiv.textContent = 'Product successfully located!';
         productInfoDiv.style.display = 'block';
+        
+        const savedSession = localStorage.getItem('sc_auth_session');
+        if(savedSession) {
+            const parsed = JSON.parse(savedSession);
+            applyRoleAccessControl(parsed.role);
+        }
+
         typeSelect.value = 'out';
         handleTypeChange();
         document.getElementById('transfer-qty').focus();
+        // اضافه کردن این بخش به انتهای تابع renderProductDataHTML:
+        const price = systemData['Selling Price (Inc VAT)'];
+        const priceElement = document.getElementById('p-price');
+        if (priceElement) {
+            priceElement.textContent = price ? price : '---';
+        }
     }
 
     function cacheProductLocally(payload) {
         try {
             localStorage.setItem(`cache_bc_${payload.barcode}`, JSON.stringify(payload));
-        } catch (e) { console.error("Cache saving failed", e); }
+        } catch (e) {}
     }
 
     function loadProductFromCache(barcode) {
@@ -626,14 +999,13 @@
             renderProductDataHTML(parsed.systemData, parsed.whseRows, parsed.showData);
         } else {
             statusDiv.className = 'status error';
-            statusDiv.textContent = `❌ Offline: Barcode [ ${barcode} ] not found in local memory cache.`;
+            statusDiv.textContent = `❌ Offline: Barcode [ ${barcode} ] not found in cache.`;
         }
     }
 
     async function submitTransfer() {
-        const operatorName = document.getElementById('operator-name-input').value.trim();
-        if (!operatorName) {
-            alert("Action Denied: Please enter your Operator Name/ID at the top of the page before scanning!");
+        if (!currentActiveOperatorName) {
+            alert("Action Denied: Session missing. Please authenticate.");
             return;
         }
 
@@ -646,37 +1018,52 @@
         let selectedLoc = sourceLocSelect.value;
         if (!qty || qty <= 0) { alert('Enter valid quantity'); return; }
 
-        if (txType === 'intake' && newLocInput.value.trim() !== '') { selectedLoc = newLocInput.value.trim(); }
+        if (txType === 'intake' && newLocInput.value.trim() !== '') { 
+            selectedLoc = newLocInput.value.trim();
+        }
 
         let currentLocQty = locBalances[selectedLoc] || 0;
-        if (txType === 'out' && qty > currentLocQty) { alert('Error: Not enough stock in this specific location!'); return; }
+        if (txType === 'out' && qty > currentLocQty) { 
+            alert('Error: Not enough stock in this location!'); return;
+        }
 
-        if (txType === 'in' && qty > currentShowroomQty) { alert(`Business Logic Denied: Cannot return more than Showroom current stock. Live Showroom: ${currentShowroomQty}`); return; }
+        if (txType === 'in' && qty > currentShowroomQty) { 
+            alert(`Denied: Maximum returnable amount is ${currentShowroomQty}`);
+            return;
+        }
 
         let actionMessage = "";
-        if (txType === 'intake') { actionMessage = `🔹 TRANSACTION TYPE: Direct Stock Intake\n📦 ITEM: ${itemName}\n🔢 QTY TO ADD: +${qty} pcs\n📍 TARGET SHELF: [ ${selectedLoc} ]`; } 
-        else if (txType === 'out') { actionMessage = `🔹 TRANSACTION TYPE: Move to Showroom\n📦 ITEM: ${itemName}\n🔢 QTY TO REMOVE FROM WHSE: -${qty} pcs\n📍 FROM SHELF: [ ${selectedLoc} ]`; } 
-        else if (txType === 'in') { actionMessage = `🔹 TRANSACTION TYPE: Return to Warehouse\n📦 ITEM: ${itemName}\n🔢 QTY TO ADD BACK TO WHSE: +${qty} pcs\n📍 TARGET SHELF: [ ${selectedLoc} ]`; }
+        if (txType === 'intake') { 
+            actionMessage = `🔹 Direct Stock Intake\n📦 ITEM: ${itemName}\n🔢 QTY: +${qty} pcs\n📍 SHELF: [ ${selectedLoc} ]`;
+        } else if (txType === 'out') { 
+            actionMessage = `🔹 Move to Showroom\n📦 ITEM: ${itemName}\n🔢 QTY: -${qty} pcs\n📍 FROM SHELF: [ ${selectedLoc} ]`;
+        } else if (txType === 'in') { 
+            actionMessage = `🔹 Return to Warehouse\n📦 ITEM: ${itemName}\n🔢 QTY: +${qty} pcs\n📍 TARGET SHELF: [ ${selectedLoc} ]`;
+        }
 
-        const confirmAction = confirm(`${actionMessage}\n\nAre you sure you want to update the database?`);
-        if (!confirmAction) return; 
+        const confirmAction = confirm(`${actionMessage}\n\nUpdate database?`);
+        if (!confirmAction) return;
 
         statusDiv.className = 'status loading';
         statusDiv.textContent = 'Processing transaction...';
 
         let newLocQty = currentLocQty;
         let newShowroomQty = currentShowroomQty;
-        if (txType === 'out') { newLocQty = currentLocQty - qty; newShowroomQty = currentShowroomQty + qty; } 
-        else if (txType === 'in') { newLocQty = currentLocQty + qty; newShowroomQty = currentShowroomQty - qty; } 
-        else if (txType === 'intake') { newLocQty = currentLocQty + qty; }
+        if (txType === 'out') { 
+            newLocQty = currentLocQty - qty; newShowroomQty = currentShowroomQty + qty;
+        } else if (txType === 'in') { 
+            newLocQty = currentLocQty + qty; newShowroomQty = currentShowroomQty - qty;
+        } else if (txType === 'intake') { 
+            newLocQty = currentLocQty + qty;
+        }
 
         const { error: whseError } = await _supabase
             .from('warehouse_inventory')
             .upsert({ "Row Labels": barcode, "Attribute": selectedLoc, "Value": newLocQty }, { onConflict: 'Row Labels,Attribute' });
         if (whseError) {
-            alert(`Warehouse Update Error: ${whseError.message}`);
+            alert(`Error: ${whseError.message}`);
             statusDiv.className = 'status error';
-            statusDiv.textContent = 'Error updating warehouse shelf!';
+            statusDiv.textContent = 'Error updating shelf!';
             return;
         }
 
@@ -687,23 +1074,19 @@
             await _supabase.from('showroom_inventory').upsert(showroomPayload, { onConflict: dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode' });
         }
 
-        let logWorkerName = `${operatorName} (Direct Intake to ${selectedLoc})`;
+        let logWorkerName = `${currentActiveOperatorName} (Intake to ${selectedLoc})`;
         let logQty = qty;
-        if (txType === 'out') { logWorkerName = `${operatorName} (Shelf ${selectedLoc} -> Showroom)`; logQty = qty; }
-        if (txType === 'in') { logWorkerName = `${operatorName} (Showroom -> Shelf ${selectedLoc})`; logQty = -qty; }
+        if (txType === 'out') { logWorkerName = `${currentActiveOperatorName} (Shelf ${selectedLoc} -> Showroom)`; logQty = qty; }
+        if (txType === 'in') { logWorkerName = `${currentActiveOperatorName} (Showroom -> Shelf ${selectedLoc})`; logQty = -qty; }
          
         const { error: logError } = await _supabase.from('transfer_log').insert([{ Barcode: barcode, qty_transferred: logQty, worker_name: logWorkerName }]);
         if (logError) {
-            console.error("Log Error Details:", logError);
-            alert(`⚠️ Log Saving Failed!\nError: ${logError.message}\n\n(Stock was updated, but log wasn't saved)`);
-            statusDiv.className = 'status error';
-            statusDiv.textContent = `Stock updated but log failed: ${logError.message}`;
+            alert(`⚠️ Log Failed: ${logError.message}`);
             return;
         }
 
         statusDiv.className = 'status success';
         statusDiv.textContent = 'Stock & Logs updated successfully!';
-         
         setTimeout(resetPage, 1500);
     }
 
@@ -716,9 +1099,11 @@
         statusDiv.textContent = '';
         statusDiv.className = 'status';
         barcodeInput.focus();
-        const savedOperator = localStorage.getItem('sc_operator_name');
-        if (savedOperator) {
-            document.getElementById('operator-name-input').value = savedOperator;
+        
+        const savedSession = localStorage.getItem('sc_auth_session');
+        if(savedSession) {
+            const parsed = JSON.parse(savedSession);
+            applyRoleAccessControl(parsed.role);
         }
     }
 </script>
