@@ -2,76 +2,86 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Enterprise Inventory Dashboard</title>
+    <title>Analytics Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --turquoise: #06b6d4; --gold: #e5b822; --dark: #0f172a; --bg: #f8fafc; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
-        .dashboard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 20px; }
-        .kpi-card { background: white; padding: 20px; border-radius: 12px; border-left: 5px solid var(--turquoise); box-shadow: 0 4px 6px rgba(0,0,0,0.1); text-align: center; }
-        .controls { background: var(--dark); padding: 20px; border-radius: 12px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; color: white; }
-        select { padding: 10px; border-radius: 6px; width: 100%; }
-        .chart-box { background: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; }
+        body { font-family: sans-serif; background: #f1f5f9; padding: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 6px; }
     </style>
 </head>
 <body>
 
-<div class="controls">
-    <select id="catSelect" onchange="applyFilters()"><option value="">All Categories</option></select>
-    <select id="subCatSelect" onchange="applyFilters()"><option value="">All Sub-Categories</option></select>
-    <select id="typeSelect" onchange="applyFilters()"><option value="all">All Transactions</option><option value="Intake">Intake</option><option value="Showroom">Showroom</option></select>
-    <input type="date" id="dateSelect" onchange="applyFilters()">
+<div class="card" style="display: flex; gap: 10px; margin-bottom: 20px;">
+    <select id="catFilter" onchange="applyFilters()"><option value="">All Categories</option></select>
+    <select id="subCatFilter" onchange="applyFilters()"><option value="">All Sub-Categories</option></select>
 </div>
 
-<div class="dashboard-grid">
-    <div class="kpi-card"><h3>Total Intake</h3><p id="kpi-intake" style="font-size: 2em; font-weight: bold;">0</p></div>
-    <div class="kpi-card"><h3>Total Showroom</h3><p id="kpi-showroom" style="font-size: 2em; font-weight: bold;">0</p></div>
-    <div class="kpi-card"><h3>Net Inventory</h3><p id="kpi-net" style="font-size: 2em; font-weight: bold;">0</p></div>
+<div class="grid">
+    <div class="card"><h3>Intake</h3><p id="stat-intake" style="font-size: 24px;">0</p></div>
+    <div class="card"><h3>Outbound</h3><p id="stat-out" style="font-size: 24px;">0</p></div>
+    <div class="card"><h3>Total Logs</h3><p id="stat-total" style="font-size: 24px;">0</p></div>
 </div>
 
-<div class="chart-box"><canvas id="mainChart"></canvas></div>
+<div class="card" style="margin-top: 20px;"><canvas id="mainChart"></canvas></div>
 
 <script>
+    // کلیدهای خود را اینجا جایگذاری کنید
     const _supabase = supabase.createClient('https://qmurpnbrnmyjdxqjhybz.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec');
-    let masterData = [];
+    let logs = [], inventory = [];
 
-    async function fetchData() {
-        // ۱. واکشی موجودی سیستمی (برای کتگوری‌ها) و لاگ‌ها
-        const { data: logs } = await _supabase.from('transfer_log').select('*');
-        const { data: items } = await _supabase.from('system_inventory').select('barcode, category, sub_category, item_name');
+    async function init() {
+        // دریافت همزمان هر دو جدول
+        const { data: logsData } = await _supabase.from('transfer_log').select('*');
+        const { data: invData } = await _supabase.from('system_inventory').select('*');
         
-        masterData = logs.map(log => ({
-            ...log,
-            meta: items.find(i => i.barcode === log.Barcode) || {}
-        }));
+        logs = logsData || [];
+        inventory = invData || [];
 
-        // پر کردن داینامیک لیست‌ها
-        const cats = [...new Set(items.map(i => i.category))];
-        cats.forEach(c => document.getElementById('catSelect').innerHTML += `<option value="${c}">${c}</option>`);
+        // پر کردن دراپ‌دان‌ها
+        const cats = [...new Set(inventory.map(i => i.category))];
+        const subCats = [...new Set(inventory.map(i => i.sub_category))];
+        
+        cats.forEach(c => document.getElementById('catFilter').innerHTML += `<option value="${c}">${c}</option>`);
+        subCats.forEach(s => document.getElementById('subCatFilter').innerHTML += `<option value="${s}">${s}</option>`);
         
         applyFilters();
     }
 
     function applyFilters() {
-        const cat = document.getElementById('catSelect').value;
-        const type = document.getElementById('typeSelect').value;
+        const cat = document.getElementById('catFilter').value;
+        const sub = document.getElementById('subCatFilter').value;
+
+        // فیلتر کردن لاگ‌ها بر اساس کتگوریِ متصل به بارکد
+        const filtered = logs.filter(log => {
+            const item = inventory.find(i => i.barcode === log.Barcode);
+            return (!cat || item?.category === cat) && (!sub || item?.sub_category === sub);
+        });
+
+        updateStats(filtered);
+    }
+
+    function updateStats(data) {
+        document.getElementById('stat-intake').innerText = data.filter(d => d.qty_transferred > 0).length;
+        document.getElementById('stat-out').innerText = data.filter(d => d.qty_transferred < 0).length;
+        document.getElementById('stat-total').innerText = data.length;
         
-        const filtered = masterData.filter(d => 
-            (!cat || d.meta.category === cat) && 
-            (type === 'all' || d.worker_name.includes(type))
-        );
-
-        updateUI(filtered);
+        // رسم نمودار (ساده و سریع)
+        renderChart(data);
     }
 
-    function updateUI(data) {
-        document.getElementById('kpi-intake').innerText = data.filter(d => d.qty_transferred > 0).length;
-        document.getElementById('kpi-showroom').innerText = data.filter(d => d.qty_transferred < 0).length;
-        // رسم چارت و ...
+    function renderChart(data) {
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if(window.chartInstance) window.chartInstance.destroy();
+        window.chartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: { labels: ['Intake', 'Outbound'], datasets: [{ data: [data.filter(d => d.qty_transferred > 0).length, data.filter(d => d.qty_transferred < 0).length], backgroundColor: ['#06b6d4', '#e5b822'] }] }
+        });
     }
 
-    fetchData();
+    init();
 </script>
 </body>
 </html>
