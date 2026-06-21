@@ -2,32 +2,44 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Inventory Discrepancy Report</title>
+    <title>Full Inventory Discrepancy Report</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f4f6f7; }
-        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 13px; }
-        th { background: #2d3436; color: #dfe6e9; }
-        .controls { margin-bottom: 15px; }
-        .btn { padding: 8px 12px; cursor: pointer; border: none; border-radius: 4px; color: white; font-weight: bold; }
-        #pagination { margin-top: 15px; display: flex; gap: 5px; flex-wrap: wrap; }
-        .page-btn { padding: 5px 10px; cursor: pointer; border: 1px solid #ccc; background: white; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; background: #f4f6f7; }
+        .container { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; }
+        .btn { padding: 10px 20px; cursor: pointer; border: none; border-radius: 5px; color: white; font-weight: bold; font-size: 14px; }
+        .btn-load { background: #0984e3; }
+        .btn-export { background: #00b894; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; font-size: 14px; }
+        th { background: #2d3436; color: white; }
+        #pagination { margin-top: 20px; display: flex; gap: 5px; flex-wrap: wrap; }
+        .page-btn { padding: 5px 12px; cursor: pointer; border: 1px solid #ddd; background: #fff; border-radius: 3px; }
+        .page-btn:hover { background: #f1f1f1; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Inventory Discrepancy Report (Total: <span id="total-count">0</span>)</h2>
+    <h2>Inventory Discrepancy Report</h2>
     <div class="controls">
-        <button class="btn" style="background:#0984e3" onclick="processData()">Refresh & Calculate</button>
-        <button class="btn" style="background:#00b894" onclick="exportToCSV()">Export Full Excel</button>
+        <button class="btn btn-load" onclick="runFullReport()">Load & Calculate 33k+ Records</button>
+        <button class="btn btn-export" onclick="exportToCSV()">Download Full CSV</button>
     </div>
+    <div id="status" style="font-weight: bold; color: #636e72;">Status: Click the button to start loading...</div>
 
     <table id="report-table">
         <thead>
-            <tr><th>Barcode</th><th>Item Name</th><th>Category</th><th>System</th><th>Warehouse</th><th>Showroom</th><th>Physical Total</th><th>Difference</th></tr>
+            <tr>
+                <th>Barcode</th>
+                <th>Item Name</th>
+                <th>System</th>
+                <th>Warehouse (GT)</th>
+                <th>Showroom</th>
+                <th>Physical Total</th>
+                <th>Difference</th>
+            </tr>
         </thead>
         <tbody id="report-body"></tbody>
     </table>
@@ -35,6 +47,7 @@
 </div>
 
 <script>
+    // تنظیمات ارتباط با سوپابیس
     const _supabase = supabase.createClient(
         'https://qmurpnbrnmyjdxqjhybz.supabase.co', 
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'
@@ -43,68 +56,99 @@
     let finalData = [];
     const pageSize = 50;
 
-    async function processData() {
-        document.getElementById('report-body').innerHTML = '<tr><td colspan="8">Calculating accurate totals...</td></tr>';
+    // تابع برای دریافت تمام داده‌ها از یک جدول با رعایت محدودیت ۱۰۰۰ تایی
+    async function fetchAll(tableName) {
+        let allData = [];
+        let from = 0, to = 999;
+        while (true) {
+            const { data, error } = await _supabase.from(tableName).select('*').range(from, to);
+            if (error || !data || data.length === 0) break;
+            allData = allData.concat(data);
+            from += 1000;
+            to += 1000;
+        }
+        return allData;
+    }
+
+    // تابع اصلی پردازش داده‌ها
+    async function runFullReport() {
+        document.getElementById('status').textContent = "Status: Fetching all 33k+ records from 3 tables. Please wait...";
         
-        const { data: sysData } = await _supabase.from('system_inventory').select('*');
-        const { data: whData } = await _supabase.from('warehouse_inventory').select('*');
-        const { data: shData } = await _supabase.from('showroom_inventory').select('*');
+        const [sys, wh, sh] = await Promise.all([
+            fetchAll('system_inventory'),
+            fetchAll('warehouse_inventory'),
+            fetchAll('showroom_inventory')
+        ]);
 
         const map = {};
 
-        sysData.forEach(item => {
-            map[item.Barcode] = { name: item["Item Name"] || "N/A", cat: item.Category || "N/A", sys: Number(item.Stock || 0), wh: 0, sh: 0 };
+        // پردازش موجودی سیستم
+        sys.forEach(i => {
+            map[i.Barcode] = { name: i["Item Name"] || "N/A", sys: Number(i.Stock || 0), wh: 0, sh: 0 };
         });
 
-        whData.forEach(item => {
-            if (item.Attribute && item.Attribute.trim() === 'Grand Total') {
-                const bc = item["Row Labels"];
-                if (!map[bc]) map[bc] = { name: 'Unknown', cat: 'N/A', sys: 0, wh: 0, sh: 0 };
-                let val = String(item.Value || "0").replace(/,/g, '');
-                map[bc].wh += Number(val);
+        // پردازش انبار با فیلتر Grand Total
+        wh.forEach(i => {
+            if (i.Attribute && i.Attribute.trim() === 'Grand Total') {
+                const bc = i["Row Labels"];
+                if (map[bc]) {
+                    let val = String(i.Value || "0").replace(/,/g, '');
+                    map[bc].wh += Number(val);
+                }
             }
         });
 
-        shData.forEach(item => {
-            const bc = item.Barcode;
-            if (!map[bc]) map[bc] = { name: 'Unknown', cat: 'N/A', sys: 0, wh: 0, sh: 0 };
-            map[bc].sh += Number(item.showroom_qty || 0);
+        // پردازش شو روم
+        sh.forEach(i => {
+            if (map[i.Barcode]) {
+                map[i.Barcode].sh += Number(i.showroom_qty || 0);
+            }
         });
 
-        finalData = Object.keys(map).map(bc => {
-            const row = map[bc];
-            const physical = row.wh + row.sh;
-            return { Barcode: bc, Name: row.name, Cat: row.cat, Sys: row.sys, Wh: row.wh, Sh: row.sh, Phys: physical, Diff: physical - row.sys };
-        });
+        // آماده‌سازی آرایه نهایی
+        finalData = Object.keys(map).map(bc => ({
+            Barcode: bc, 
+            Name: map[bc].name, 
+            Sys: map[bc].sys, 
+            Wh: map[bc].wh, 
+            Sh: map[bc].sh, 
+            Phys: map[bc].wh + map[bc].sh, 
+            Diff: (map[bc].wh + map[bc].sh) - map[bc].sys
+        }));
 
-        document.getElementById('total-count').textContent = finalData.length;
+        document.getElementById('status').textContent = "Status: Done! " + finalData.length + " records processed.";
         renderPage(1);
     }
 
+    // تابع رندر کردن صفحه
     function renderPage(page) {
         const start = (page - 1) * pageSize;
         const pageData = finalData.slice(start, start + pageSize);
+        
         document.getElementById('report-body').innerHTML = pageData.map(i => `<tr>
-            <td>${i.Barcode}</td><td>${i.Name}</td><td>${i.Cat}</td><td>${i.Sys}</td><td>${i.Wh}</td><td>${i.Sh}</td>
-            <td>${i.Phys}</td><td style="color:${i.Diff!==0?'red':'green'}; font-weight:bold;">${i.Diff}</td>
+            <td>${i.Barcode}</td>
+            <td>${i.Name}</td>
+            <td>${i.Sys}</td>
+            <td>${i.Wh}</td>
+            <td>${i.Sh}</td>
+            <td>${i.Phys}</td>
+            <td style="color:${i.Diff!==0?'red':'green'}; font-weight:bold;">${i.Diff}</td>
         </tr>`).join('');
         
         const totalPages = Math.ceil(finalData.length / pageSize);
-        let pgn = "";
-        for(let i=1; i<=totalPages; i++) {
-            pgn += `<button class="page-btn" onclick="renderPage(${i})">${i}</button>`;
-            if(i >= 20) { pgn += '...'; break; } 
-        }
-        document.getElementById('pagination').innerHTML = pgn;
+        document.getElementById('pagination').innerHTML = Array.from({length: Math.min(totalPages, 20)}, (_, i) => 
+            `<button class="page-btn" onclick="renderPage(${i+1})">${i+1}</button>`).join('');
     }
 
+    // تابع خروجی گرفتن اکسل
     function exportToCSV() {
-        if(finalData.length === 0) return;
-        let csv = "Barcode,Item Name,Category,System,Warehouse,Showroom,Physical Total,Difference\n";
-        finalData.forEach(i => csv += `${i.Barcode},"${String(i.Name).replace(/"/g, '""')}","${String(i.Cat).replace(/"/g, '""')}",${i.Sys},${i.Wh},${i.Sh},${i.Phys},${i.Diff}\n`);
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = 'Final_Inventory_Report.csv'; a.click();
+        if(!finalData.length) return;
+        let csv = "Barcode,Item Name,System,Warehouse,Showroom,Physical Total,Difference\n";
+        finalData.forEach(i => csv += `${i.Barcode},"${i.Name.replace(/"/g, '""')}",${i.Sys},${i.Wh},${i.Sh},${i.Phys},${i.Diff}\n`);
+        const a = document.createElement('a');
+        a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+        a.download = 'Full_Discrepancy_Report.csv';
+        a.click();
     }
 </script>
 </body>
