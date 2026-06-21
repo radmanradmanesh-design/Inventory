@@ -19,15 +19,15 @@
 <body>
 
 <div class="container">
-    <h2>Discrepancy Report (Total: <span id="total-count">0</span>)</h2>
+    <h2>Inventory Discrepancy Report (Total: <span id="total-count">0</span>)</h2>
     <div class="controls">
-        <button class="btn" style="background:#0984e3" onclick="init()">Refresh Data</button>
+        <button class="btn" style="background:#0984e3" onclick="processData()">Refresh & Calculate</button>
         <button class="btn" style="background:#00b894" onclick="exportToCSV()">Export Full Excel</button>
     </div>
 
     <table id="report-table">
         <thead>
-            <tr><th>Barcode</th><th>Item Name</th><th>Category</th><th>Physical Stock</th><th>System Stock</th><th>Difference</th></tr>
+            <tr><th>Barcode</th><th>Item Name</th><th>Category</th><th>System</th><th>Warehouse</th><th>Showroom</th><th>Physical Total</th><th>Difference</th></tr>
         </thead>
         <tbody id="report-body"></tbody>
     </table>
@@ -35,49 +35,61 @@
 </div>
 
 <script>
-    // کلید و آدرس شما که در کدهای قبلی استفاده کرده بودید
     const _supabase = supabase.createClient(
         'https://qmurpnbrnmyjdxqjhybz.supabase.co', 
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'
     );
     
-    let globalData = [];
+    let finalData = [];
     const pageSize = 50;
 
-    async function init() {
-        document.getElementById('report-body').innerHTML = '<tr><td colspan="6">Loading 33,000+ records...</td></tr>';
-        let allData = [], from = 0, to = 999, keepFetching = true;
+    async function processData() {
+        document.getElementById('report-body').innerHTML = '<tr><td colspan="8">Calculating accurate totals...</td></tr>';
+        
+        const { data: sysData } = await _supabase.from('system_inventory').select('*');
+        const { data: whData } = await _supabase.from('warehouse_inventory').select('*');
+        const { data: shData } = await _supabase.from('showroom_inventory').select('*');
 
-        while (keepFetching) {
-            const { data, error } = await _supabase.from('inventory_discrepancy_report').select('*').range(from, to);
-            if (error) { alert("Error: " + error.message); break; }
-            if (data && data.length > 0) { 
-                allData = allData.concat(data); 
-                from += 1000; 
-                to += 1000; 
-            } else { 
-                keepFetching = false; 
+        const map = {};
+
+        sysData.forEach(item => {
+            map[item.Barcode] = { name: item["Item Name"] || "N/A", cat: item.Category || "N/A", sys: Number(item.Stock || 0), wh: 0, sh: 0 };
+        });
+
+        whData.forEach(item => {
+            if (item.Attribute && item.Attribute.trim() === 'Grand Total') {
+                const bc = item["Row Labels"];
+                if (!map[bc]) map[bc] = { name: 'Unknown', cat: 'N/A', sys: 0, wh: 0, sh: 0 };
+                let val = String(item.Value || "0").replace(/,/g, '');
+                map[bc].wh += Number(val);
             }
-        }
-        globalData = allData;
-        document.getElementById('total-count').textContent = globalData.length;
+        });
+
+        shData.forEach(item => {
+            const bc = item.Barcode;
+            if (!map[bc]) map[bc] = { name: 'Unknown', cat: 'N/A', sys: 0, wh: 0, sh: 0 };
+            map[bc].sh += Number(item.showroom_qty || 0);
+        });
+
+        finalData = Object.keys(map).map(bc => {
+            const row = map[bc];
+            const physical = row.wh + row.sh;
+            return { Barcode: bc, Name: row.name, Cat: row.cat, Sys: row.sys, Wh: row.wh, Sh: row.sh, Phys: physical, Diff: physical - row.sys };
+        });
+
+        document.getElementById('total-count').textContent = finalData.length;
         renderPage(1);
     }
 
     function renderPage(page) {
         const start = (page - 1) * pageSize;
-        const pageData = globalData.slice(start, start + pageSize);
-        document.getElementById('report-body').innerHTML = pageData.map(item => `<tr>
-            <td>${item.Barcode}</td>
-            <td>${item["Item Name"]}</td>
-            <td>${item.Category}</td>
-            <td>${item["Physical Stock"]}</td>
-            <td>${item["System Stock"]}</td>
-            <td style="color:${item.Difference !== 0 ? 'red' : 'green'}; font-weight:bold;">${item.Difference}</td>
+        const pageData = finalData.slice(start, start + pageSize);
+        document.getElementById('report-body').innerHTML = pageData.map(i => `<tr>
+            <td>${i.Barcode}</td><td>${i.Name}</td><td>${i.Cat}</td><td>${i.Sys}</td><td>${i.Wh}</td><td>${i.Sh}</td>
+            <td>${i.Phys}</td><td style="color:${i.Diff!==0?'red':'green'}; font-weight:bold;">${i.Diff}</td>
         </tr>`).join('');
         
-        // نمایش دکمه‌های صفحه‌بندی
-        const totalPages = Math.ceil(globalData.length / pageSize);
+        const totalPages = Math.ceil(finalData.length / pageSize);
         let pgn = "";
         for(let i=1; i<=totalPages; i++) {
             pgn += `<button class="page-btn" onclick="renderPage(${i})">${i}</button>`;
@@ -87,20 +99,13 @@
     }
 
     function exportToCSV() {
-        if(globalData.length === 0) return;
-        let csv = "Barcode,Item Name,Category,Physical Stock,System Stock,Difference\n";
-        globalData.forEach(row => {
-            csv += `${row.Barcode},"${String(row["Item Name"]).replace(/"/g, '""')}","${String(row.Category).replace(/"/g, '""')}",${row["Physical Stock"]},${row["System Stock"]},${row.Difference}\n`;
-        });
+        if(finalData.length === 0) return;
+        let csv = "Barcode,Item Name,Category,System,Warehouse,Showroom,Physical Total,Difference\n";
+        finalData.forEach(i => csv += `${i.Barcode},"${String(i.Name).replace(/"/g, '""')}","${String(i.Cat).replace(/"/g, '""')}",${i.Sys},${i.Wh},${i.Sh},${i.Phys},${i.Diff}\n`);
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'Full_Inventory_Report.csv';
-        a.click();
+        const a = document.createElement('a'); a.href = url; a.download = 'Final_Inventory_Report.csv'; a.click();
     }
-
-    init();
 </script>
 </body>
 </html>
