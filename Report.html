@@ -87,33 +87,33 @@
             map[i.Barcode] = { name: i["Item Name"] || "N/A", sys: Number(i.Stock || 0), wh: 0, sh: 0 };
         });
 
-        // پردازش انبار با فیلتر Grand Total
+        // ۱. پردازش انبار - فقط مقادیر انبار
         wh.forEach(i => {
             if (i.Attribute && i.Attribute.trim() === 'Grand Total') {
                 const bc = i["Row Labels"];
                 if (map[bc]) {
-                    let val = String(i.Value || "0").replace(/,/g, '');
-                    map[bc].wh += Number(val);
+                    map[bc].wh = Number(String(i.Value || "0").replace(/,/g, ''));
                 }
             }
         });
 
-        // پردازش شو روم
+        // ۲. پردازش شو روم - فقط مقادیر شو روم
         sh.forEach(i => {
             if (map[i.Barcode]) {
-                map[i.Barcode].sh += Number(i.showroom_qty || 0);
+                map[i.Barcode].sh = Number(i.showroom_qty || 0);
             }
         });
 
-        // آماده‌سازی آرایه نهایی
+        // ۳. محاسبه نهایی (بدون تکرار)
         finalData = Object.keys(map).map(bc => ({
             Barcode: bc, 
             Name: map[bc].name, 
             Sys: map[bc].sys, 
             Wh: map[bc].wh, 
             Sh: map[bc].sh, 
-            Phys: map[bc].wh + map[bc].sh, 
+            Phys: map[bc].wh + map[bc].sh, // جمعِ دقیقِ این دو ستون
             Diff: (map[bc].wh + map[bc].sh) - map[bc].sys
+     
         }));
 
         document.getElementById('status').textContent = "Status: Done! " + finalData.length + " records processed.";
