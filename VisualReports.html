@@ -2,48 +2,45 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Visual Management Reports</title>
+    <title>Advanced Analytics Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        :root { --turquoise: #06b6d4; --gold: #e5b822; --dark: #0f172a; }
+        :root { --turquoise: #06b6d4; --dark: #0f172a; }
         body { font-family: 'Segoe UI', sans-serif; background: #f8fafc; padding: 20px; }
-        .container { max-width: 900px; margin: auto; }
-        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; text-align: center; }
-        .grid-filters { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: left; }
-        select, input, button { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; margin-top: 5px; }
-        button { background: var(--turquoise); color: white; border: none; font-weight: bold; cursor: pointer; }
-        #total-tx-counter { font-size: 3.5em; color: var(--turquoise); font-weight: bold; }
+        .container { max-width: 1000px; margin: auto; }
+        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        label { font-weight: bold; font-size: 0.9em; }
+        input, select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; margin-top: 5px; }
+        button { background: var(--turquoise); color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; margin-top: 20px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <a href="Test Security1.html" style="color: var(--turquoise); text-decoration: none; font-weight: bold;">← بازگشت به اسکنر</a>
+    <a href="Test Security1.html" style="color: var(--turquoise); text-decoration: none;">← Back to Scanner</a>
     <h1>Advanced Analytics Dashboard</h1>
 
     <div class="card">
-        <h3>تعداد کل تراکنش‌ها</h3>
-        <div id="total-tx-counter">0</div>
-    </div>
-
-    <div class="card">
-        <div class="grid-filters">
-            <div>
-                <label><strong>نوع عملیات:</strong></label>
-                <select id="typeFilter" onchange="loadReport()">
-                    <option value="all">همه تراکنش‌ها</option>
-                    <option value="Intake">ورودی (Intake)</option>
-                    <option value="Showroom">خروجی (Showroom)</option>
+        <div class="filter-grid">
+            <div><label>Barcode</label><input type="text" id="filterBarcode" oninput="loadReport()"></div>
+            <div><label>Item Name</label><input type="text" id="filterItemName" oninput="loadReport()"></div>
+            <div><label>Category</label><input type="text" id="filterCategory" oninput="loadReport()"></div>
+            <div><label>Sub-Category</label><input type="text" id="filterSubCategory" oninput="loadReport()"></div>
+            <div><label>Operator</label><input type="text" id="filterUser" oninput="loadReport()"></div>
+            <div><label>Transaction Type</label>
+                <select id="filterType" onchange="loadReport()">
+                    <option value="all">All</option>
+                    <option value="Intake">Intake</option>
+                    <option value="Showroom">Showroom</option>
                 </select>
             </div>
-            <div>
-                <label><strong>جستجوی کالا (بارکد):</strong></label>
-                <input type="text" id="itemFilter" placeholder="کد کالا را وارد کنید..." oninput="loadReport()">
-            </div>
+            <div><label>Start Date</label><input type="date" id="dateStart" onchange="loadReport()"></div>
+            <div><label>End Date</label><input type="date" id="dateEnd" onchange="loadReport()"></div>
         </div>
-        <button onclick="exportToExcel()" style="margin-top: 20px;">📥 خروجی اکسل (Export to Excel)</button>
+        <button onclick="exportToExcel()">📥 Export to Excel</button>
     </div>
 
     <div class="card">
@@ -52,56 +49,48 @@
 </div>
 
 <script>
-    const SUPABASE_URL = 'https://qmurpnbrnmyjdxqjhybz.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec';
-    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const _supabase = supabase.createClient(
+        'https://qmurpnbrnmyjdxqjhybz.supabase.co', 
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'
+    );
 
     let myChart;
     let currentData = [];
 
-    function animateValue(id, end, duration) {
-        let start = 0;
-        let obj = document.getElementById(id);
-        let startTime = null;
-        function step(timestamp) {
-            if (!startTime) startTime = timestamp;
-            let progress = Math.min((timestamp - startTime) / duration, 1);
-            obj.innerHTML = Math.floor(progress * (end - start) + start);
-            if (progress < 1) window.requestAnimationFrame(step);
-        }
-        window.requestAnimationFrame(step);
-    }
-
     async function loadReport() {
-        const typeVal = document.getElementById('typeFilter').value;
-        const itemVal = document.getElementById('itemFilter').value.toLowerCase();
-
-        const { data, error } = await _supabase.from('transfer_log').select('*').order('created_at', { ascending: false });
-        if (error) { console.error(error); return; }
-
+        const { data } = await _supabase.from('transfer_log').select('*').order('created_at', { ascending: false });
+        
         currentData = data.filter(item => {
-            const matchType = (typeVal === 'all' || (item.worker_name && item.worker_name.includes(typeVal)));
-            const matchItem = (itemVal === '' || (item.Barcode && item.Barcode.toLowerCase().includes(itemVal)));
-            return matchType && matchItem;
+            const b = document.getElementById('filterBarcode').value.toLowerCase();
+            const i = document.getElementById('filterItemName').value.toLowerCase();
+            const c = document.getElementById('filterCategory').value.toLowerCase();
+            const s = document.getElementById('filterSubCategory').value.toLowerCase();
+            const u = document.getElementById('filterUser').value.toLowerCase();
+            const t = document.getElementById('filterType').value;
+            const ds = document.getElementById('dateStart').value;
+            const de = document.getElementById('dateEnd').value;
+
+            return (!b || item.Barcode?.toLowerCase().includes(b)) &&
+                   (!i || item.ItemName?.toLowerCase().includes(i)) &&
+                   (!c || item.Category?.toLowerCase().includes(c)) &&
+                   (!s || item.SubCategory?.toLowerCase().includes(s)) &&
+                   (!u || item.worker_name?.toLowerCase().includes(u)) &&
+                   (t === 'all' || item.worker_name?.includes(t)) &&
+                   (!ds || item.created_at >= ds) &&
+                   (!de || item.created_at <= de);
         });
 
-        animateValue("total-tx-counter", currentData.length, 1000);
         updateChart(currentData);
     }
 
     function updateChart(data) {
         const ctx = document.getElementById('mainChart').getContext('2d');
         if (myChart) myChart.destroy();
-        
         myChart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: data.map(item => item.Barcode || 'Unknown'),
-                datasets: [{
-                    label: 'تعداد جابه‌جایی',
-                    data: data.map(item => Math.abs(item.qty_transferred)),
-                    backgroundColor: '#06b6d4'
-                }]
+                labels: data.map(item => item.Barcode),
+                datasets: [{ label: 'Qty', data: data.map(item => Math.abs(item.qty_transferred)), backgroundColor: '#06b6d4' }]
             }
         });
     }
@@ -110,10 +99,9 @@
         const ws = XLSX.utils.json_to_sheet(currentData);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, "Report");
-        XLSX.writeFile(wb, "Warehouse_Report.xlsx");
+        XLSX.writeFile(wb, "Warehouse_Full_Report.xlsx");
     }
 
-    _supabase.channel('transfer_log_changes').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'transfer_log' }, () => loadReport()).subscribe();
     loadReport();
 </script>
 </body>
