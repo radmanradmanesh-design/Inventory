@@ -2,115 +2,85 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Discrepancy Report</title>
+    <title>Inventory Discrepancy Report</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        :root { --turquoise-main: #06b6d4; --royal-gold: #e5b822; --dark-slate: #0f172a; }
-        body { font-family: sans-serif; background: #f0fdfa; padding: 20px; }
-        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background-color: var(--dark-slate); color: var(--royal-gold); padding: 10px; font-size: 13px; text-align: center; }
-        td { padding: 8px; border-bottom: 1px solid #ddd; text-align: center; }
-        .filter-input { width: 90%; padding: 4px; margin-top: 5px; font-size: 11px; }
-        .btn { padding: 10px 15px; border: none; cursor: pointer; color: white; border-radius: 4px; font-weight: bold; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; background: #f4f6f7; }
+        .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ccc; padding: 10px; text-align: left; font-size: 14px; }
+        th { background: #2d3436; color: #dfe6e9; }
+        .btn { padding: 10px 15px; cursor: pointer; border: none; border-radius: 4px; color: white; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Inventory Discrepancy Report</h1>
-    <div style="margin-bottom: 20px;">
-        <button class="btn" style="background:#06b6d4" onclick="fetchReport()">Refresh All Data</button>
-        <button class="btn" style="background:#10b981" onclick="exportToCSV()">Full Export to Excel</button>
-        <span id="page-info" style="margin-left:15px;"></span>
-        <div class="controls" style="margin-bottom: 20px;">
-        <button class="btn" style="background:#ef4444" onclick="testConnection()">Test Total Records</button>
-        <span id="page-info" style="margin-left:15px;"></span>
-       </div>
+    <h2>Discrepancy Report (Total Records: <span id="total-count">0</span>)</h2>
+    <button class="btn" style="background:#0984e3" onclick="init()">Refresh Data</button>
+    <button class="btn" style="background:#00b894" onclick="exportToCSV()">Export Full Excel (CSV)</button>
 
-    <table id="report-table">
+    <table>
         <thead>
             <tr>
-                <th>Barcode<br><input type="text" class="filter-input" id="f0" onkeyup="applyFilters()" placeholder="Search..."></th>
-                <th>Item Name<br><input type="text" class="filter-input" id="f1" onkeyup="applyFilters()" placeholder="Search..."></th>
-                <th>Category<br><input type="text" class="filter-input" id="f2" onkeyup="applyFilters()" placeholder="Search..."></th>
-                <th>Physical Stock</th><th>System Stock</th><th>Difference</th>
+                <th>Barcode</th>
+                <th>Item Name</th>
+                <th>Category</th>
+                <th>Physical Stock</th>
+                <th>System Stock</th>
+                <th>Difference</th>
             </tr>
         </thead>
         <tbody id="report-body"></tbody>
     </table>
-    <div id="pagination" style="margin-top: 20px;"></div>
 </div>
 
 <script>
     const _supabase = supabase.createClient('https://qmurpnbrnmyjdxqjhybz.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec');
     
-    let allData = [];
-    let filteredData = [];
-    const pageSize = 50;
+    let globalData = [];
 
-    async function fetchReport() {
-        document.getElementById('report-body').innerHTML = '<tr><td colspan="6">Loading 33,000+ records...</td></tr>';
+    async function init() {
+        document.getElementById('report-body').innerHTML = '<tr><td colspan="6">Loading 33,000+ records... Please wait.</td></tr>';
+        
         const { data, error } = await _supabase.from('inventory_discrepancy_report').select('*');
-        if (error) { alert(error.message); return; }
-        allData = data;
-        filteredData = data;
-        renderPage(1);
-    }
-
-    function applyFilters() {
-        const f0 = document.getElementById('f0').value.toUpperCase();
-        const f1 = document.getElementById('f1').value.toUpperCase();
-        const f2 = document.getElementById('f2').value.toUpperCase();
+        if (error) { alert("Error: " + error.message); return; }
         
-        filteredData = allData.filter(item => 
-            String(item.Barcode).toUpperCase().includes(f0) &&
-            String(item["Item Name"]).toUpperCase().includes(f1) &&
-            String(item.Category).toUpperCase().includes(f2)
-        );
-        renderPage(1);
+        globalData = data;
+        document.getElementById('total-count').textContent = data.length;
+        
+        // Render first 100 records for performance
+        renderTable(data.slice(0, 100));
     }
 
-    function renderPage(page) {
+    function renderTable(dataArray) {
         const tbody = document.getElementById('report-body');
-        const start = (page - 1) * pageSize;
-        const pageData = filteredData.slice(start, start + pageSize);
-        
-        tbody.innerHTML = pageData.map(item => `<tr>
-            <td>${item.Barcode}</td><td>${item["Item Name"]}</td><td>${item.Category}</td>
-            <td>${item["Physical Stock"]}</td><td>${item["System Stock"]}</td>
-            <td style="color:${item.Difference!==0?'red':'green'}">${item.Difference}</td>
+        tbody.innerHTML = dataArray.map(item => `<tr>
+            <td>${item.Barcode}</td>
+            <td>${item["Item Name"]}</td>
+            <td>${item.Category}</td>
+            <td>${item["Physical Stock"]}</td>
+            <td>${item["System Stock"]}</td>
+            <td style="color:${item.Difference !== 0 ? 'red' : 'green'}; font-weight:bold;">${item.Difference}</td>
         </tr>`).join('');
-
-        document.getElementById('page-info').textContent = `Showing ${filteredData.length} records (Page ${page})`;
     }
 
     function exportToCSV() {
+        if (globalData.length === 0) return alert("No data available!");
         let csv = "Barcode,Item Name,Category,Physical Stock,System Stock,Difference\n";
-        // استفاده از filteredData برای خروجی گرفتن از نتایج فیلتر شده یا کل داده‌ها
-        filteredData.forEach(row => {
+        globalData.forEach(row => {
+            // Using template literal with proper escaping for CSV
             csv += `${row.Barcode},"${String(row["Item Name"]).replace(/"/g, '""')}","${String(row.Category).replace(/"/g, '""')}",${row["Physical Stock"]},${row["System Stock"]},${row.Difference}\n`;
         });
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'Discrepancy_Report_Full.csv';
+        a.download = 'Full_Inventory_Report.csv';
         a.click();
     }
-    async function testConnection() {
-    // این تابع تعداد دقیق ردیف‌های موجود در ویوی سوپرابیس را می‌شمارد
-    const { count, error } = await _supabase
-        .from('inventory_discrepancy_report')
-        .select('*', { count: 'exact', head: true });
-    
-    if (error) {
-        alert("خطا در اتصال: " + error.message);
-    } else {
-        alert("تعداد کل ردیف‌های موجود در دیتابیس برای گزارش: " + count);
-    }
-}
-    fetchReport();
+
+    init();
 </script>
 </body>
 </html>
