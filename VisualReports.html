@@ -2,82 +2,79 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Analytics Dashboard</title>
+    <title>Enterprise Analytics Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: sans-serif; background: #f1f5f9; padding: 20px; }
-        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        select { width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #cbd5e1; border-radius: 6px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f8fafc; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .controls { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
+        select { padding: 10px; border-radius: 6px; border: 1px solid #cbd5e1; }
     </style>
 </head>
 <body>
 
-<div class="card" style="display: flex; gap: 10px; margin-bottom: 20px;">
-    <select id="catFilter" onchange="applyFilters()"><option value="">All Categories</option></select>
-    <select id="subCatFilter" onchange="applyFilters()"><option value="">All Sub-Categories</option></select>
+<div class="card">
+    <div class="controls">
+        <select id="catSelect" onchange="applyFilters()"><option value="">All Categories</option></select>
+        <select id="subCatSelect" onchange="applyFilters()"><option value="">All Subcategories</option></select>
+        <select id="typeSelect" onchange="applyFilters()"><option value="all">All Types</option><option value="Intake">Intake</option><option value="Showroom">Showroom</option></select>
+    </div>
 </div>
 
-<div class="grid">
-    <div class="card"><h3>Intake</h3><p id="stat-intake" style="font-size: 24px;">0</p></div>
-    <div class="card"><h3>Outbound</h3><p id="stat-out" style="font-size: 24px;">0</p></div>
-    <div class="card"><h3>Total Logs</h3><p id="stat-total" style="font-size: 24px;">0</p></div>
-</div>
-
-<div class="card" style="margin-top: 20px;"><canvas id="mainChart"></canvas></div>
+<div class="card"><canvas id="mainChart"></canvas></div>
 
 <script>
-    // کلیدهای خود را اینجا جایگذاری کنید
-    const _supabase = supabase.createClient('https://qmurpnbrnmyjdxqjhybz.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec');
+    const _supabase = supabase.createClient('YOUR_URL', 'YOUR_KEY');
     let logs = [], inventory = [];
 
     async function init() {
-        // دریافت همزمان هر دو جدول
+        // فراخوانی با نام‌های دقیق ستون‌های شما
         const { data: logsData } = await _supabase.from('transfer_log').select('*');
-        const { data: invData } = await _supabase.from('system_inventory').select('*');
+        const { data: invData } = await _supabase.from('system_inventory').select('"Barcode", "Category", "Subcategory"');
         
         logs = logsData || [];
         inventory = invData || [];
 
-        // پر کردن دراپ‌دان‌ها
-        const cats = [...new Set(inventory.map(i => i.category))];
-        const subCats = [...new Set(inventory.map(i => i.sub_category))];
+        // پر کردن دراپ‌دان‌ها با هندل کردن مقادیر null
+        const cats = [...new Set(inventory.map(i => i.Category).filter(Boolean))];
+        const subCats = [...new Set(inventory.map(i => i.Subcategory).filter(Boolean))];
         
-        cats.forEach(c => document.getElementById('catFilter').innerHTML += `<option value="${c}">${c}</option>`);
-        subCats.forEach(s => document.getElementById('subCatFilter').innerHTML += `<option value="${s}">${s}</option>`);
+        cats.forEach(c => document.getElementById('catSelect').innerHTML += `<option value="${c}">${c}</option>`);
+        subCats.forEach(s => document.getElementById('subCatSelect').innerHTML += `<option value="${s}">${s}</option>`);
         
         applyFilters();
     }
 
     function applyFilters() {
-        const cat = document.getElementById('catFilter').value;
-        const sub = document.getElementById('subCatFilter').value;
+        const cat = document.getElementById('catSelect').value;
+        const sub = document.getElementById('subCatSelect').value;
+        const type = document.getElementById('typeSelect').value;
 
-        // فیلتر کردن لاگ‌ها بر اساس کتگوریِ متصل به بارکد
         const filtered = logs.filter(log => {
-            const item = inventory.find(i => i.barcode === log.Barcode);
-            return (!cat || item?.category === cat) && (!sub || item?.sub_category === sub);
+            const item = inventory.find(i => i.Barcode === log.Barcode);
+            return (!cat || item?.Category === cat) && 
+                   (!sub || item?.Subcategory === sub) &&
+                   (type === 'all' || (log.worker_name && log.worker_name.includes(type)));
         });
 
-        updateStats(filtered);
-    }
-
-    function updateStats(data) {
-        document.getElementById('stat-intake').innerText = data.filter(d => d.qty_transferred > 0).length;
-        document.getElementById('stat-out').innerText = data.filter(d => d.qty_transferred < 0).length;
-        document.getElementById('stat-total').innerText = data.length;
-        
-        // رسم نمودار (ساده و سریع)
-        renderChart(data);
+        renderChart(filtered);
     }
 
     function renderChart(data) {
         const ctx = document.getElementById('mainChart').getContext('2d');
-        if(window.chartInstance) window.chartInstance.destroy();
-        window.chartInstance = new Chart(ctx, {
-            type: 'doughnut',
-            data: { labels: ['Intake', 'Outbound'], datasets: [{ data: [data.filter(d => d.qty_transferred > 0).length, data.filter(d => d.qty_transferred < 0).length], backgroundColor: ['#06b6d4', '#e5b822'] }] }
+        if (window.myChart) window.myChart.destroy();
+        
+        window.myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Intake', 'Showroom'],
+                datasets: [{
+                    label: 'Transaction Count',
+                    data: [data.filter(d => d.qty_transferred > 0).length, data.filter(d => d.qty_transferred < 0).length],
+                    backgroundColor: ['#06b6d4', '#e5b822']
+                }]
+            }
         });
     }
 
