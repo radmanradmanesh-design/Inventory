@@ -23,7 +23,12 @@
         <button class="btn" style="background:#06b6d4" onclick="fetchReport()">Refresh All Data</button>
         <button class="btn" style="background:#10b981" onclick="exportToCSV()">Full Export to Excel</button>
         <span id="page-info" style="margin-left:15px;"></span>
-    </div>
+        <div class="controls" style="margin-bottom: 20px;">
+        <button class="btn" style="background:#06b6d4" onclick="fetchReport()">Refresh All Data</button>
+        <button class="btn" style="background:#10b981" onclick="exportToCSV()">Full Export to Excel</button>
+        <button class="btn" style="background:#ef4444" onclick="testConnection()">Test Total Records</button>
+        <span id="page-info" style="margin-left:15px;"></span>
+       </div>
 
     <table id="report-table">
         <thead>
@@ -95,7 +100,18 @@
         a.download = 'Discrepancy_Report_Full.csv';
         a.click();
     }
-
+    async function testConnection() {
+    // این تابع تعداد دقیق ردیف‌های موجود در ویوی سوپرابیس را می‌شمارد
+    const { count, error } = await _supabase
+        .from('inventory_discrepancy_report')
+        .select('*', { count: 'exact', head: true });
+    
+    if (error) {
+        alert("خطا در اتصال: " + error.message);
+    } else {
+        alert("تعداد کل ردیف‌های موجود در دیتابیس برای گزارش: " + count);
+    }
+}
     fetchReport();
 </script>
 </body>
