@@ -5,79 +5,69 @@
     <title>Inventory Discrepancy Report</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 20px; background: #f4f6f7; }
+        body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f4f6f7; }
         .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        th, td { border: 1px solid #ccc; padding: 10px; text-align: left; font-size: 14px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 13px; }
         th { background: #2d3436; color: #dfe6e9; }
-        .btn { padding: 10px 15px; cursor: pointer; border: none; border-radius: 4px; color: white; font-weight: bold; }
+        .controls { margin-bottom: 15px; }
+        .btn { padding: 8px 12px; cursor: pointer; border: none; border-radius: 4px; color: white; font-weight: bold; }
+        #pagination { margin-top: 15px; display: flex; gap: 5px; flex-wrap: wrap; }
+        .page-btn { padding: 5px 10px; cursor: pointer; border: 1px solid #ccc; background: white; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Discrepancy Report (Total Records Loaded: <span id="total-count">0</span>)</h2>
-    <button class="btn" style="background:#0984e3" onclick="init()">Refresh Data</button>
-    <button class="btn" style="background:#00b894" onclick="exportToCSV()">Export Full Excel (CSV)</button>
+    <h2>Discrepancy Report (Total: <span id="total-count">0</span>)</h2>
+    <div class="controls">
+        <button class="btn" style="background:#0984e3" onclick="init()">Refresh Data</button>
+        <button class="btn" style="background:#00b894" onclick="exportToCSV()">Export Full Excel</button>
+    </div>
 
-    <table>
+    <table id="report-table">
         <thead>
-            <tr>
-                <th>Barcode</th>
-                <th>Item Name</th>
-                <th>Category</th>
-                <th>Physical Stock</th>
-                <th>System Stock</th>
-                <th>Difference</th>
-            </tr>
+            <tr><th>Barcode</th><th>Item Name</th><th>Category</th><th>Physical Stock</th><th>System Stock</th><th>Difference</th></tr>
         </thead>
         <tbody id="report-body"></tbody>
     </table>
+    <div id="pagination"></div>
 </div>
 
 <script>
-    const _supabase = supabase.createClient('https://qmurpnbrnmyjdxqjhybz.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec');
+    // کلید و آدرس شما که در کدهای قبلی استفاده کرده بودید
+    const _supabase = supabase.createClient(
+        'https://qmurpnbrnmyjdxqjhybz.supabase.co', 
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'
+    );
     
     let globalData = [];
+    const pageSize = 50;
 
     async function init() {
-        const tbody = document.getElementById('report-body');
-        tbody.innerHTML = '<tr><td colspan="6">Fetching all records from database... Please wait.</td></tr>';
-        
-        let allData = [];
-        let from = 0;
-        let to = 999;
-        let keepFetching = true;
+        document.getElementById('report-body').innerHTML = '<tr><td colspan="6">Loading 33,000+ records...</td></tr>';
+        let allData = [], from = 0, to = 999, keepFetching = true;
 
-        // Loop to bypass 1000 row API limit
         while (keepFetching) {
-            const { data, error } = await _supabase
-                .from('inventory_discrepancy_report')
-                .select('*')
-                .range(from, to);
-
-            if (error) {
-                alert("Error: " + error.message);
-                return;
-            }
-
-            if (data && data.length > 0) {
-                allData = allData.concat(data);
-                from += 1000;
-                to += 1000;
-            } else {
-                keepFetching = false;
+            const { data, error } = await _supabase.from('inventory_discrepancy_report').select('*').range(from, to);
+            if (error) { alert("Error: " + error.message); break; }
+            if (data && data.length > 0) { 
+                allData = allData.concat(data); 
+                from += 1000; 
+                to += 1000; 
+            } else { 
+                keepFetching = false; 
             }
         }
-
         globalData = allData;
         document.getElementById('total-count').textContent = globalData.length;
-        renderTable(globalData.slice(0, 100)); // Show preview of 100
+        renderPage(1);
     }
 
-    function renderTable(dataArray) {
-        const tbody = document.getElementById('report-body');
-        tbody.innerHTML = dataArray.map(item => `<tr>
+    function renderPage(page) {
+        const start = (page - 1) * pageSize;
+        const pageData = globalData.slice(start, start + pageSize);
+        document.getElementById('report-body').innerHTML = pageData.map(item => `<tr>
             <td>${item.Barcode}</td>
             <td>${item["Item Name"]}</td>
             <td>${item.Category}</td>
@@ -85,10 +75,19 @@
             <td>${item["System Stock"]}</td>
             <td style="color:${item.Difference !== 0 ? 'red' : 'green'}; font-weight:bold;">${item.Difference}</td>
         </tr>`).join('');
+        
+        // نمایش دکمه‌های صفحه‌بندی
+        const totalPages = Math.ceil(globalData.length / pageSize);
+        let pgn = "";
+        for(let i=1; i<=totalPages; i++) {
+            pgn += `<button class="page-btn" onclick="renderPage(${i})">${i}</button>`;
+            if(i >= 20) { pgn += '...'; break; } 
+        }
+        document.getElementById('pagination').innerHTML = pgn;
     }
 
     function exportToCSV() {
-        if (globalData.length === 0) return alert("No data available!");
+        if(globalData.length === 0) return;
         let csv = "Barcode,Item Name,Category,Physical Stock,System Stock,Difference\n";
         globalData.forEach(row => {
             csv += `${row.Barcode},"${String(row["Item Name"]).replace(/"/g, '""')}","${String(row.Category).replace(/"/g, '""')}",${row["Physical Stock"]},${row["System Stock"]},${row.Difference}\n`;
@@ -101,7 +100,6 @@
         a.click();
     }
 
-    // Auto-load on start
     init();
 </script>
 </body>
