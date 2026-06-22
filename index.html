@@ -665,32 +665,50 @@
 
     async function triggerBiometricAuth() {
     const msgArea = document.getElementById('auth-message-log');
-    if (!window.PublicKeyCredential) {
-        msgArea.textContent = "Biometric API not supported on this browser.";
+    
+    // ۱. خواندن از دیتابیس (بر اساس ردیفی که فرستادید)
+    const { data: operator, error } = await _supabase
+        .from('authorized_operators')
+        .select('*')
+        .eq('full_name', 'Radman Executive') // یا استفاده از ID
+        .single();
+
+    if (error || !operator) {
+        console.error("Operator not found");
         return;
     }
 
+    // ۲. تبدیل حیاتی: Base64 به Uint8Array (اینجا مشکل شما حل می‌شود)
+    const binaryDer = atob(operator.biometric_credential_id);
+    const binaryLen = binaryDer.length;
+    const bytes = new Uint8Array(binaryLen);
+    for (let i = 0; i < binaryLen; i++) {
+        bytes[i] = binaryDer.charCodeAt(i);
+    }
+
+    // ۳. تنظیمات صحیح فراخوانی
+    const assertionOptions = {
+        publicKey: {
+            challenge: new Uint8Array(32), // در حالت واقعی باید از سرور بگیرید
+            allowCredentials: [{
+                id: bytes, // حالا این بایت‌ها دقیقاً همان چیزی هستند که مرورگر می‌فهمد
+                type: 'public-key'
+            }],
+            userVerification: "required",
+            rpId: window.location.hostname
+        }
+    };
+
     try {
-        // ۱. اصلاح Challenge: باید دقیقاً 32 بایت باشد
-        const challenge = new Uint8Array(32);
-        window.crypto.getRandomValues(challenge);
-
-        // ۲. تنظیمات دقیق برای اجبار به باز شدن سنسور
-        const assertionOptions = {
-            publicKey: {
-                challenge: challenge,
-                timeout: 60000,
-                userVerification: "required",
-                // نکته: اگر دامنه‌تان ساب‌دامین دارد، rpId باید دامنه اصلی باشد
-                rpId: window.location.hostname 
-            }
-        };
-
-        // ۳. اجرای فراخوانی
         const assertion = await navigator.credentials.get(assertionOptions);
-        
         if (assertion) {
-            msgArea.textContent = "Verifying...";
+            msgArea.textContent = "Authorized!";
+            completeSuccessfulLogin(operator);
+        }
+    } catch (err) {
+        console.error("Biometric Scan Failed:", err);
+    }
+}
             
             // تبدیل ArrayBuffer به Base64 برای مقایسه با دیتابیس
             const detectedIdBase64 = btoa(String.fromCharCode(...new Uint8Array(assertion.rawId)));
