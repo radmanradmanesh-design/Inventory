@@ -3735,34 +3735,38 @@
 
 </div>
 
-    <script>
-       // ۱. تنظیماتِ اتصال (کلیدها را از Supabase کپی کنید)
-      const supabase = supabase.createClient('https://qmurpnbrnmyjdxqjhybz.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec');
+   <script>
+        // ۱. اصلاح خط اول برای جلوگیری از تداخل (استفاده از window.supabase)
+        const supabase = window.supabase.createClient('https://qmurpnbrnmyjdxqjhybz.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec');
 
         // ۲. تابع به‌روزرسانی رنگ قفسه‌ها
         async function updateMapStatus() {
-       const { data: inventory } = await supabase.from('showroom_inventory').select('zone_id, qty');
+            const { data: inventory, error } = await supabase.from('showroom_inventory').select('zone_id, qty');
+        
+            if (error) {
+                console.error("خطا در دریافت اطلاعات از دیتابیس:", error);
+                return;
+            }
 
-      inventory.forEach(item => {
-        // پیدا کردن قفسه بر اساس ID که در Inkscape دادید
-        const shelf = document.getElementById(item.zone_id);
-        if (shelf) {
-            // اگر موجودی بیشتر از صفر بود -> سبز، وگرنه قرمز
-            shelf.style.fill = item.qty > 0 ? '#2ecc71' : '#e74c3c';
+            inventory.forEach(item => {
+                const shelf = document.getElementById(item.zone_id);
+                if (shelf) {
+                    shelf.style.fill = item.qty > 0 ? '#2ecc71' : '#e74c3c';
+                }
+            });
         }
-         });
-     }
 
-        // ۳. اجرای اولیه و گوش دادن به تغییرات زنده
-       updateMapStatus();
+        // ۳. اجرای اولیه
+        updateMapStatus();
 
+        // ۴. گوش دادن به تغییرات زنده
         supabase.channel('custom-all-channel')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'showroom_inventory' }, () => {
-      updateMapStatus();
-     })
-     .subscribe(); // حالا در اینجا کدهای جاوااسکریپت برای اتصال به دیتابیس را قرار دهید
-        console.log("Loading map engine...");
-    </script>
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'showroom_inventory' }, () => {
+              updateMapStatus();
+          })
+          .subscribe();
 
+        console.log("Map engine loaded successfully!");
+    </script>
 </body>
 </html>
