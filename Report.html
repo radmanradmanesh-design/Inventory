@@ -15,13 +15,13 @@
         .btn-load { background: #06b6d4; }
         .btn-excel { background: #00b894; }
         #pagination { margin-top: 15px; display: flex; gap: 5px; }
-        .page-btn { padding: 5px 10px; cursor: pointer; }
+        .page-btn { padding: 5px 10px; cursor: pointer; border: 1px solid #ddd; background: white; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Inventory Discrepancy Report</h2>
+    <h2>Inventory Discrepancy Report (Verified)</h2>
     <div class="controls">
         <button class="btn btn-load" onclick="runReport()">Load & Calculate</button>
         <button class="btn btn-excel" onclick="exportToCSV()">Download Full CSV</button>
@@ -59,10 +59,19 @@
         const [sys, wh, sh] = await Promise.all([fetchAll('system_inventory'), fetchAll('warehouse_inventory'), fetchAll('showroom_inventory')]);
         
         const map = {};
+        
+        // ۱. مقداردهی اولیه سیستم
         sys.forEach(i => {
-            map[i.Barcode] = { name: i['Item Name'] || 'N/A', cat: i['Category'] || 'N/A', sys: parseInt((i.Stock || '0').toString().replace(/,/g, '')) };
+            map[i.Barcode] = { 
+                name: i['Item Name'] || 'N/A', 
+                cat: i['Category'] || 'N/A', 
+                sys: parseInt((i.Stock || '0').toString().replace(/,/g, '')),
+                wh: 0,
+                sh: 0 
+            };
         });
 
+        // ۲. مقداردهی انبار (فقط در ستون wh)
         wh.forEach(i => {
             if(i.Attribute === 'Grand Total') {
                 const bc = i['Row Labels'];
@@ -70,6 +79,7 @@
             }
         });
 
+        // ۳. مقداردهی شوروم (فقط در ستون sh)
         sh.forEach(i => {
             const bc = i.Barcode || i.barcode;
             if(map[bc]) {
@@ -78,12 +88,11 @@
             }
         });
 
+        // ۴. محاسبه نهایی
         finalData = Object.keys(map).map(bc => {
             const row = map[bc];
-            const wh = row.wh || 0;
-            const sh = row.sh || 0;
-            const phys = wh + sh;
-            return { barcode: bc, ...row, wh, sh, phys, diff: phys - (row.sys || 0) };
+            const phys = row.wh + row.sh;
+            return { barcode: bc, ...row, phys: phys, diff: phys - (row.sys || 0) };
         });
 
         document.getElementById('status').textContent = "Completed.";
@@ -105,12 +114,12 @@
     }
 
     function exportToCSV() {
-        if(finalData.length === 0) { alert("Load data first!"); return; }
+        if(finalData.length === 0) return;
         let csv = "Barcode,Item Name,Category,System,Warehouse,Showroom,Physical,Variance\n";
         finalData.forEach(i => csv += `${i.barcode},"${i.name}","${i.cat}",${i.sys},${i.wh},${i.sh},${i.phys},${i.diff}\n`);
         const a = document.createElement('a');
         a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-        a.download = 'Inventory_Report.csv';
+        a.download = 'Verified_Inventory_Report.csv';
         a.click();
     }
 </script>
