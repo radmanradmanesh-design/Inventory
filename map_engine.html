@@ -3736,37 +3736,40 @@
 </div>
 
    <script>
-        // ۱. اصلاح خط اول برای جلوگیری از تداخل (استفاده از window.supabase)
-        const supabase = window.supabase.createClient('https://qmurpnbrnmyjdxqjhybz.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec');
+    // ۱. مقداردهی اولیه (مطمئن شوید کلیدها درست هستند)
+    window.mySupabase = window.supabase.createClient('https://qmurpnbrnmyjdxqjhybz.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec');
 
-        // ۲. تابع به‌روزرسانی رنگ قفسه‌ها
-        async function updateMapStatus() {
-            const { data: inventory, error } = await supabase.from('showroom_inventory').select('zone_id, qty');
-        
-            if (error) {
-                console.error("خطا در دریافت اطلاعات از دیتابیس:", error);
-                return;
-            }
+    // ۲. تابع به‌روزرسانی رنگ قفسه‌ها
+    async function updateMapStatus() {
+        const { data: inventory, error } = await window.mySupabase
+            .from('showroom_inventory')
+            .select('zone_id, qty');
 
-            inventory.forEach(item => {
-                const shelf = document.getElementById(item.zone_id);
-                if (shelf) {
-                    shelf.style.fill = item.qty > 0 ? '#2ecc71' : '#e74c3c';
-                }
-            });
+        if (error) {
+            console.error("خطا در دریافت اطلاعات:", error);
+            return;
         }
 
-        // ۳. اجرای اولیه
-        updateMapStatus();
+        inventory.forEach(item => {
+            const shelf = document.getElementById(item.zone_id);
+            if (shelf) {
+                // اگر موجودی بیشتر از صفر بود -> سبز، وگرنه قرمز
+                shelf.style.fill = item.qty > 0 ? '#2ecc71' : '#e74c3c';
+            }
+        });
+    }
 
-        // ۴. گوش دادن به تغییرات زنده
-        supabase.channel('custom-all-channel')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'showroom_inventory' }, () => {
-              updateMapStatus();
-          })
-          .subscribe();
+    // ۳. اجرای اولیه
+    updateMapStatus();
 
-        console.log("Map engine loaded successfully!");
-    </script>
+    // ۴. گوش دادن به تغییرات زنده دیتابیس
+    window.mySupabase.channel('custom-all-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'showroom_inventory' }, () => {
+          updateMapStatus();
+      })
+      .subscribe();
+
+    console.log("Map engine loaded successfully!");
+</script>
 </body>
 </html>
