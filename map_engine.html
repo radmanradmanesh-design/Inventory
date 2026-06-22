@@ -3735,73 +3735,56 @@
 
 </div>
 
-   <script>
-    // ۱. مقداردهی اولیه (مطمئن شوید کلیدها درست هستند)
-    window.mySupabase = window.supabase.createClient('https://qmurpnbrnmyjdxqjhybz.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec');
+   <div id="info-popup" style="display:none; position:fixed; top:20%; left:40%; background:white; padding:20px; border:2px solid #333; border-radius:10px; z-index:1000; box-shadow:0 0 10px rgba(0,0,0,0.5);">
+    <h3 id="popup-title">Shelf Information</h3>
+    <div id="popup-content">Loading...</div>
+    <button onclick="document.getElementById('info-popup').style.display='none'">Close</button>
+</div>
 
-    // ۲. تابع به‌روزرسانی رنگ قفسه‌ها
+<script>
+    // تنظیمات اتصال
+    window.mySupabase = window.supabase.createClient(
+        'https://qmurpnbrnmyjdxqjhybz.supabase.co', 
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'
+    );
+
     async function updateMapStatus() {
         const { data: inventory, error } = await window.mySupabase
             .from('showroom_inventory')
-            .select('zone_id, showroom_qty');
+            .select('zone_id, quantity, item_name');
 
-        if (error) {
-            console.error("خطا در دریافت اطلاعات:", error);
-            return;
-        }
+        if (error) return;
 
-            // داخل تابع updateMapStatus این بخش را جایگزین کنید:
-            inventory.forEach(item => {
-          const shelf = document.getElementById(item.zone_id);
-           if (shelf) {
-                // منطق رنگ‌بندی بر اساس درصد (فرض کنید حداکثر موجودی هر قفسه ۱۰۰ است)
-          const percent = (item.quantity / 100) * 100; 
-        
-          if (percent <= 0) {
-            shelf.style.fill = '#e74c3c'; // قرمز (خالی)
-        } else if (percent > 0 && percent <= 30) {
-            shelf.style.fill = '#f39c12'; // نارنجی (نیاز به شارژ)
-        } else {
-         shelf.style.fill = '#2ecc71'; // سبز (موجودی کافی)
-         // در همان حلقه forEach که قفسه‌ها را پیدا می‌کنید، این کد را اضافه کنید:
-shelf.addEventListener('click', function() {
-    const popup = document.getElementById('info-popup');
-    const title = document.getElementById('popup-title');
-    const content = document.getElementById('popup-content');
-    
-    // پیدا کردن اطلاعاتِ این قفسه در دیتابیس
-    const itemData = inventory.find(i => i.zone_id === shelf.id);
-    
-    title.innerText = "Shelf Info: " + shelf.id;
-    content.innerHTML = `
-        <p>Item name: ${itemData ? itemData.item_name : 'Unknown'}</p>
-        <p>Inventory: ${itemData ? itemData.quantity : 0}</p>
-        <p>Status: ${itemData && itemData.quantity > 0 ? 'available' : 'Empty'}</p>
-    `;
-    
-    popup.style.display = 'block'; // نمایش باکس
-});      
-          }
-              }
+        inventory.forEach(item => {
+            const shelf = document.getElementById(item.zone_id);
+            if (shelf) {
+                // منطق رنگ‌بندی
+                if (item.quantity <= 0) shelf.style.fill = '#e74c3c';
+                else if (item.quantity <= 30) shelf.style.fill = '#f39c12';
+                else shelf.style.fill = '#2ecc71';
+
+                shelf.style.cursor = "pointer";
+
+                // باز کردن پاپ‌آپ
+                shelf.onclick = function() {
+                    document.getElementById('popup-title').innerText = "Shelf ID: " + item.zone_id;
+                    document.getElementById('popup-content').innerHTML = `
+                        <p>Item: ${item.item_name}</p>
+                        <p>Quantity: ${item.quantity}</p>
+                    `;
+                    document.getElementById('info-popup').style.display = 'block';
+                };
+            }
         });
     }
 
-    // ۳. اجرای اولیه
     updateMapStatus();
 
-    // ۴. گوش دادن به تغییرات زنده دیتابیس
     window.mySupabase.channel('custom-all-channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'showroom_inventory' }, () => {
           updateMapStatus();
       })
       .subscribe();
-
-    console.log("Map engine loaded successfully!");
 </script>
-    <div id="info-popup" style="display:none; position:fixed; top:20%; left:40%; background:white; padding:20px; border:2px solid #333; border-radius:10px; z-index:1000; box-shadow:0 0 10px rgba(0,0,0,0.5);">
-    <h3 id="popup-title">اطلاعات قفسه</h3>
-    <div id="popup-content">بارگذاری...</div>
-    <button onclick="document.getElementById('info-popup').style.display='none'">بستن</button>
-</div>
 </body>
 </html>
