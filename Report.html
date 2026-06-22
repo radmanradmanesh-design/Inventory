@@ -21,14 +21,14 @@
 <body>
 
 <div class="container">
-    <h2>Inventory Discrepancy Report (Verified)</h2>
+    <h2>Inventory Report (Scanner Sync Logic)</h2>
     <div class="controls">
         <button class="btn btn-load" onclick="runReport()">Load & Calculate</button>
-        <button class="btn btn-excel" onclick="exportToCSV()">Download Full CSV</button>
+        <button class="btn btn-excel" onclick="exportToCSV()">Download CSV</button>
     </div>
     <div id="status" style="font-weight:bold;">Status: Ready</div>
     
-    <table id="report-table">
+    <table>
         <thead>
             <tr><th>Barcode</th><th>Item Name</th><th>Category</th><th>System</th><th>Warehouse</th><th>Showroom</th><th>Physical</th><th>Variance</th></tr>
         </thead>
@@ -59,35 +59,32 @@
         const [sys, wh, sh] = await Promise.all([fetchAll('system_inventory'), fetchAll('warehouse_inventory'), fetchAll('showroom_inventory')]);
         
         const map = {};
-        
-        // ۱. مقداردهی اولیه سیستم
         sys.forEach(i => {
-          // این منطق باید دقیقاً مشابه اسکنر شما باشد تا خروجی یکسان بدهد:
+            map[i.Barcode] = { name: i['Item Name'] || 'N/A', cat: i['Category'] || 'N/A', sys: parseInt((i.Stock || '0').toString().replace(/,/g, '')), wh: 0, sh: 0 };
+        });
 
-        // ۱. سیستم: مقدار اصلی (Sys)
-        map[i.Barcode] = { 
-        name: i['Item Name'], 
-        sys: parseInt((i.Stock || '0').toString().replace(/,/g, '')) 
-    };
-
-        // ۲. انبار: فقط خواندن Grand Total (بدون جمعِ شوروم)
+        // منطق دقیق اسکنر برای انبار: جمع لوکیشن‌ها (بدون Grand Total)
         wh.forEach(i => {
-        if(i.Attribute === 'Grand Total') {
-        const bc = i['Row Labels'];
-        if(map[bc]) map[bc].wh = parseInt((i.Value || '0').toString().replace(/,/g, ''));
-    }
-    });
+            let locName = i['Attribute'];
+            let qty = parseInt((i.Value || '0').toString().replace(/,/g, ''));
+            if(locName && locName !== 'Grand Total' && locName.trim() !== '') {
+                const bc = i['Row Labels'];
+                if(map[bc]) map[bc].wh += qty;
+            }
+        });
 
-        // ۳. شوروم: فقط خواندن مقدار شوروم (به عنوان یک ستون مستقل)
         sh.forEach(i => {
-        const bc = i.Barcode || i.barcode;
-        if(map[bc]) map[bc].sh = parseInt(((i.showroom_qty || i.showroom_quantity) || 0).toString().replace(/,/g, ''));
-    });
+            const bc = i.Barcode || i.barcode;
+            if(map[bc]) {
+                const qty = i.showroom_qty !== undefined ? i.showroom_qty : i.showroom_quantity;
+                map[bc].sh = parseInt((qty || 0).toString().replace(/,/g, ''));
+            }
+        });
 
-    // ۴. محاسبه نهایی: (فقط در مرحله آخر با هم جمع می‌شوند)
-            const phys = (map[bc].wh || 0) + (map[bc].sh || 0);
-            const diff = phys - map[bc].sys;
-            return { barcode: bc, ...row, phys: phys, diff: phys - (row.sys || 0) };
+        finalData = Object.keys(map).map(bc => {
+            const row = map[bc];
+            const phys = row.wh + row.sh;
+            return { barcode: bc, ...row, phys: phys, diff: phys - row.sys };
         });
 
         document.getElementById('status').textContent = "Completed.";
@@ -109,7 +106,6 @@
     }
 
     function exportToCSV() {
-        if(finalData.length === 0) return;
         let csv = "Barcode,Item Name,Category,System,Warehouse,Showroom,Physical,Variance\n";
         finalData.forEach(i => csv += `${i.barcode},"${i.name}","${i.cat}",${i.sys},${i.wh},${i.sh},${i.phys},${i.diff}\n`);
         const a = document.createElement('a');
