@@ -664,75 +664,46 @@
     }
 
     async function triggerBiometricAuth() {
-    const msgArea = document.getElementById('auth-message-log');
-    
-    // ۱. خواندن از دیتابیس (بر اساس ردیفی که فرستادید)
-    const { data: operator, error } = await _supabase
-        .from('authorized_operators')
-        .select('*')
-        .eq('full_name', 'Radman Executive') // یا استفاده از ID
-        .single();
+        const msgArea = document.getElementById('auth-message-log');
+        if (!window.PublicKeyCredential) return;
 
-    if (error || !operator) {
-        console.error("Operator not found");
-        return;
-    }
+        try {
+            const randomChallenge = new Uint8Array(32);
+            window.crypto.getRandomValues(randomChallenge);
 
-    // ۲. تبدیل حیاتی: Base64 به Uint8Array (اینجا مشکل شما حل می‌شود)
-    const binaryDer = atob(operator.biometric_credential_id);
-    const binaryLen = binaryDer.length;
-    const bytes = new Uint8Array(binaryLen);
-    for (let i = 0; i < binaryLen; i++) {
-        bytes[i] = binaryDer.charCodeAt(i);
-    }
+            const assertionOptions = {
+                publicKey: { challenge: randomChallenge, timeout: 60000, userVerification: "required", rpId: window.location.hostname }
+            };
 
-    // ۳. تنظیمات صحیح فراخوانی
-    const assertionOptions = {
-        publicKey: {
-            challenge: new Uint8Array(32), // در حالت واقعی باید از سرور بگیرید
-            allowCredentials: [{
-                id: bytes, // حالا این بایت‌ها دقیقاً همان چیزی هستند که مرورگر می‌فهمد
-                type: 'public-key'
-            }],
-            userVerification: "required",
-            rpId: window.location.hostname
-        }
-    };
+            const assertion = await navigator.credentials.get(assertionOptions);
+            if (assertion) {
+                msgArea.style.color = "#06b6d4";
+                msgArea.textContent = "Verifying biometrics matrix...";
 
-    try {
-        const assertion = await navigator.credentials.get(assertionOptions);
-        if (assertion) {
-            msgArea.textContent = "Authorized!";
-            completeSuccessfulLogin(operator);
-        }
-    } catch (err) {
-        console.error("Biometric Scan Failed:", err);
-    }
-}
-            
-            // تبدیل ArrayBuffer به Base64 برای مقایسه با دیتابیس
-            const detectedIdBase64 = btoa(String.fromCharCode(...new Uint8Array(assertion.rawId)));
+                const detectedIdBase64 = btoa(String.fromCharCode(...new Uint8Array(assertion.rawId)));
 
-            // ادامه کد شما...
-            const { data: operators, error } = await _supabase
-                .from('authorized_operators')
-                .select('*')
-                .eq('biometric_credential_id', detectedIdBase64)
-                .eq('is_active', true)
-                .single(); // استفاده از single به جای آرایه برای دقت بیشتر
+                const { data: operators, error } = await _supabase
+                    .from('authorized_operators')
+                    .select('*')
+                    .eq('biometric_credential_id', detectedIdBase64)
+                    .eq('is_active', true);
 
-            if (error || !operators) {
-                throw new Error("Biometric ID not found in database.");
+                if (error) throw error;
+
+                if (!operators || operators.length === 0) {
+                    msgArea.style.color = "#ef4444";
+                    msgArea.textContent = "Biometrics match unrecognized or revoked operator.";
+                    return;
+                }
+
+                msgArea.style.color = "#22c55e";
+                msgArea.textContent = `Authorized! Welcome, ${operators[0].full_name}.`;
+                completeSuccessfulLogin(operators[0]);
             }
-
-            completeSuccessfulLogin(operators);
+        } catch (err) {
+            console.log("Biometric scan idle/dismissed.", err);
         }
-    } catch (err) {
-        // اگر این کنسول لاگ را می‌بینید، یعنی کاربر دسترسی را رد کرده یا سخت‌افزار در دسترس نیست
-        console.error("Biometric failure:", err);
-        msgArea.textContent = "Scan failed or dismissed. Try again.";
     }
-}
 
     function completeSuccessfulLogin(operator) {
     // پاک کردن نشست قبلی (اگر مهمان بوده)
