@@ -3751,7 +3751,7 @@
     async function updateMapStatus() {
         const { data: inventory, error } = await window.mySupabase
             .from('showroom_inventory')
-            .select('zone_id, quantity, item_name');
+            .select('zone_id, showroom_qty, Barcode');
 
         if (error) return;
 
