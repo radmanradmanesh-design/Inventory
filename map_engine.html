@@ -3750,11 +3750,20 @@
             return;
         }
 
-        inventory.forEach(item => {
-            const shelf = document.getElementById(item.zone_id);
-            if (shelf) {
-                // اگر موجودی بیشتر از صفر بود -> سبز، وگرنه قرمز
-                shelf.style.fill = item.qty > 0 ? '#2ecc71' : '#e74c3c';
+            // داخل تابع updateMapStatus این بخش را جایگزین کنید:
+            inventory.forEach(item => {
+          const shelf = document.getElementById(item.zone_id);
+           if (shelf) {
+                // منطق رنگ‌بندی بر اساس درصد (فرض کنید حداکثر موجودی هر قفسه ۱۰۰ است)
+          const percent = (item.quantity / 100) * 100; 
+        
+          if (percent <= 0) {
+            shelf.style.fill = '#e74c3c'; // قرمز (خالی)
+        } else if (percent > 0 && percent <= 30) {
+            shelf.style.fill = '#f39c12'; // نارنجی (نیاز به شارژ)
+        } else {
+            shelf.style.fill = '#2ecc71'; // سبز (موجودی کافی)
+                }
             }
         });
     }
