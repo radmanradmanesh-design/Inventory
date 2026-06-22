@@ -62,36 +62,31 @@
         
         // ۱. مقداردهی اولیه سیستم
         sys.forEach(i => {
-            map[i.Barcode] = { 
-                name: i['Item Name'] || 'N/A', 
-                cat: i['Category'] || 'N/A', 
-                sys: parseInt((i.Stock || '0').toString().replace(/,/g, '')),
-                wh: 0,
-                sh: 0 
-            };
-        });
+          // این منطق باید دقیقاً مشابه اسکنر شما باشد تا خروجی یکسان بدهد:
 
-        // ۲. مقداردهی انبار (فقط در ستون wh)
+        // ۱. سیستم: مقدار اصلی (Sys)
+        map[i.Barcode] = { 
+        name: i['Item Name'], 
+        sys: parseInt((i.Stock || '0').toString().replace(/,/g, '')) 
+    };
+
+        // ۲. انبار: فقط خواندن Grand Total (بدون جمعِ شوروم)
         wh.forEach(i => {
-            if(i.Attribute === 'Grand Total') {
-                const bc = i['Row Labels'];
-                if(map[bc]) map[bc].wh = parseInt((i.Value || '0').toString().replace(/,/g, ''));
-            }
-        });
+        if(i.Attribute === 'Grand Total') {
+        const bc = i['Row Labels'];
+        if(map[bc]) map[bc].wh = parseInt((i.Value || '0').toString().replace(/,/g, ''));
+    }
+    });
 
-        // ۳. مقداردهی شوروم (فقط در ستون sh)
+        // ۳. شوروم: فقط خواندن مقدار شوروم (به عنوان یک ستون مستقل)
         sh.forEach(i => {
-            const bc = i.Barcode || i.barcode;
-            if(map[bc]) {
-                const qty = i.showroom_qty !== undefined ? i.showroom_qty : i.showroom_quantity;
-                map[bc].sh = parseInt((qty || 0).toString().replace(/,/g, ''));
-            }
-        });
+        const bc = i.Barcode || i.barcode;
+        if(map[bc]) map[bc].sh = parseInt(((i.showroom_qty || i.showroom_quantity) || 0).toString().replace(/,/g, ''));
+    });
 
-        // ۴. محاسبه نهایی
-        finalData = Object.keys(map).map(bc => {
-            const row = map[bc];
-            const phys = row.wh + row.sh;
+    // ۴. محاسبه نهایی: (فقط در مرحله آخر با هم جمع می‌شوند)
+            const phys = (map[bc].wh || 0) + (map[bc].sh || 0);
+            const diff = phys - map[bc].sys;
             return { barcode: bc, ...row, phys: phys, diff: phys - (row.sys || 0) };
         });
 
