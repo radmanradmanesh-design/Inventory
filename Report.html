@@ -7,33 +7,42 @@
     <style>
         body { font-family: sans-serif; padding: 20px; background: #f4f6f7; }
         .container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .controls { margin-bottom: 20px; display: flex; gap: 10px; }
         table { width: 100%; border-collapse: collapse; margin-top: 15px; }
         th, td { border: 1px solid #ddd; padding: 8px; font-size: 12px; }
         th { background: #0f172a; color: white; }
-        .btn { padding: 10px 20px; cursor: pointer; border: none; border-radius: 5px; color: white; font-weight: bold; background: #06b6d4; }
+        .btn { padding: 10px 20px; cursor: pointer; border: none; border-radius: 5px; color: white; font-weight: bold; }
+        .btn-load { background: #06b6d4; }
+        .btn-excel { background: #00b894; }
+        #pagination { margin-top: 15px; display: flex; gap: 5px; }
+        .page-btn { padding: 5px 10px; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Inventory Discrepancy Report (Sync with Scanner)</h2>
-    <button class="btn" onclick="generateReport()">Generate Full Report</button>
-    <div id="status" style="margin-top:10px; font-weight:bold;">Status: Ready</div>
+    <h2>Inventory Discrepancy Report</h2>
+    <div class="controls">
+        <button class="btn btn-load" onclick="runReport()">Load & Calculate</button>
+        <button class="btn btn-excel" onclick="exportToCSV()">Download Full CSV</button>
+    </div>
+    <div id="status" style="font-weight:bold;">Status: Ready</div>
+    
     <table id="report-table">
         <thead>
-            <tr><th>Barcode</th><th>Item Name</th><th>System</th><th>Warehouse</th><th>Showroom</th><th>Physical Total</th><th>Variance</th></tr>
+            <tr><th>Barcode</th><th>Item Name</th><th>Category</th><th>System</th><th>Warehouse</th><th>Showroom</th><th>Physical</th><th>Variance</th></tr>
         </thead>
         <tbody id="report-body"></tbody>
     </table>
+    <div id="pagination"></div>
 </div>
 
 <script>
-    const _supabase = supabase.createClient(
-        'https://qmurpnbrnmyjdxqjhybz.supabase.co', 
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'
-    );
+    const _supabase = supabase.createClient('https://qmurpnbrnmyjdxqjhybz.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec');
+    
+    let finalData = [];
+    const pageSize = 50;
 
-    // تابع کمکی برای گرفتن تمام صفحات (مشابه منطق اسکنر)
     async function fetchAll(table) {
         let all = [], from = 0, to = 999;
         while(true) {
@@ -45,27 +54,15 @@
         return all;
     }
 
-    async function generateReport() {
-        document.getElementById('status').textContent = "Fetching & Calculating...";
+    async function runReport() {
+        document.getElementById('status').textContent = "Processing...";
+        const [sys, wh, sh] = await Promise.all([fetchAll('system_inventory'), fetchAll('warehouse_inventory'), fetchAll('showroom_inventory')]);
         
-        // دریافت داده‌ها
-        const [sys, wh, sh] = await Promise.all([
-            fetchAll('system_inventory'),
-            fetchAll('warehouse_inventory'),
-            fetchAll('showroom_inventory')
-        ]);
-
         const map = {};
-        
-        // ۱. پردازش سیستم (مشابه منطق اسکنر شما)
         sys.forEach(i => {
-            map[i.Barcode] = { 
-                name: i['Item Name'], 
-                sys: parseInt((i.Stock || '0').toString().replace(/,/g, '')) 
-            };
+            map[i.Barcode] = { name: i['Item Name'] || 'N/A', cat: i['Category'] || 'N/A', sys: parseInt((i.Stock || '0').toString().replace(/,/g, '')) };
         });
 
-        // ۲. پردازش انبار (دقیقاً با همان منطق Grand Total در فایل ایندکس)
         wh.forEach(i => {
             if(i.Attribute === 'Grand Total') {
                 const bc = i['Row Labels'];
@@ -73,28 +70,48 @@
             }
         });
 
-        // ۳. پردازش شوروم (با بررسی کلیدهای مختلف مشابه منطق اسکنر)
         sh.forEach(i => {
             const bc = i.Barcode || i.barcode;
-            if(map[bc]) map[bc].sh = parseInt(((i.showroom_qty || i.showroom_quantity) || 0).toString().replace(/,/g, ''));
+            if(map[bc]) {
+                const qty = i.showroom_qty !== undefined ? i.showroom_qty : i.showroom_quantity;
+                map[bc].sh = parseInt((qty || 0).toString().replace(/,/g, ''));
+            }
         });
 
-        // ۴. نمایش و محاسبات Variance
-        const html = Object.keys(map).map(bc => {
+        finalData = Object.keys(map).map(bc => {
             const row = map[bc];
             const wh = row.wh || 0;
             const sh = row.sh || 0;
             const phys = wh + sh;
-            const diff = phys - row.sys;
-            return `<tr>
-                <td>${bc}</td><td>${row.name}</td><td>${row.sys}</td>
-                <td>${wh}</td><td>${sh}</td><td>${phys}</td>
-                <td style="color:${diff !== 0 ? 'red' : 'green'}">${diff}</td>
-            </tr>`;
-        }).join('');
+            return { barcode: bc, ...row, wh, sh, phys, diff: phys - (row.sys || 0) };
+        });
 
-        document.getElementById('report-body').innerHTML = html;
-        document.getElementById('status').textContent = "Report Completed.";
+        document.getElementById('status').textContent = "Completed.";
+        renderPage(1);
+    }
+
+    function renderPage(p) {
+        const start = (p - 1) * pageSize;
+        const pageData = finalData.slice(start, start + pageSize);
+        document.getElementById('report-body').innerHTML = pageData.map(i => `<tr>
+            <td>${i.barcode}</td><td>${i.name}</td><td>${i.cat}</td><td>${i.sys}</td>
+            <td>${i.wh}</td><td>${i.sh}</td><td>${i.phys}</td>
+            <td style="color:${i.diff !== 0 ? 'red' : 'green'}">${i.diff}</td>
+        </tr>`).join('');
+        
+        const total = Math.ceil(finalData.length / pageSize);
+        document.getElementById('pagination').innerHTML = Array.from({length: Math.min(total, 20)}, (_, i) => 
+            `<button class="page-btn" onclick="renderPage(${i+1})">${i+1}</button>`).join('');
+    }
+
+    function exportToCSV() {
+        if(finalData.length === 0) { alert("Load data first!"); return; }
+        let csv = "Barcode,Item Name,Category,System,Warehouse,Showroom,Physical,Variance\n";
+        finalData.forEach(i => csv += `${i.barcode},"${i.name}","${i.cat}",${i.sys},${i.wh},${i.sh},${i.phys},${i.diff}\n`);
+        const a = document.createElement('a');
+        a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+        a.download = 'Inventory_Report.csv';
+        a.click();
     }
 </script>
 </body>
