@@ -3762,9 +3762,27 @@
         } else if (percent > 0 && percent <= 30) {
             shelf.style.fill = '#f39c12'; // نارنجی (نیاز به شارژ)
         } else {
-            shelf.style.fill = '#2ecc71'; // سبز (موجودی کافی)
-                }
-            }
+         shelf.style.fill = '#2ecc71'; // سبز (موجودی کافی)
+         // در همان حلقه forEach که قفسه‌ها را پیدا می‌کنید، این کد را اضافه کنید:
+shelf.addEventListener('click', function() {
+    const popup = document.getElementById('info-popup');
+    const title = document.getElementById('popup-title');
+    const content = document.getElementById('popup-content');
+    
+    // پیدا کردن اطلاعاتِ این قفسه در دیتابیس
+    const itemData = inventory.find(i => i.zone_id === shelf.id);
+    
+    title.innerText = "Shelf Info: " + shelf.id;
+    content.innerHTML = `
+        <p>Item name: ${itemData ? itemData.item_name : 'Unknown'}</p>
+        <p>Inventory: ${itemData ? itemData.quantity : 0}</p>
+        <p>Status: ${itemData && itemData.quantity > 0 ? 'available' : 'Empty'}</p>
+    `;
+    
+    popup.style.display = 'block'; // نمایش باکس
+});      
+          }
+              }
         });
     }
 
@@ -3780,5 +3798,10 @@
 
     console.log("Map engine loaded successfully!");
 </script>
+    <div id="info-popup" style="display:none; position:fixed; top:20%; left:40%; background:white; padding:20px; border:2px solid #333; border-radius:10px; z-index:1000; box-shadow:0 0 10px rgba(0,0,0,0.5);">
+    <h3 id="popup-title">اطلاعات قفسه</h3>
+    <div id="popup-content">بارگذاری...</div>
+    <button onclick="document.getElementById('info-popup').style.display='none'">بستن</button>
+</div>
 </body>
 </html>
