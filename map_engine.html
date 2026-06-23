@@ -14,14 +14,19 @@
 
     /* استایل جدید پاپ‌آپ */
     #info-popup {
-        backdrop-filter: blur(12px);
-        background: rgba(255, 255, 255, 0.95) !important;
-        border-radius: 16px !important;
-        box-shadow: 0 15px 35px rgba(0,0,0,0.2) !important;
-        transition: all 0.3s ease;
-        padding: 20px !important;
-        width: 450px; /* عرض مناسب برای نمایش دو ستونه */
-    }
+    /* اضافه شدن جهت و چیدمان استاندارد */
+    direction: ltr !important;
+    text-align: left !important;
+    
+    /* استایل‌های قبلی شما */
+    backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.95) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.2) !important;
+    transition: all 0.3s ease;
+    padding: 20px !important;
+    width: 450px;
+}
 
     /* کانتینر کارت‌ها به صورت شبکه */
     #popup-content {
