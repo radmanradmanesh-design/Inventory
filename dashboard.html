@@ -600,6 +600,28 @@
             .pagination-container { justify-content: center; text-align: center; padding: 16px; }
             .pagination-info { width: 100%; margin-bottom: 4px; }
         }
+    /* استایل جدید برای دکمه نقشه که با back-btn هماهنگ است */
+.map-nav-btn {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 26px;
+    background-color: var(--royal-gold); /* از همان رنگ طلایی پنل استفاده کردیم */
+    color: var(--dark-slate);
+    border-radius: 14px;
+    font-weight: 600;
+    font-size: 14px;
+    box-shadow: 0 4px 14px rgba(229, 184, 34, 0.25);
+    transition: all 0.2s ease;
+    margin-left: 12px; /* فاصله از دکمه قبلی */
+}
+
+.map-nav-btn:hover {
+    background-color: var(--royal-gold-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(229, 184, 34, 0.35);
+}
     </style>
 </head>
 <body>
@@ -610,7 +632,8 @@
         Return to Premium Live Scanner
     </a>
 
-    <a href="map_engine.html" style="margin-left: 15px; text-decoration: none; padding: 8px 16px; background: #3b82f6; color: white; border-radius: 6px; font-weight: 500; font-size: 0.9rem;">
+    <a href="map_engine.html" class="map-nav-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         View Showroom Map
     </a>
 </div>
