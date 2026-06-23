@@ -3748,40 +3748,50 @@
     );
 
     async function updateMapStatus() {
-        // فقط دریافت داده از همان جدول شوروم
-        const { data: inventory, error } = await window.mySupabase.from('showroom_inventory').select('*');
+    const { data: inventory, error } = await window.mySupabase.from('showroom_inventory').select('*');
 
-        if (error) {
-            console.error("Error:", error);
-            return;
-        }
-
-        inventory.forEach(item => {
-            const shelf = document.getElementById(item.zone_id);
-            if (shelf) {
-                // دریافت بارکد و موجودی
-                const barcode = item.Barcode || item.barcode || 'N/A';
-                const qty = parseInt(item.showroom_qty || item.showroom_quantity || 0);
-                
-                // رنگ‌بندی
-                if (qty <= 0) shelf.style.fill = '#e74c3c';
-                else if (qty <= 30) shelf.style.fill = '#f39c12';
-                else shelf.style.fill = '#2ecc71';
-
-                shelf.style.cursor = "pointer";
-
-                // نمایش فقط بارکد و تعداد در پاپ‌آپ
-                shelf.onclick = function() {
-                    document.getElementById('popup-title').innerText = "Shelf: " + item.zone_id;
-                    document.getElementById('popup-content').innerHTML = `
-                        <p>Barcode: <b>${barcode}</b></p>
-                        <p>Quantity: <b>${qty}</b></p>
-                    `;
-                    document.getElementById('info-popup').style.display = 'block';
-                };
-            }
-        });
+    if (error) {
+        console.error("Error:", error);
+        return;
     }
+
+    // گروه‌بندیِ داده‌ها بر اساس zone_id
+    const groupedData = {};
+    inventory.forEach(item => {
+        if (!groupedData[item.zone_id]) groupedData[item.zone_id] = [];
+        groupedData[item.zone_id].push(item);
+    });
+
+    // پردازش هر قفسه
+    Object.keys(groupedData).forEach(zoneId => {
+        const shelf = document.getElementById(zoneId);
+        if (shelf) {
+            const itemsInShelf = groupedData[zoneId];
+            
+            // رنگ‌بندی بر اساس مجموع موجودی کل قفسه
+            const totalQty = itemsInShelf.reduce((sum, i) => sum + parseInt(i.showroom_qty || 0), 0);
+            
+            if (totalQty <= 0) shelf.style.fill = '#e74c3c';
+            else if (totalQty <= 30) shelf.style.fill = '#f39c12';
+            else shelf.style.fill = '#2ecc71';
+
+            shelf.style.cursor = "pointer";
+
+            // نمایش تمام بارکدها در پاپ‌آپ
+            shelf.onclick = function() {
+                let htmlContent = `<ul>`;
+                itemsInShelf.forEach(i => {
+                    htmlContent += `<li>Barcode: <b>${i.Barcode || i.barcode || 'N/A'}</b> - Qty: <b>${i.showroom_qty || 0}</b></li>`;
+                });
+                htmlContent += `</ul>`;
+
+                document.getElementById('popup-title').innerText = "Shelf: " + zoneId;
+                document.getElementById('popup-content').innerHTML = htmlContent;
+                document.getElementById('info-popup').style.display = 'block';
+            };
+        }
+    });
+}
 
     updateMapStatus();
 
