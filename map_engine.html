@@ -3778,30 +3778,41 @@
 
     // گروه‌بندیِ داده‌ها بر اساس zone_id
     const groupedData = {};
-    // فرض می‌کنیم در دیتابیس شما جدولی دارید یا می‌توانیم از داده‌های تاریخی بفهمیم ظرفیت چقدر است
-// فعلا فرض می‌کنیم حداکثرِ موجودی که تا الان در این قفسه بوده، همان ظرفیتِ ۱۰۰٪ است
-inventory.forEach(item => {
-    const shelf = document.getElementById(item.zone_id);
-    if (shelf) {
-        const qty = parseInt(item.showroom_qty || 0);
-        // اینجا می‌توانید ظرفیت ثابت را دستی وارد کنید یا از دیتابیس بخوانید
-        const capacity = 100; // فرض کنید ظرفیت هر قفسه ۱۰۰ واحد است
-        const percentage = (qty / capacity) * 100;
+    inventory.forEach(item => {
+        if (!groupedData[item.zone_id]) groupedData[item.zone_id] = [];
+        groupedData[item.zone_id].push(item);
+    });
 
-        // پاکسازی کلاس‌های قبلی
-        shelf.classList.remove('pulse-empty', 'pulse-low');
+    // پردازش هر قفسه
+    Object.keys(groupedData).forEach(zoneId => {
+        const shelf = document.getElementById(zoneId);
+        if (shelf) {
+            const itemsInShelf = groupedData[zoneId];
+            
+            // رنگ‌بندی بر اساس مجموع موجودی کل قفسه
+            const totalQty = itemsInShelf.reduce((sum, i) => sum + parseInt(i.showroom_qty || 0), 0);
+            
+            if (totalQty <= 0) shelf.style.fill = '#e74c3c';
+            else if (totalQty <= 30) shelf.style.fill = '#f39c12';
+            else shelf.style.fill = '#2ecc71';
 
-        if (qty <= 0) {
-            shelf.style.fill = '#e74c3c';
-            shelf.classList.add('pulse-empty'); // قرمز و چشمک‌زن
-        } else if (percentage <= 30) {
-            shelf.style.fill = '#f39c12';
-            shelf.classList.add('pulse-low');   // نارنجی و چشمک‌زن
-        } else {
-            shelf.style.fill = '#2ecc71';
+            shelf.style.cursor = "pointer";
+
+            // نمایش تمام بارکدها در پاپ‌آپ
+            shelf.onclick = function() {
+                let htmlContent = `<ul>`;
+                itemsInShelf.forEach(i => {
+                    htmlContent += `<li>Barcode: <b>${i.Barcode || i.barcode || 'N/A'}</b> - Qty: <b>${i.showroom_qty || 0}</b></li>`;
+                });
+                htmlContent += `</ul>`;
+
+                document.getElementById('popup-title').innerText = "Shelf: " + zoneId;
+                document.getElementById('popup-content').innerHTML = htmlContent;
+                document.getElementById('info-popup').style.display = 'block';
+            };
         }
-    }
-});
+    });
+}
 
     // پردازش هر قفسه
     Object.keys(groupedData).forEach(zoneId => {
