@@ -3864,24 +3864,26 @@
             shelf.onclick = function() {
                 let cardsHtml = ``;
                 
-                itemsInShelf.forEach(i => {
-                    // دریافت تعداد محصول با در نظر گرفتن نام‌های مختلف ستون‌ها در دیتابیس
-                    const qty = i.showroom_qty || i.Showroom_Qty || 0;
-                    const barcode = i.Barcode || i.barcode || '---';
+               // جایگزین کردن بخش نمایش کارت‌ها در تابع updateMapStatus
+itemsInShelf.forEach(i => {
+    const qty = i.showroom_qty || i.Showroom_Qty || 0;
+    const barcode = i.Barcode || i.barcode || '---';
 
-                    cardsHtml += `
-                        <div class="product-card" style="margin-bottom: 12px; padding: 10px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <span style="font-size: 0.65rem; color: #64748b; display: block; text-transform: uppercase;">Barcode</span>
-                                <span style="font-weight: 700; font-size: 0.95rem; color: #1e293b;">${barcode}</span>
-                            </div>
-                            <div style="text-align: right;">
-                                <span style="font-size: 0.65rem; color: #64748b; display: block; text-transform: uppercase;">Qty</span>
-                                <span style="font-weight: 800; font-size: 1.1rem; color: #0f172a;">${qty}</span>
-                            </div>
-                        </div>
-                    `;
-                });
+    cardsHtml += `
+        <div class="product-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="flex: 1;">
+                    <span style="font-size: 0.7rem; color: #94a3b8; letter-spacing: 0.05em;">BARCODE</span>
+                    <div style="font-weight: 800; font-size: 1rem; color: #0f172a; margin-top: 2px;">${barcode}</div>
+                </div>
+                <div style="background: #f1f5f9; padding: 8px 12px; border-radius: 8px; text-align: center;">
+                    <span style="font-size: 0.6rem; color: #64748b;">QTY</span>
+                    <div style="font-weight: 900; font-size: 1.2rem; color: #059669;">${qty}</div>
+                </div>
+            </div>
+        </div>
+    `;
+});
 
                 document.getElementById('popup-title').innerText = "Shelf: " + zoneId;
                 document.getElementById('popup-content').innerHTML = cardsHtml;
