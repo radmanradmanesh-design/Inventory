@@ -30,6 +30,18 @@
     justify-content: space-between;
     align-items: center;
 }
+   @keyframes pulse-red {
+    0% { fill-opacity: 1; }
+    50% { fill-opacity: 0.3; }
+    100% { fill-opacity: 1; }
+}
+@keyframes pulse-orange {
+    0% { fill-opacity: 1; }
+    50% { fill-opacity: 0.5; }
+    100% { fill-opacity: 1; }
+}
+.pulse-empty { animation: pulse-red 1.5s infinite; }
+.pulse-low { animation: pulse-orange 2s infinite; } 
     </style>
 </head>
 <body>
@@ -3777,10 +3789,30 @@
 
     // گروه‌بندیِ داده‌ها بر اساس zone_id
     const groupedData = {};
-    inventory.forEach(item => {
-        if (!groupedData[item.zone_id]) groupedData[item.zone_id] = [];
-        groupedData[item.zone_id].push(item);
-    });
+    // فرض می‌کنیم در دیتابیس شما جدولی دارید یا می‌توانیم از داده‌های تاریخی بفهمیم ظرفیت چقدر است
+// فعلا فرض می‌کنیم حداکثرِ موجودی که تا الان در این قفسه بوده، همان ظرفیتِ ۱۰۰٪ است
+inventory.forEach(item => {
+    const shelf = document.getElementById(item.zone_id);
+    if (shelf) {
+        const qty = parseInt(item.showroom_qty || 0);
+        // اینجا می‌توانید ظرفیت ثابت را دستی وارد کنید یا از دیتابیس بخوانید
+        const capacity = 100; // فرض کنید ظرفیت هر قفسه ۱۰۰ واحد است
+        const percentage = (qty / capacity) * 100;
+
+        // پاکسازی کلاس‌های قبلی
+        shelf.classList.remove('pulse-empty', 'pulse-low');
+
+        if (qty <= 0) {
+            shelf.style.fill = '#e74c3c';
+            shelf.classList.add('pulse-empty'); // قرمز و چشمک‌زن
+        } else if (percentage <= 30) {
+            shelf.style.fill = '#f39c12';
+            shelf.classList.add('pulse-low');   // نارنجی و چشمک‌زن
+        } else {
+            shelf.style.fill = '#2ecc71';
+        }
+    }
+});
 
     // پردازش هر قفسه
     Object.keys(groupedData).forEach(zoneId => {
