@@ -1028,71 +1028,35 @@
         }
     }
 
-    async function submitTransfer() {
+   async function submitTransfer() {
     if (!currentActiveOperatorName) {
         alert("Action Denied: Session missing. Please authenticate.");
         return;
     }
 
     const transferQtyInput = document.getElementById('transfer-qty');
-    const destShelfInput = document.getElementById('destinationShelf'); // فیلد جدید
+    const destShelfInput = document.getElementById('destinationShelf'); 
     const qty = parseInt(transferQtyInput.value);
     const txType = typeSelect.value;
     const barcode = finalCleanedBarcode;
     const itemName = currentProduct ? (currentProduct['Item Name'] || currentProduct['item_name'] || 'Unknown Item') : 'Unknown Item';
     
-    let selectedLoc = sourceLocSelect.value;
+    // ۱. بررسی مقدار و شلف مقصد
     if (!qty || qty <= 0) { alert('Enter valid quantity'); return; }
-
-    // اعتبارسنجی برای خروج: حتما باید مقصد انتخاب شده باشد
-   // جایگزین کردن این بخش در تابع submitTransfer
-if (txType === 'out') {
-    let showroomPayload = {};
-    
-    // شناسایی بارکد (با توجه به متغیرهای خودتان)
-    showroomPayload[dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode'] = barcode;
-    
-    // مقدار جدید موجودی
-    showroomPayload[dbShowroomQtyKey] = newShowroomQty;
-    
-    // دستور اصلی برای ثبت در zone_id
-    // مطمئن می‌شویم که حتماً از مقدارِ انتخاب شده توسط کاربر استفاده می‌شود
-    const selectedZone = document.getElementById('destinationShelf').value;
-    showroomPayload['zone_id'] = selectedZone;
-    
-    // در صورت نیاز به به‌روزرسانی خودکارِ زمان (اگر در دیتابیس Trigger ندارید)
-    // showroomPayload['updated_at'] = new Date().toISOString(); 
-
-    const { error: showroomError } = await _supabase
-        .from('showroom_inventory')
-        .upsert(showroomPayload, { 
-            onConflict: dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode' 
-        });
-
-    if (showroomError) {
-        console.error("Supabase Error:", showroomError);
-        alert("Failed to update showroom database: " + showroomError.message);
-        return; // جلوگیری از ادامه عملیات در صورت خطا
+    if (txType === 'out' && (!destShelfInput.value || destShelfInput.value.trim() === '')) {
+        alert('Please select a Destination Shelf!');
+        return;
     }
-}
 
+    let selectedLoc = sourceLocSelect.value;
     if (txType === 'intake' && newLocInput.value.trim() !== '') { 
         selectedLoc = newLocInput.value.trim();
     }
 
+    // ۲. محاسبات مقادیر
     let currentLocQty = locBalances[selectedLoc] || 0;
     if (txType === 'out' && qty > currentLocQty) { alert('Error: Not enough stock!'); return; }
     if (txType === 'in' && qty > currentShowroomQty) { alert(`Denied: Max returnable is ${currentShowroomQty}`); return; }
-
-    let actionMessage = txType === 'out' 
-        ? `🔹 Move to Showroom\n📦 ITEM: ${itemName}\n🔢 QTY: -${qty}\n📍 FROM: [ ${selectedLoc} ]\n🏁 TO: [ ${destShelfInput.value} ]`
-        : `🔹 Transaction\n📦 ITEM: ${itemName}\n🔢 QTY: ${qty}\n📍 SHELF: [ ${selectedLoc} ]`;
-
-    const confirmAction = confirm(`${actionMessage}\n\nUpdate database?`);
-    if (!confirmAction) return;
-
-    statusDiv.className = 'status loading';
-    statusDiv.textContent = 'Processing transaction...';
 
     let newLocQty = currentLocQty;
     let newShowroomQty = currentShowroomQty;
@@ -1100,25 +1064,36 @@ if (txType === 'out') {
     else if (txType === 'in') { newLocQty = currentLocQty + qty; newShowroomQty = currentShowroomQty - qty; } 
     else if (txType === 'intake') { newLocQty = currentLocQty + qty; }
 
-    // آپدیت انبار
+    // ۳. نمایش پیام تایید
+    let actionMessage = txType === 'out' 
+        ? `🔹 Move to Showroom\n📦 ITEM: ${itemName}\n🔢 QTY: -${qty}\n📍 FROM: [ ${selectedLoc} ]\n🏁 TO: [ ${destShelfInput.value} ]`
+        : `🔹 Transaction\n📦 ITEM: ${itemName}\n🔢 QTY: ${qty}\n📍 SHELF: [ ${selectedLoc} ]`;
+
+    if (!confirm(`${actionMessage}\n\nUpdate database?`)) return;
+
+    statusDiv.className = 'status loading';
+    statusDiv.textContent = 'Processing transaction...';
+
+    // ۴. آپدیت انبار (Warehouse)
     const { error: whseError } = await _supabase
         .from('warehouse_inventory')
         .upsert({ "Row Labels": barcode, "Attribute": selectedLoc, "Value": newLocQty }, { onConflict: 'Row Labels,Attribute' });
     if (whseError) { alert(`Error: ${whseError.message}`); return; }
 
-    // آپدیت شوروم با ستون zone_id
+    // ۵. آپدیت شوروم (فقط یک بار اینجا انجام می‌شود)
     if (txType !== 'intake') {
         let showroomPayload = {};
         showroomPayload[dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode'] = barcode;
         showroomPayload[dbShowroomQtyKey] = newShowroomQty;
-        // ثبت در zone_id
+        
         if (txType === 'out') {
-            showroomPayload['zone_id'] = destShelfInput.value;
+            showroomPayload['zone_id'] = destShelfInput.value; // ثبت دقیق در ستون zone_id
         }
+        
         await _supabase.from('showroom_inventory').upsert(showroomPayload, { onConflict: dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode' });
     }
 
-    // لاگ کردن
+    // ۶. لاگ کردن
     let logWorkerName = `${currentActiveOperatorName} | ${txType} | ${selectedLoc}`;
     await _supabase.from('transfer_log').insert([{ Barcode: barcode, qty_transferred: (txType === 'in' ? -qty : qty), worker_name: logWorkerName }]);
 
