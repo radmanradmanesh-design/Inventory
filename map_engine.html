@@ -3763,104 +3763,61 @@
 </div>
 
 <script>
+    // Initialize Supabase
     window.mySupabase = window.supabase.createClient(
         'https://qmurpnbrnmyjdxqjhybz.supabase.co', 
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'
     );
 
     async function updateMapStatus() {
-    const { data: inventory, error } = await window.mySupabase.from('showroom_inventory').select('*');
+        const { data: inventory, error } = await window.mySupabase.from('showroom_inventory').select('*');
 
-    if (error) {
-        console.error("Error:", error);
-        return;
+        if (error) {
+            console.error("Database Error:", error);
+            return;
+        }
+
+        // ۱. تعریف متغیر در داخل تابع تا همه جا در دسترس باشد
+        const groupedData = {};
+        
+        inventory.forEach(item => {
+            if (!groupedData[item.zone_id]) {
+                groupedData[item.zone_id] = [];
+            }
+            groupedData[item.zone_id].push(item);
+        });
+
+        // ۲. پردازش بر اساس داده‌های گروه‌بندی شده
+        Object.keys(groupedData).forEach(zoneId => {
+            const shelf = document.getElementById(zoneId);
+            if (shelf) {
+                const itemsInShelf = groupedData[zoneId];
+                const totalQty = itemsInShelf.reduce((sum, i) => sum + parseInt(i.showroom_qty || 0), 0);
+                
+                // رنگ‌بندی قفسه
+                shelf.style.fill = totalQty <= 0 ? '#e74c3c' : (totalQty <= 30 ? '#f39c12' : '#2ecc71');
+                shelf.style.cursor = "pointer";
+
+                // تعریف کلیک
+                shelf.onclick = function() {
+                    let htmlContent = "<ul>";
+                    itemsInShelf.forEach(i => {
+                        htmlContent += `<li>Barcode: ${i.Barcode || i.barcode || 'N/A'} - Qty: ${i.showroom_qty || 0}</li>`;
+                    });
+                    htmlContent += "</ul>";
+
+                    document.getElementById('popup-title').innerText = "Shelf: " + zoneId;
+                    document.getElementById('popup-content').innerHTML = htmlContent;
+                    document.getElementById('info-popup').style.display = 'block';
+                };
+            }
+        });
     }
 
-    // گروه‌بندیِ داده‌ها بر اساس zone_id
-    const groupedData = {};
-    inventory.forEach(item => {
-        if (!groupedData[item.zone_id]) groupedData[item.zone_id] = [];
-        groupedData[item.zone_id].push(item);
-    });
-
-    // پردازش هر قفسه
-    Object.keys(groupedData).forEach(zoneId => {
-        const shelf = document.getElementById(zoneId);
-        if (shelf) {
-            const itemsInShelf = groupedData[zoneId];
-            
-            // رنگ‌بندی بر اساس مجموع موجودی کل قفسه
-            const totalQty = itemsInShelf.reduce((sum, i) => sum + parseInt(i.showroom_qty || 0), 0);
-            
-            if (totalQty <= 0) shelf.style.fill = '#e74c3c';
-            else if (totalQty <= 30) shelf.style.fill = '#f39c12';
-            else shelf.style.fill = '#2ecc71';
-
-            shelf.style.cursor = "pointer";
-
-            // نمایش تمام بارکدها در پاپ‌آپ
-            shelf.onclick = function() {
-                let htmlContent = `<ul>`;
-                itemsInShelf.forEach(i => {
-                    htmlContent += `<li>Barcode: <b>${i.Barcode || i.barcode || 'N/A'}</b> - Qty: <b>${i.showroom_qty || 0}</b></li>`;
-                });
-                htmlContent += `</ul>`;
-
-                document.getElementById('popup-title').innerText = "Shelf: " + zoneId;
-                document.getElementById('popup-content').innerHTML = htmlContent;
-                document.getElementById('info-popup').style.display = 'block';
-            };
-        }
-    });
-}
-
-    // پردازش هر قفسه
-    Object.keys(groupedData).forEach(zoneId => {
-        const shelf = document.getElementById(zoneId);
-        if (shelf) {
-            const itemsInShelf = groupedData[zoneId];
-            
-            // رنگ‌بندی بر اساس مجموع موجودی کل قفسه
-            const totalQty = itemsInShelf.reduce((sum, i) => sum + parseInt(i.showroom_qty || 0), 0);
-            
-            if (totalQty <= 0) shelf.style.fill = '#e74c3c';
-            else if (totalQty <= 30) shelf.style.fill = '#f39c12';
-            else shelf.style.fill = '#2ecc71';
-
-            shelf.style.cursor = "pointer";
-
-            // نمایش تمام بارکدها در پاپ‌آپ
-shelf.onclick = function() {
-    let cardsHtml = ``;
-    itemsInShelf.forEach(i => {
-        const qty = parseInt(i.showroom_qty || 0);
-        // کارت‌های رنگی بر اساس موجودی
-        const color = qty <= 0 ? '#e74c3c' : (qty <= 30 ? '#f39c12' : '#2ecc71');
-        
-        cardsHtml += `
-            <div class="product-card" style="border-left-color: ${color}">
-                <div>
-                    <small style="color:#64748b">Barcode</small><br>
-                    <strong>${i.Barcode || i.barcode}</strong>
-                </div>
-                <div style="text-align:right">
-                    <small style="color:#64748b">Stock</small><br>
-                    <span style="font-weight:bold; color:${color}">${qty}</span>
-                </div>
-            </div>
-        `;
-    });
-
-    document.getElementById('popup-title').innerText = "Shelf ID: " + zoneId;
-    document.getElementById('popup-content').innerHTML = cardsHtml;
-    document.getElementById('info-popup').style.display = 'block';
-};
-        }
-    });
-
-
+    // اجرای تابع
     updateMapStatus();
 
+    // بروزرسانی زنده
     window.mySupabase.channel('custom-all-channel')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'showroom_inventory' }, () => {
             updateMapStatus();
