@@ -3742,40 +3742,43 @@
 </div>
 
 <script>
-    // 1. Initialize Supabase
     window.mySupabase = window.supabase.createClient(
         'https://qmurpnbrnmyjdxqjhybz.supabase.co', 
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'
     );
 
     async function updateMapStatus() {
-        // دریافت داده‌های هر دو جدول
-        const { data: inventory, error: invError } = await window.mySupabase.from('showroom_inventory').select('*');
-        const { data: items, error: itemError } = await window.mySupabase.from('system_inventory').select('Barcode, "Item Name"');
+        // استفاده از روشِ مستقیم برای دریافت داده‌ها (مشابه ایندکس)
+        const { data: inventory, error } = await window.mySupabase
+            .from('showroom_inventory')
+            .select(`
+                zone_id, 
+                showroom_qty, 
+                Barcode,
+                system_inventory!inner(Barcode, "Item Name")
+            `);
 
-        if (invError || itemError) {
-            console.error("Database error:", invError || itemError);
+        if (error) {
+            console.error("Error:", error);
             return;
         }
 
         inventory.forEach(item => {
             const shelf = document.getElementById(item.zone_id);
             if (shelf) {
-                // پیدا کردن مشخصات کالا در جدول system_inventory بر اساس Barcode
-                const productInfo = items.find(i => i.Barcode === item.Barcode);
                 const qty = item.showroom_qty;
                 
-                // رنگ‌بندی قفسه‌ها
+                // رنگ‌بندی
                 if (qty <= 0) shelf.style.fill = '#e74c3c';
                 else if (qty <= 30) shelf.style.fill = '#f39c12';
                 else shelf.style.fill = '#2ecc71';
 
                 shelf.style.cursor = "pointer";
 
-                // تعریف پاپ‌آپ
+                // استفاده از داده‌هایِ متصل شده (Join)
                 shelf.onclick = function() {
-                    const itemName = productInfo ? productInfo["Item Name"] : 'Unknown Item';
-                    document.getElementById('popup-title').innerText = "Shelf ID: " + item.zone_id;
+                    const itemName = item.system_inventory ? item.system_inventory["Item Name"] : 'Not Found';
+                    document.getElementById('popup-title').innerText = "Shelf: " + item.zone_id;
                     document.getElementById('popup-content').innerHTML = `
                         <p>Item: ${itemName}</p>
                         <p>Quantity: ${qty}</p>
@@ -3786,10 +3789,8 @@
         });
     }
 
-    // اجرای اولیه
     updateMapStatus();
 
-    // گوش دادن به تغییرات زنده (Realtime)
     window.mySupabase.channel('custom-all-channel')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'showroom_inventory' }, () => {
             updateMapStatus();
