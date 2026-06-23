@@ -56,6 +56,43 @@
 
     .label { font-size: 0.7rem; color: #64748b; margin-bottom: 2px; }
     .value { font-weight: bold; font-size: 0.9rem; color: #1e293b; }
+/* استایل برای کارت محصولات */
+.product-card {
+    background: #ffffff !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    padding: 15px !important;
+    margin-bottom: 10px !important;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+}
+.product-card:hover { transform: scale(1.02); }
+
+/* استایل برای ریسپانسیو کردن نقشه */
+#showroom-map {
+    width: 100%;
+    height: auto;
+    max-width: 1000px;
+    margin: 0 auto;
+    display: block;
+}
+
+/* استایل برای پاپ‌آپ */
+#info-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 400px;
+    max-height: 80vh;
+    overflow-y: auto;
+    background: white;
+    padding: 20px;
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);
+    z-index: 1000;
+}
 </style>
 </head>
 <body>
