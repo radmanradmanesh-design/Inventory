@@ -10,6 +10,26 @@
         /* استایل برای افکت هاور روی قفسه‌ها */
         path { cursor: pointer; transition: 0.3s; }
         path:hover { filter: brightness(1.1); stroke: #000; stroke-width: 1px; }
+        #info-popup {
+    backdrop-filter: blur(10px); /* حالت شیشه‌ای */
+    background: rgba(255, 255, 255, 0.9) !important;
+    border: none !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2) !important;
+    transition: all 0.3s ease;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.product-card {
+    background: #f8fafc;
+    border-left: 5px solid #06b6d4;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
     </style>
 </head>
 <body>
@@ -3778,17 +3798,31 @@
             shelf.style.cursor = "pointer";
 
             // نمایش تمام بارکدها در پاپ‌آپ
-            shelf.onclick = function() {
-                let htmlContent = `<ul>`;
-                itemsInShelf.forEach(i => {
-                    htmlContent += `<li>Barcode: <b>${i.Barcode || i.barcode || 'N/A'}</b> - Qty: <b>${i.showroom_qty || 0}</b></li>`;
-                });
-                htmlContent += `</ul>`;
+shelf.onclick = function() {
+    let cardsHtml = ``;
+    itemsInShelf.forEach(i => {
+        const qty = parseInt(i.showroom_qty || 0);
+        // کارت‌های رنگی بر اساس موجودی
+        const color = qty <= 0 ? '#e74c3c' : (qty <= 30 ? '#f39c12' : '#2ecc71');
+        
+        cardsHtml += `
+            <div class="product-card" style="border-left-color: ${color}">
+                <div>
+                    <small style="color:#64748b">Barcode</small><br>
+                    <strong>${i.Barcode || i.barcode}</strong>
+                </div>
+                <div style="text-align:right">
+                    <small style="color:#64748b">Stock</small><br>
+                    <span style="font-weight:bold; color:${color}">${qty}</span>
+                </div>
+            </div>
+        `;
+    });
 
-                document.getElementById('popup-title').innerText = "Shelf: " + zoneId;
-                document.getElementById('popup-content').innerHTML = htmlContent;
-                document.getElementById('info-popup').style.display = 'block';
-            };
+    document.getElementById('popup-title').innerText = "Shelf ID: " + zoneId;
+    document.getElementById('popup-content').innerHTML = cardsHtml;
+    document.getElementById('info-popup').style.display = 'block';
+};
         }
     });
 }
