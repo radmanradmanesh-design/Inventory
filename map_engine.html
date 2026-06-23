@@ -3748,34 +3748,52 @@
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'
     );
 
-    async function updateMapStatus() {
-        const { data: inventory, error } = await window.mySupabase
-            .from('showroom_inventory')
-            .select('zone_id, showroom_qty, Barcode');
+    // ... بخش قبل از این (تعریف window.mySupabase) همان قبلی باشد
 
-        if (error) return;
+async function updateMapStatus() {
+    // استفاده از قابلیت Join برای ترکیب اطلاعات دو جدول
+    // فرض بر این است که ستون مشترک بین دو جدول، کد بارکد (barcode) است
+    const { data: inventory, error } = await window.mySupabase
+        .from('showroom_inventory')
+        .select(`
+            zone_id, 
+            showroom_qty,
+            system_inventory (item_name)
+        `);
 
-        inventory.forEach(item => {
-            const shelf = document.getElementById(item.zone_id);
-            if (shelf) {
-                // منطق رنگ‌بندی
-                if (item.quantity <= 0) shelf.style.fill = '#e74c3c';
-                else if (item.quantity <= 30) shelf.style.fill = '#f39c12';
-                else shelf.style.fill = '#2ecc71';
+    if (error) {
+        console.error("Database error:", error);
+        return;
+    }
 
-                shelf.style.cursor = "pointer";
+    inventory.forEach(item => {
+        const shelf = document.getElementById(item.zone_id);
+        if (shelf) {
+            // استفاده از نام ستون جدید (showroom_qty)
+            const qty = item.showroom_qty;
+            
+            // رنگ‌بندی
+            if (qty <= 0) shelf.style.fill = '#e74c3c';
+            else if (qty <= 30) shelf.style.fill = '#f39c12';
+            else shelf.style.fill = '#2ecc71';
 
-                // باز کردن پاپ‌آپ
-                shelf.onclick = function() {
-                    document.getElementById('popup-title').innerText = "Shelf ID: " + item.zone_id;
-                    document.getElementById('popup-content').innerHTML = `
-                        <p>Item: ${item.item_name}</p>
-                        <p>Quantity: ${item.quantity}</p>
-                    `;
-                    document.getElementById('info-popup').style.display = 'block';
-                };
-            }
-        });
+            shelf.style.cursor = "pointer";
+
+            // باز کردن پاپ‌آپ با نامِ کالا از جدولِ متصل شده
+            shelf.onclick = function() {
+                const itemName = item.system_inventory ? item.system_inventory.item_name : 'Unknown Item';
+                document.getElementById('popup-title').innerText = "Shelf ID: " + item.zone_id;
+                document.getElementById('popup-content').innerHTML = `
+                    <p>Item: ${itemName}</p>
+                    <p>Quantity: ${qty}</p>
+                `;
+                document.getElementById('info-popup').style.display = 'block';
+            };
+        }
+    });
+}
+
+// ... باقی کد (updateMapStatus و channel) همان قبلی باشد
     }
 
     updateMapStatus();
