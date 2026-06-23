@@ -3742,55 +3742,49 @@
 </div>
 
 <script>
-    // 1. Initialize Supabase
     window.mySupabase = window.supabase.createClient(
         'https://qmurpnbrnmyjdxqjhybz.supabase.co', 
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'
     );
 
-   async function updateMapStatus() {
-    const { data: inventory, error: invError } = await window.mySupabase.from('showroom_inventory').select('*');
-    const { data: products, error: prodError } = await window.mySupabase.from('system_inventory').select('Barcode, "Item Name"');
+    async function updateMapStatus() {
+        // فقط دریافت داده از همان جدول شوروم
+        const { data: inventory, error } = await window.mySupabase.from('showroom_inventory').select('*');
 
-    if (invError || prodError) return;
-
-    inventory.forEach(item => {
-        const shelf = document.getElementById(item.zone_id);
-        if (shelf) {
-            // شناسایی خودکار نام ستون بارکد
-            const keys = Object.keys(item);
-            const barcodeKey = keys.find(k => k.toLowerCase() === 'barcode');
-            const itemBarcode = item[barcodeKey];
-            
-            // دیباگ: این خط را در کنسول (F12) ببینید
-            console.log("Checking Shelf:", item.zone_id, "| Found Barcode:", itemBarcode);
-
-            const productInfo = products.find(p => String(p.Barcode).trim() === String(itemBarcode).trim());
-            
-            const qty = parseInt(item.showroom_qty || item.showroom_quantity || 0);
-            
-            // رنگ‌بندی
-            if (qty <= 0) shelf.style.fill = '#e74c3c';
-            else if (qty <= 30) shelf.style.fill = '#f39c12';
-            else shelf.style.fill = '#2ecc71';
-
-            shelf.onclick = function() {
-                const itemName = productInfo ? productInfo["Item Name"] : "Not Found (Key:" + barcodeKey + ")";
-                document.getElementById('popup-title').innerText = "Shelf: " + item.zone_id;
-                document.getElementById('popup-content').innerHTML = `
-                    <p>Barcode: ${itemBarcode}</p>
-                    <p>Item: ${itemName}</p>
-                    <p>Quantity: ${qty}</p>
-                `;
-                document.getElementById('info-popup').style.display = 'block';
-            };
+        if (error) {
+            console.error("Error:", error);
+            return;
         }
-    });
-}
-    // اجرای تابع
+
+        inventory.forEach(item => {
+            const shelf = document.getElementById(item.zone_id);
+            if (shelf) {
+                // دریافت بارکد و موجودی
+                const barcode = item.Barcode || item.barcode || 'N/A';
+                const qty = parseInt(item.showroom_qty || item.showroom_quantity || 0);
+                
+                // رنگ‌بندی
+                if (qty <= 0) shelf.style.fill = '#e74c3c';
+                else if (qty <= 30) shelf.style.fill = '#f39c12';
+                else shelf.style.fill = '#2ecc71';
+
+                shelf.style.cursor = "pointer";
+
+                // نمایش فقط بارکد و تعداد در پاپ‌آپ
+                shelf.onclick = function() {
+                    document.getElementById('popup-title').innerText = "Shelf: " + item.zone_id;
+                    document.getElementById('popup-content').innerHTML = `
+                        <p>Barcode: <b>${barcode}</b></p>
+                        <p>Quantity: <b>${qty}</b></p>
+                    `;
+                    document.getElementById('info-popup').style.display = 'block';
+                };
+            }
+        });
+    }
+
     updateMapStatus();
 
-    // بروزرسانی زنده
     window.mySupabase.channel('custom-all-channel')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'showroom_inventory' }, () => {
             updateMapStatus();
