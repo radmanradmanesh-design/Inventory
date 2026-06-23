@@ -1045,10 +1045,36 @@
     if (!qty || qty <= 0) { alert('Enter valid quantity'); return; }
 
     // اعتبارسنجی برای خروج: حتما باید مقصد انتخاب شده باشد
-    if (txType === 'out' && (!destShelfInput.value || destShelfInput.value.trim() === '')) {
-        alert('Please select a Destination Shelf!');
-        return;
+   // جایگزین کردن این بخش در تابع submitTransfer
+if (txType === 'out') {
+    let showroomPayload = {};
+    
+    // شناسایی بارکد (با توجه به متغیرهای خودتان)
+    showroomPayload[dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode'] = barcode;
+    
+    // مقدار جدید موجودی
+    showroomPayload[dbShowroomQtyKey] = newShowroomQty;
+    
+    // دستور اصلی برای ثبت در zone_id
+    // مطمئن می‌شویم که حتماً از مقدارِ انتخاب شده توسط کاربر استفاده می‌شود
+    const selectedZone = document.getElementById('destinationShelf').value;
+    showroomPayload['zone_id'] = selectedZone;
+    
+    // در صورت نیاز به به‌روزرسانی خودکارِ زمان (اگر در دیتابیس Trigger ندارید)
+    // showroomPayload['updated_at'] = new Date().toISOString(); 
+
+    const { error: showroomError } = await _supabase
+        .from('showroom_inventory')
+        .upsert(showroomPayload, { 
+            onConflict: dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode' 
+        });
+
+    if (showroomError) {
+        console.error("Supabase Error:", showroomError);
+        alert("Failed to update showroom database: " + showroomError.message);
+        return; // جلوگیری از ادامه عملیات در صورت خطا
     }
+}
 
     if (txType === 'intake' && newLocInput.value.trim() !== '') { 
         selectedLoc = newLocInput.value.trim();
