@@ -3800,16 +3800,30 @@
 
                 // تعریف کلیک
                 shelf.onclick = function() {
-                    let htmlContent = "<ul>";
-                    itemsInShelf.forEach(i => {
-                        htmlContent += `<li>Barcode: ${i.Barcode || i.barcode || 'N/A'} - Qty: ${i.showroom_qty || 0}</li>`;
-                    });
-                    htmlContent += "</ul>";
+    let cardsHtml = ``;
+    itemsInShelf.forEach(i => {
+        const qty = parseInt(i.showroom_qty || 0);
+        // کارت‌های رنگی بر اساس موجودی
+        const color = qty <= 0 ? '#e74c3c' : (qty <= 30 ? '#f39c12' : '#2ecc71');
+        
+        cardsHtml += `
+            <div class="product-card" style="border-left-color: ${color}">
+                <div>
+                    <small style="color:#64748b">Barcode</small><br>
+                    <strong>${i.Barcode || i.barcode}</strong>
+                </div>
+                <div style="text-align:right">
+                    <small style="color:#64748b">Stock</small><br>
+                    <span style="font-weight:bold; color:${color}">${qty}</span>
+                </div>
+            </div>
+        `;
+    });
 
-                    document.getElementById('popup-title').innerText = "Shelf: " + zoneId;
-                    document.getElementById('popup-content').innerHTML = htmlContent;
-                    document.getElementById('info-popup').style.display = 'block';
-                };
+    document.getElementById('popup-title').innerText = "Shelf ID: " + zoneId;
+    document.getElementById('popup-content').innerHTML = cardsHtml;
+    document.getElementById('info-popup').style.display = 'block';
+};
             }
         });
     }
