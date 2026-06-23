@@ -4,34 +4,54 @@
     <meta charset="UTF-8">
     <title>Interactive Ground Floor Map</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        body { margin: 0; padding: 20px; background-color: #f4f4f4; }
-        #map-container { width: 100%; max-width: 1000px; margin: auto; }
-        /* استایل برای افکت هاور روی قفسه‌ها */
-        path { cursor: pointer; transition: 0.3s; }
-        path:hover { filter: brightness(1.1); stroke: #000; stroke-width: 1px; }
-        #info-popup {
-    backdrop-filter: blur(10px); /* حالت شیشه‌ای */
-    background: rgba(255, 255, 255, 0.9) !important;
-    border: none !important;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.2) !important;
-    transition: all 0.3s ease;
-    max-height: 400px;
-    overflow-y: auto;
-}
+<style>
+    body { margin: 0; padding: 20px; background-color: #f4f4f4; }
+    #map-container { width: 100%; max-width: 1000px; margin: auto; }
+    
+    /* استایل برای افکت هاور روی قفسه‌ها */
+    path { cursor: pointer; transition: 0.3s; }
+    path:hover { filter: brightness(1.1); stroke: #000; stroke-width: 1px; }
 
-.product-card {
-    background: #f8fafc;
-    border-left: 5px solid #06b6d4;
-    padding: 10px;
-    margin-bottom: 10px;
-    border-radius: 4px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
+    /* استایل جدید پاپ‌آپ */
+    #info-popup {
+        backdrop-filter: blur(12px);
+        background: rgba(255, 255, 255, 0.95) !important;
+        border-radius: 16px !important;
+        box-shadow: 0 15px 35px rgba(0,0,0,0.2) !important;
+        transition: all 0.3s ease;
+        padding: 20px !important;
+        width: 450px; /* عرض مناسب برای نمایش دو ستونه */
+    }
 
-    </style>
+    /* کانتینر کارت‌ها به صورت شبکه */
+    #popup-content {
+        display: grid;
+        grid-template-columns: 1fr 1fr; /* دو ستون مساوی */
+        gap: 12px;
+        margin-top: 15px;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .product-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        border-left: 4px solid #06b6d4;
+        transition: transform 0.2s;
+    }
+
+    .product-card:hover {
+        transform: translateY(-2px);
+        background: #f1f5f9;
+    }
+
+    .label { font-size: 0.7rem; color: #64748b; margin-bottom: 2px; }
+    .value { font-weight: bold; font-size: 0.9rem; color: #1e293b; }
+</style>
 </head>
 <body>
 
@@ -3799,28 +3819,22 @@
                 shelf.style.cursor = "pointer";
 
                 // تعریف کلیک
-                shelf.onclick = function() {
+              shelf.onclick = function() {
     let cardsHtml = ``;
+    
+    // فرض می‌کنیم itemsInShelf همان لیستِ بارکدهای قفسه است
     itemsInShelf.forEach(i => {
-        const qty = parseInt(i.showroom_qty || 0);
-        // کارت‌های رنگی بر اساس موجودی
-        const color = qty <= 0 ? '#e74c3c' : (qty <= 30 ? '#f39c12' : '#2ecc71');
-        
         cardsHtml += `
-            <div class="product-card" style="border-left-color: ${color}">
-                <div>
-                    <small style="color:#64748b">Barcode</small><br>
-                    <strong>${i.Barcode || i.barcode}</strong>
-                </div>
-                <div style="text-align:right">
-                    <small style="color:#64748b">Stock</small><br>
-                    <span style="font-weight:bold; color:${color}">${qty}</span>
-                </div>
+            <div class="product-card">
+                <span style="font-size: 0.7rem; color: #64748b;">Barcode</span>
+                <span style="font-weight: bold; font-size: 0.9rem; color: #1e293b;">
+                    ${i.Barcode || i.barcode || '---'}
+                </span>
             </div>
         `;
     });
 
-    document.getElementById('popup-title').innerText = "Shelf ID: " + zoneId;
+    document.getElementById('popup-title').innerText = "Shelf: " + zoneId;
     document.getElementById('popup-content').innerHTML = cardsHtml;
     document.getElementById('info-popup').style.display = 'block';
 };
