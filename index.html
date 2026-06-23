@@ -1029,92 +1029,77 @@
     }
 
     async function submitTransfer() {
-        if (!currentActiveOperatorName) {
-            alert("Action Denied: Session missing. Please authenticate.");
-            return;
-        }
-
-        const transferQtyInput = document.getElementById('transfer-qty');
-        const qty = parseInt(transferQtyInput.value);
-        const txType = typeSelect.value;
-        const barcode = finalCleanedBarcode;
-        const itemName = currentProduct ? (currentProduct['Item Name'] || currentProduct['item_name'] || 'Unknown Item') : 'Unknown Item';
-         
-        let selectedLoc = sourceLocSelect.value;
-        if (!qty || qty <= 0) { alert('Enter valid quantity'); return; }
-
-        if (txType === 'intake' && newLocInput.value.trim() !== '') { 
-            selectedLoc = newLocInput.value.trim();
-        }
-
-        let currentLocQty = locBalances[selectedLoc] || 0;
-        if (txType === 'out' && qty > currentLocQty) { 
-            alert('Error: Not enough stock in this location!'); return;
-        }
-
-        if (txType === 'in' && qty > currentShowroomQty) { 
-            alert(`Denied: Maximum returnable amount is ${currentShowroomQty}`);
-            return;
-        }
-
-        let actionMessage = "";
-        if (txType === 'intake') { 
-            actionMessage = `🔹 Direct Stock Intake\n📦 ITEM: ${itemName}\n🔢 QTY: +${qty} pcs\n📍 SHELF: [ ${selectedLoc} ]`;
-        } else if (txType === 'out') { 
-            actionMessage = `🔹 Move to Showroom\n📦 ITEM: ${itemName}\n🔢 QTY: -${qty} pcs\n📍 FROM SHELF: [ ${selectedLoc} ]`;
-        } else if (txType === 'in') { 
-            actionMessage = `🔹 Return to Warehouse\n📦 ITEM: ${itemName}\n🔢 QTY: +${qty} pcs\n📍 TARGET SHELF: [ ${selectedLoc} ]`;
-        }
-
-        const confirmAction = confirm(`${actionMessage}\n\nUpdate database?`);
-        if (!confirmAction) return;
-
-        statusDiv.className = 'status loading';
-        statusDiv.textContent = 'Processing transaction...';
-
-        let newLocQty = currentLocQty;
-        let newShowroomQty = currentShowroomQty;
-        if (txType === 'out') { 
-            newLocQty = currentLocQty - qty; newShowroomQty = currentShowroomQty + qty;
-        } else if (txType === 'in') { 
-            newLocQty = currentLocQty + qty; newShowroomQty = currentShowroomQty - qty;
-        } else if (txType === 'intake') { 
-            newLocQty = currentLocQty + qty;
-        }
-
-        const { error: whseError } = await _supabase
-            .from('warehouse_inventory')
-            .upsert({ "Row Labels": barcode, "Attribute": selectedLoc, "Value": newLocQty }, { onConflict: 'Row Labels,Attribute' });
-        if (whseError) {
-            alert(`Error: ${whseError.message}`);
-            statusDiv.className = 'status error';
-            statusDiv.textContent = 'Error updating shelf!';
-            return;
-        }
-
-        if (txType !== 'intake') {
-            let showroomPayload = {};
-            showroomPayload[dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode'] = barcode;
-            showroomPayload[dbShowroomQtyKey] = newShowroomQty;
-            await _supabase.from('showroom_inventory').upsert(showroomPayload, { onConflict: dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode' });
-        }
-
-        let logWorkerName = `${currentActiveOperatorName} (Intake to ${selectedLoc})`;
-        let logQty = qty;
-        if (txType === 'out') { logWorkerName = `${currentActiveOperatorName} (Shelf ${selectedLoc} -> Showroom)`; logQty = qty; }
-        if (txType === 'in') { logWorkerName = `${currentActiveOperatorName} (Showroom -> Shelf ${selectedLoc})`; logQty = -qty; }
-         
-        const { error: logError } = await _supabase.from('transfer_log').insert([{ Barcode: barcode, qty_transferred: logQty, worker_name: logWorkerName }]);
-        if (logError) {
-            alert(`⚠️ Log Failed: ${logError.message}`);
-            return;
-        }
-
-        statusDiv.className = 'status success';
-        statusDiv.textContent = 'Stock & Logs updated successfully!';
-        setTimeout(resetPage, 1500);
+    if (!currentActiveOperatorName) {
+        alert("Action Denied: Session missing. Please authenticate.");
+        return;
     }
 
+    const transferQtyInput = document.getElementById('transfer-qty');
+    const destShelfInput = document.getElementById('destinationShelf'); // فیلد جدید
+    const qty = parseInt(transferQtyInput.value);
+    const txType = typeSelect.value;
+    const barcode = finalCleanedBarcode;
+    const itemName = currentProduct ? (currentProduct['Item Name'] || currentProduct['item_name'] || 'Unknown Item') : 'Unknown Item';
+    
+    let selectedLoc = sourceLocSelect.value;
+    if (!qty || qty <= 0) { alert('Enter valid quantity'); return; }
+
+    // اعتبارسنجی برای خروج: حتما باید مقصد انتخاب شده باشد
+    if (txType === 'out' && (!destShelfInput.value || destShelfInput.value.trim() === '')) {
+        alert('Please select a Destination Shelf!');
+        return;
+    }
+
+    if (txType === 'intake' && newLocInput.value.trim() !== '') { 
+        selectedLoc = newLocInput.value.trim();
+    }
+
+    let currentLocQty = locBalances[selectedLoc] || 0;
+    if (txType === 'out' && qty > currentLocQty) { alert('Error: Not enough stock!'); return; }
+    if (txType === 'in' && qty > currentShowroomQty) { alert(`Denied: Max returnable is ${currentShowroomQty}`); return; }
+
+    let actionMessage = txType === 'out' 
+        ? `🔹 Move to Showroom\n📦 ITEM: ${itemName}\n🔢 QTY: -${qty}\n📍 FROM: [ ${selectedLoc} ]\n🏁 TO: [ ${destShelfInput.value} ]`
+        : `🔹 Transaction\n📦 ITEM: ${itemName}\n🔢 QTY: ${qty}\n📍 SHELF: [ ${selectedLoc} ]`;
+
+    const confirmAction = confirm(`${actionMessage}\n\nUpdate database?`);
+    if (!confirmAction) return;
+
+    statusDiv.className = 'status loading';
+    statusDiv.textContent = 'Processing transaction...';
+
+    let newLocQty = currentLocQty;
+    let newShowroomQty = currentShowroomQty;
+    if (txType === 'out') { newLocQty = currentLocQty - qty; newShowroomQty = currentShowroomQty + qty; } 
+    else if (txType === 'in') { newLocQty = currentLocQty + qty; newShowroomQty = currentShowroomQty - qty; } 
+    else if (txType === 'intake') { newLocQty = currentLocQty + qty; }
+
+    // آپدیت انبار
+    const { error: whseError } = await _supabase
+        .from('warehouse_inventory')
+        .upsert({ "Row Labels": barcode, "Attribute": selectedLoc, "Value": newLocQty }, { onConflict: 'Row Labels,Attribute' });
+    if (whseError) { alert(`Error: ${whseError.message}`); return; }
+
+    // آپدیت شوروم با ستون zone_id
+    if (txType !== 'intake') {
+        let showroomPayload = {};
+        showroomPayload[dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode'] = barcode;
+        showroomPayload[dbShowroomQtyKey] = newShowroomQty;
+        // ثبت در zone_id
+        if (txType === 'out') {
+            showroomPayload['zone_id'] = destShelfInput.value;
+        }
+        await _supabase.from('showroom_inventory').upsert(showroomPayload, { onConflict: dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode' });
+    }
+
+    // لاگ کردن
+    let logWorkerName = `${currentActiveOperatorName} | ${txType} | ${selectedLoc}`;
+    await _supabase.from('transfer_log').insert([{ Barcode: barcode, qty_transferred: (txType === 'in' ? -qty : qty), worker_name: logWorkerName }]);
+
+    statusDiv.className = 'status success';
+    statusDiv.textContent = 'Updated successfully!';
+    setTimeout(resetPage, 1500);
+}
     function resetPage() {
         barcodeInput.value = '';
         newLocInput.value = '';
