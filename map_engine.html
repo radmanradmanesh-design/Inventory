@@ -3846,6 +3846,21 @@
     <button onclick="document.getElementById('info-popup').style.display='none'">Close</button>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+
+<script>
+    window.onload = function() {
+        // فعال کردن زوم روی نقشه
+        var panZoomInstance = svgPanZoom('#showroom-map', {
+            zoomEnabled: true,
+            controlIconsEnabled: true,
+            fit: true,
+            center: true,
+            minZoom: 0.5,
+            maxZoom: 10
+        });
+    };
+</script>
 <script>
     // Initialize Supabase
     window.mySupabase = window.supabase.createClient(
