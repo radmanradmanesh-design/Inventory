@@ -11,6 +11,7 @@
         padding: 16px; 
         background-color: #f4f4f4; 
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        box-sizing: border-box;
     }
 
     /* کانتینر اصلی نقشه */
@@ -21,7 +22,7 @@
         background: #fff;
         border-radius: 20px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-        overflow: hidden; /* برای جلوگیری از بیرون زدگی SVG */
+        overflow: hidden;
     }
 
     /* ریسپانسیو کردن نقشه */
@@ -53,14 +54,21 @@
         backdrop-filter: blur(12px);
         direction: ltr !important;
         text-align: left !important;
+        box-sizing: border-box;
     }
 
-    /* شبکه بندی محصولات */
+    /* شبکه بندی محصولات - اصلاح شده */
     #popup-content {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); /* هوشمند برای موبایل و دسکتاپ */
+        grid-template-columns: 1fr; /* حالت پیش‌فرض موبایل */
         gap: 12px;
         margin-top: 15px;
+    }
+
+    @media (min-width: 480px) {
+        #popup-content {
+            grid-template-columns: 1fr 1fr; /* دوتایی برای صفحه بزرگتر */
+        }
     }
 
     /* کارت محصولات */
@@ -73,12 +81,27 @@
         flex-direction: column;
         border-left: 4px solid #06b6d4 !important;
         transition: transform 0.2s;
+        min-width: 0; /* حیاتی برای جلوگیری از شکستن گرید */
+        box-sizing: border-box;
     }
     
     .product-card:hover { transform: scale(1.02); background: #eff6ff !important; }
 
-    .label { font-size: 0.7rem; color: #64748b; margin-bottom: 2px; text-transform: uppercase; }
-    .value { font-weight: bold; font-size: 0.9rem; color: #1e293b; }
+    .label { 
+        font-size: 0.7rem; 
+        color: #64748b; 
+        margin-bottom: 2px; 
+        text-transform: uppercase; 
+        white-space: nowrap;
+    }
+
+    .value { 
+        font-weight: bold; 
+        font-size: 0.9rem; 
+        color: #1e293b; 
+        word-wrap: break-word; /* شکستن کلمات طولانی */
+        overflow-wrap: break-word;
+    }
 </style>
 </head>
 <body>
