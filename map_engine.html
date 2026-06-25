@@ -104,6 +104,31 @@
         word-wrap: break-word; /* شکستن کلمات طولانی */
         overflow-wrap: break-word;
     }
+/* افکت سه‌بعدی و مدرن برای قفسه‌ها */
+path {
+    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    stroke: rgba(255, 255, 255, 0.5);
+    stroke-width: 0.5;
+}
+
+path:hover {
+    filter: drop-shadow(0 8px 12px rgba(0,0,0,0.3));
+    transform: translateY(-3px) scale(1.01);
+    stroke: #fff;
+    stroke-width: 2;
+    z-index: 10;
+}
+
+/* افزودن افکت درخشش (Glow) به قفسه‌های کم‌موجودی */
+.low-stock {
+    animation: pulse-glow 2s infinite;
+}
+
+@keyframes pulse-glow {
+    0% { filter: drop-shadow(0 0 2px #ef4444); }
+    50% { filter: drop-shadow(0 0 8px #ef4444); }
+    100% { filter: drop-shadow(0 0 2px #ef4444); }
+}
 </style>
 </head>
 <body>
