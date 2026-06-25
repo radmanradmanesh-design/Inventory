@@ -3846,20 +3846,25 @@
     <button onclick="document.getElementById('info-popup').style.display='none'">Close</button>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
-
 <script>
-    window.onload = function() {
-        // فعال کردن زوم روی نقشه
-        var panZoomInstance = svgPanZoom('#showroom-map', {
-            zoomEnabled: true,
-            controlIconsEnabled: true,
-            fit: true,
-            center: true,
-            minZoom: 0.5,
-            maxZoom: 10
-        });
-    };
+    document.addEventListener("DOMContentLoaded", function() {
+        // ۱. صبر می‌کنیم تا کل DOM صفحه آماده شود
+        const mapElement = document.querySelector('#showroom-map');
+        
+        // ۲. یک تأخیر بسیار کوتاه (۵۰۰ میلی‌ثانیه) می‌دهیم تا SVG کاملاً رندر شود
+        setTimeout(function() {
+            if (mapElement) {
+                svgPanZoom('#showroom-map', {
+                    zoomEnabled: true,
+                    controlIconsEnabled: true,
+                    fit: true,
+                    center: true,
+                    minZoom: 0.5,
+                    maxZoom: 10
+                });
+            }
+        }, 500); 
+    });
 </script>
 <script>
     // Initialize Supabase
