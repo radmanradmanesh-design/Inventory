@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>3D Store Map</title>
+
+<style>
+body{
+    margin:0;
+    overflow:hidden;
+}
+
+#three-container{
+    width:100vw;
+    height:100vh;
+}
+</style>
+</head>
+
+<body>
+
+<div id="three-container"></div>
+
+<script type="module">
+
+import * as THREE from
+'https://cdn.jsdelivr.net/npm/three@0.179.1/build/three.module.js';
+
+const scene = new THREE.Scene();
+
+scene.background =
+new THREE.Color(0xf5f5f5);
+
+const camera =
+new THREE.PerspectiveCamera(
+45,
+window.innerWidth/window.innerHeight,
+0.1,
+1000
+);
+
+const renderer =
+new THREE.WebGLRenderer({
+antialias:true
+});
+
+renderer.setSize(
+window.innerWidth,
+window.innerHeight
+);
+
+document
+.getElementById("three-container")
+.appendChild(renderer.domElement);
+
+const ambient =
+new THREE.AmbientLight(
+0xffffff,
+2
+);
+
+scene.add(ambient);
+
+const dir =
+new THREE.DirectionalLight(
+0xffffff,
+3
+);
+
+dir.position.set(20,20,20);
+
+scene.add(dir);
+
+const shelfGeometry =
+new THREE.BoxGeometry(
+10,
+2,
+4
+);
+
+const shelfMaterial =
+new THREE.MeshStandardMaterial({
+color:0x4CAF50
+});
+
+const shelf =
+new THREE.Mesh(
+shelfGeometry,
+shelfMaterial
+);
+
+scene.add(shelf);
+
+camera.position.set(
+20,
+15,
+20
+);
+
+camera.lookAt(
+0,
+0,
+0
+);
+
+function animate(){
+
+requestAnimationFrame(
+animate
+);
+
+renderer.render(
+scene,
+camera
+);
+
+}
+
+animate();
+
+</script>
+
+</body>
+</html>
