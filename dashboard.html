@@ -1157,10 +1157,24 @@
     function renderTableChunk(dataSource) {
         const tbody = document.getElementById('report-tbody');
         tbody.innerHTML = '';
-        if(dataSource.length === 0) { tbody.innerHTML = '<tr><td colspan="7">ℹ️ No rows matched.</td></tr>'; return; }
+        
+        if (dataSource.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7">ℹ️ No rows matched.</td></tr>';
+            document.getElementById('pagination-wrapper').style.display = 'none';
+            return;
+        }
+
+        // محاسبه تعداد صفحات
+        const totalEntries = dataSource.length;
+        const totalPages = Math.ceil(totalEntries / ROWS_PER_PAGE);
+
+        // اصلاح صفحه فعلی در صورت خارج شدن از محدوده
+        if (reportCurrentPage > totalPages) reportCurrentPage = totalPages;
+        if (reportCurrentPage < 1) reportCurrentPage = 1;
 
         const startIndex = (reportCurrentPage - 1) * ROWS_PER_PAGE;
-        const pageItems = dataSource.slice(startIndex, startIndex + ROWS_PER_PAGE);
+        const endIndex = Math.min(startIndex + ROWS_PER_PAGE, totalEntries);
+        const pageItems = dataSource.slice(startIndex, endIndex);
 
         pageItems.forEach(row => {
             const workerLower = (row.worker || '').toLowerCase();
@@ -1186,23 +1200,13 @@
                     <td>${actionButton}</td>
                 </tr>`;
         });
-    }
 
-    function changeReportPage(direction) {
-        reportCurrentPage += direction;
-        const valBarcode = document.getElementById('filter-barcode').value.toLowerCase().trim();
-        const valName = document.getElementById('filter-name').value.toLowerCase().trim();
-        const valOperator = document.getElementById('filter-operator').value.toLowerCase().trim();
-
-        if (valBarcode || valName || valOperator) {
-            const filtered = finalProcessedRows.filter(row => {
-                return row.barcode.toLowerCase().includes(valBarcode) &&
-                       row.itemName.toLowerCase().includes(valName) &&
-                       row.worker.toLowerCase().includes(valOperator);
-            });
-            renderTableChunk(filtered);
-        } else { renderTableChunk(finalProcessedRows); }
-        document.getElementById('report-table').scrollIntoView({ behavior: 'smooth' });
+        // نمایش و به‌روزرسانی پنل صفحه‌بندی
+        document.getElementById('pagination-wrapper').style.display = 'flex';
+        document.getElementById('pagination-text-info').textContent = `Showing ${startIndex + 1} to ${endIndex} of ${totalEntries} entries`;
+        document.getElementById('pagination-current-indicator').textContent = reportCurrentPage;
+        document.getElementById('pagination-prev-btn').disabled = (reportCurrentPage === 1);
+        document.getElementById('pagination-next-btn').disabled = (reportCurrentPage === totalPages);
     }
 
     function updateKPIs(count, intake, move) {
