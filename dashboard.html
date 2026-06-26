@@ -1236,22 +1236,29 @@
 
         const pageItems = dataSource.slice(startIndex, endIndex);
 
-        pageItems.forEach(row => {
-            const qty = Math.abs(row.qty_transferred || 0);
-            const logDate = new Date(row.created_at).toLocaleString('en-GB', { timeZone: 'Asia/Muscat' });
-            const isVoided = row.status && row.status === 'Voided';
+       pageItems.forEach(row => {
+    const qty = Math.abs(row.qty_transferred || 0);
+    const logDate = new Date(row.created_at).toLocaleString('en-GB', { timeZone: 'Asia/Muscat' });
+    const isVoided = row.status && row.status === 'Voided';
 
-            let badgeClass = 'badge movement';
-            if (row.isOfflinePending) {
-                badgeClass = 'badge pending-sync';
-            } else if (isVoided) {
-                badgeClass = 'badge voided';
-            } else if (row.worker.includes('Direct Intake')) {
-                if (row.worker.toLowerCase().includes('intake')) {
-                badgeClass = 'badge intake';
-            } else {
-                badgeClass = 'badge movement';
-            }
+    // تبدیل worker به حروف کوچک برای جلوگیری از خطاهای حساسیت به حروف
+    const workerName = (row.worker || '').toLowerCase(); 
+
+    let badgeClass = 'badge movement'; // پیش‌فرض
+    
+    if (row.isOfflinePending) {
+        badgeClass = 'badge pending-sync';
+    } else if (isVoided) {
+        badgeClass = 'badge voided';
+    } else if (workerName.includes('intake')) {
+        // این شرط حالا هم 'direct intake' و هم 'intake' ساده را تشخیص می‌دهد
+        badgeClass = 'badge intake';
+    } else {
+        badgeClass = 'badge movement';
+    }
+    
+    // ... ادامه کدهای شما برای ساخت ردیف‌های جدول ...
+});
 
             if (row.worker.includes('System Auto-Sale')) {
                 badgeClass = 'badge voided';
