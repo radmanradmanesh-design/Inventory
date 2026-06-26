@@ -1247,6 +1247,7 @@
             } else if (isVoided) {
                 badgeClass = 'badge voided';
             } else if (row.worker.includes('Direct Intake')) {
+                if (row.worker.toLowerCase().includes('intake')) {
                 badgeClass = 'badge intake';
             } else {
                 badgeClass = 'badge movement';
