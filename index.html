@@ -1039,8 +1039,7 @@
     // ۱. فقط و فقط محاسبه موجودی انبار برای هر سه حالت (این بخش مطمئن است)
     const currentLocQty = locBalances[selectedLoc] || 0;
     const newLocQty = (txType === 'out') ? (currentLocQty - qty) : (currentLocQty + qty);
-    console.log("Saving to DB - Barcode:", barcode, "Location:", selectedLoc, "Value:", newLocQty);
-    await _supabase.from('warehouse_inventory').upsert(...);
+    
     // ۲. آپدیت انبار (همیشه اجرا شود)
     const { error: whseError } = await _supabase
         .from('warehouse_inventory')
