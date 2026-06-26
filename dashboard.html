@@ -1062,12 +1062,10 @@
         return localISO.toISOString();
     }
 
-// تعریف آبجکت یکپارچه برای جلوگیری از تداخل
-window.reportData = {
-    processedRows: [],
-    currentPage: 1,
-    rowsPerPage: 100
-};
+// --- متغیرهای سراسری (با استفاده از var برای جلوگیری از خطای Redefinition) ---
+var finalProcessedRows = [];
+var reportCurrentPage = 1;
+var ROWS_PER_PAGE = 100;
 
 async function loadManagerialReport() {
     const startDate = document.getElementById('date-start-picker').value;
@@ -1077,8 +1075,8 @@ async function loadManagerialReport() {
     
     errDisplay.style.display = 'none';
     tbody.innerHTML = '<tr><td colspan="7" class="loading-text">🔄 Fetching logs...</td></tr>';
-    clearColumnFilterInputs();
-    window.reportData.currentPage = 1;
+    document.getElementById('pagination-wrapper').style.display = 'none';
+    reportCurrentPage = 1;
 
     let onlineLogs = [];
     if (navigator.onLine) {
@@ -1108,9 +1106,7 @@ async function loadManagerialReport() {
 
         if (mergedLogs.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7">ℹ️ No activities found.</td></tr>';
-            document.getElementById('pagination-wrapper').style.display = 'none';
-            updateKPIs(0, 0, 0); // ریست KPIها
-            return;
+            updateKPIs(0, 0, 0); return;
         }
 
         const uniqueBarcodes = [...new Set(mergedLogs.map(l => l.Barcode || l.barcode))].filter(Boolean);
@@ -1123,9 +1119,10 @@ async function loadManagerialReport() {
             if (showroomData) showroomData.forEach(s => showroomStockMap[s[schemaKeys.showroom.barcode]] = s[schemaKeys.showroom.qty] ?? 0);
         }
 
-        // محاسبه داده‌ها و KPIها
         let totalRequests = 0, totalIntakeQty = 0, totalMovementQty = 0;
-        window.reportData.processedRows = mergedLogs.map(log => {
+        finalProcessedRows = []; 
+
+        mergedLogs.forEach(log => {
             const workerStr = (log.worker_name || '').toLowerCase();
             const qty = Math.abs(log.qty_transferred || 0);
             const isVoided = log.status === 'Voided';
@@ -1135,27 +1132,19 @@ async function loadManagerialReport() {
                 else if (!workerStr.includes('system auto-sale')) { totalMovementQty += qty; totalRequests++; }
             }
 
-            return {
+            finalProcessedRows.push({
                 id: log.id, barcode: log.Barcode || log.barcode || '---',
                 itemName: productMap[log.Barcode || log.barcode] || 'System Item',
                 worker: log.worker_name || '', qty_transferred: log.qty_transferred,
+                isOfflinePending: log.isOfflinePending || false,
                 status: log.status, created_at: log.created_at,
                 liveShowroomStock: showroomStockMap[log.Barcode || log.barcode] ?? 0
-            };
+            });
         });
 
-        updateKPIs(totalRequests, totalIntakeQty, totalMovementQty); // آپدیت KPIها
-        renderTableChunk(window.reportData.processedRows);
+        updateKPIs(totalRequests, totalIntakeQty, totalMovementQty);
+        renderTableChunk(finalProcessedRows);
     });
-}
-
-function updateKPIs(count, intake, move) {
-    const elCount = document.getElementById('stat-count');
-    const elIntake = document.getElementById('stat-intake');
-    const elMove = document.getElementById('stat-move');
-    if (elCount) elCount.textContent = count;
-    if (elIntake) elIntake.textContent = `${intake} Pcs`;
-    if (elMove) elMove.textContent = `${move} Pcs`;
 }
 
 function renderTableChunk(dataSource) {
@@ -1163,14 +1152,16 @@ function renderTableChunk(dataSource) {
     const paginationWrapper = document.getElementById('pagination-wrapper');
     tbody.innerHTML = '';
     
+    if (dataSource.length === 0) return;
+
     const totalEntries = dataSource.length;
-    const totalPages = Math.ceil(totalEntries / window.reportData.rowsPerPage);
+    const totalPages = Math.ceil(totalEntries / ROWS_PER_PAGE);
 
-    if (window.reportData.currentPage > totalPages) window.reportData.currentPage = totalPages;
-    if (window.reportData.currentPage < 1) window.reportData.currentPage = 1;
+    if (reportCurrentPage > totalPages) reportCurrentPage = totalPages;
+    if (reportCurrentPage < 1) reportCurrentPage = 1;
 
-    const startIndex = (window.reportData.currentPage - 1) * window.reportData.rowsPerPage;
-    const endIndex = Math.min(startIndex + window.reportData.rowsPerPage, totalEntries);
+    const startIndex = (reportCurrentPage - 1) * ROWS_PER_PAGE;
+    const endIndex = Math.min(startIndex + ROWS_PER_PAGE, totalEntries);
     
     dataSource.slice(startIndex, endIndex).forEach(row => {
         const isVoided = row.status === 'Voided';
@@ -1187,22 +1178,23 @@ function renderTableChunk(dataSource) {
 
     if (paginationWrapper) {
         paginationWrapper.style.display = 'flex';
-        document.getElementById('pagination-current-indicator').textContent = window.reportData.currentPage;
-        document.getElementById('pagination-prev-btn').disabled = (window.reportData.currentPage <= 1);
-        document.getElementById('pagination-next-btn').disabled = (window.reportData.currentPage >= totalPages);
+        document.getElementById('pagination-current-indicator').textContent = reportCurrentPage;
+        document.getElementById('pagination-prev-btn').disabled = (reportCurrentPage <= 1);
+        document.getElementById('pagination-next-btn').disabled = (reportCurrentPage >= totalPages);
         document.getElementById('pagination-text-info').textContent = `Showing ${startIndex + 1} to ${endIndex} of ${totalEntries} entries`;
     }
 }
 
 function changeReportPage(direction) {
-    window.reportData.currentPage += direction;
-    renderTableChunk(window.reportData.processedRows);
+    reportCurrentPage += direction;
+    renderTableChunk(finalProcessedRows);
 }
-    function updateKPIs(count, intake, move) {
-        document.getElementById('stat-count').textContent = count;
-        document.getElementById('stat-intake').textContent = `${intake} Pcs`;
-        document.getElementById('stat-move').textContent = `${move} Pcs`;
-    }
+
+function updateKPIs(count, intake, move) {
+    if(document.getElementById('stat-count')) document.getElementById('stat-count').textContent = count;
+    if(document.getElementById('stat-intake')) document.getElementById('stat-intake').textContent = `${intake} Pcs`;
+    if(document.getElementById('stat-move')) document.getElementById('stat-move').textContent = `${move} Pcs`;
+}
 
     async function voidTransaction(logId, barcode, qtyTransferred) {
         const password = prompt("🔒 Admin Access Required.");
