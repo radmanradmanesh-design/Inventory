@@ -1029,63 +1029,50 @@
     }
 
    async function submitTransfer() {
-    if (!currentActiveOperatorName) {
-        alert("Action Denied: Session missing.");
-        return;
-    }
+    if (!currentActiveOperatorName) return;
 
-    // ۱. استخراج داده‌ها
     const qty = parseInt(document.getElementById('transfer-qty').value);
-    const destShelf = document.getElementById('destinationShelf').value;
     const txType = typeSelect.value;
     const barcode = finalCleanedBarcode;
     const selectedLoc = (txType === 'intake' && newLocInput.value.trim() !== '') ? newLocInput.value.trim() : sourceLocSelect.value;
 
-    // ۲. اعتبارسنجی
-    if (!qty || qty <= 0) { alert('Enter valid quantity'); return; }
-    if (txType === 'out' && (!destShelf || destShelf.trim() === '')) { alert('Please select a Destination Shelf!'); return; }
-    if (txType === 'out' && qty > (locBalances[selectedLoc] || 0)) { alert('Error: Insufficient stock in source!'); return; }
-    if (txType === 'in' && qty > currentShowroomQty) { alert(`Denied: Only ${currentShowroomQty} available in showroom.`); return; }
+    // ۱. فقط و فقط محاسبه موجودی انبار برای هر سه حالت (این بخش مطمئن است)
+    const currentLocQty = locBalances[selectedLoc] || 0;
+    const newLocQty = (txType === 'out') ? (currentLocQty - qty) : (currentLocQty + qty);
 
-    statusDiv.className = 'status loading';
-    statusDiv.textContent = 'Processing transaction...';
+    // ۲. آپدیت انبار (همیشه اجرا شود)
+    const { error: whseError } = await _supabase
+        .from('warehouse_inventory')
+        .upsert({ "Row Labels": barcode, "Attribute": selectedLoc, "Value": newLocQty }, { onConflict: 'Row Labels,Attribute' });
+    
+    if (whseError) { alert('Warehouse Update Failed'); return; }
 
-    try {
-        // ۳. محاسبات انبار و شوروم (منطقی و بدون تکرار)
-        const whseQtyDelta = (txType === 'out') ? -qty : qty;
+    // ۳. آپدیت شوروم - با شرط سخت‌گیرانه (فقط اگر IN یا OUT بود)
+    if (txType === 'in' || txType === 'out') {
         const showQtyDelta = (txType === 'out') ? qty : -qty;
+        // استفاده از مقدار عددیِ خالص، نه متغیرِ گلوبالِ احتمالا اشتباه
+        const newShowroomQty = (currentShowroomQty || 0) + showQtyDelta;
 
-        // آپدیت انبار
-        await _supabase
-            .from('warehouse_inventory')
-            .upsert({ 
-                "Row Labels": barcode, 
-                "Attribute": selectedLoc, 
-                "Value": (locBalances[selectedLoc] || 0) + whseQtyDelta 
-            }, { onConflict: 'Row Labels,Attribute' });
+        let showroomPayload = {
+            [dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode']: barcode,
+            [dbShowroomQtyKey]: newShowroomQty
+        };
+        
+        if (txType === 'out') showroomPayload['zone_id'] = document.getElementById('destinationShelf').value;
+        
+        await _supabase.from('showroom_inventory').upsert(showroomPayload, { onConflict: dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode' });
+    }
 
-        // آپدیت شوروم (فقط اگر نیاز است)
-        if (txType !== 'intake') {
-            const showroomPayload = {
-                [dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode']: barcode,
-                [dbShowroomQtyKey]: currentShowroomQty + showQtyDelta
-            };
-            if (txType === 'out') showroomPayload['zone_id'] = destShelf;
-            
-            await _supabase.from('showroom_inventory').upsert(showroomPayload, { onConflict: dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode' });
-        }
+    // ۴. لاگ نهایی
+    await _supabase.from('transfer_log').insert([{ 
+        Barcode: barcode, 
+        qty_transferred: (txType === 'in' ? -qty : qty), 
+        worker_name: `${currentActiveOperatorName} | ${txType} | ${selectedLoc}` 
+    }]);
 
-        // ۴. ثبت لاگ (تنها یکبار و شفاف)
-        const logMsg = `${currentActiveOperatorName} | ${txType} | ${selectedLoc} ${txType === 'out' ? '-> ' + destShelf : ''}`;
-        await _supabase.from('transfer_log').insert([{ 
-            Barcode: barcode, 
-            qty_transferred: (txType === 'in' ? -qty : qty), 
-            worker_name: logMsg 
-        }]);
-
-        statusDiv.className = 'status success';
-        statusDiv.textContent = 'Updated successfully!';
-        setTimeout(resetPage, 1500);
+    statusDiv.textContent = 'Success!';
+    setTimeout(resetPage, 1000);
+}
 
     } catch (err) {
         console.error("Transaction Error:", err);
