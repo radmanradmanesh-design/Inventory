@@ -1063,10 +1063,17 @@
         await _supabase.from('showroom_inventory').upsert(showroomPayload, { onConflict: dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode' });
     }
 
-    // ۴. لاگ نهایی
+   // ۴. لاگ نهایی با حفظِ دقیقِ ساختارِ مورد انتظارِ داشبورد
+    // مقدارِ qty_transferred باید برای Intake مثبت و برای بقیه مطابقِ جهتِ حرکت باشد
+    let finalLogQty = (txType === 'in') ? -qty : qty; 
+    
+    // اگر از قبل در داشبورد لاگ‌های Intake با عدد مثبت ثبت می‌شدند، از این خط استفاده کنید:
+    if (txType === 'intake') finalLogQty = qty;
+
     await _supabase.from('transfer_log').insert([{ 
         Barcode: barcode, 
-        qty_transferred: (txType === 'in' ? -qty : qty), 
+        qty_transferred: finalLogQty, 
+        // استفاده از همان کلماتِ 'out', 'in', 'intake' که در <select> دارید
         worker_name: `${currentActiveOperatorName} | ${txType} | ${selectedLoc}` 
     }]);
 
