@@ -1062,11 +1062,14 @@
         return localISO.toISOString();
     }
 
-// --- متغیرهای سراسری (با استفاده از var برای جلوگیری از خطای Redefinition) ---
-var finalProcessedRows = [];
-var reportCurrentPage = 1;
-var ROWS_PER_PAGE = 100;
+// تعریف متغیرهای سراسری فقط در صورت عدم وجود
+if (typeof finalProcessedRows === 'undefined') {
+    var finalProcessedRows = [];
+    var reportCurrentPage = 1;
+    var ROWS_PER_PAGE = 100;
+}
 
+// تابع اصلی
 async function loadManagerialReport() {
     const startDate = document.getElementById('date-start-picker').value;
     const endDate = document.getElementById('date-end-picker').value;
