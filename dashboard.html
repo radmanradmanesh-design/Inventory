@@ -1062,163 +1062,167 @@
         return localISO.toISOString();
     }
 
- // تعریف متغیرهای سراسری مورد نیاز
-    finalProcessedRows = [];
-    let reportCurrentPage = 1;
-    const ROWS_PER_PAGE = 100;
+/* این بلوک را جایگزین تمام کدهای گزارش‌گیری قبلی کنید.
+   مطمئن شوید کدهای تکراریِ مشابه در بالای این اسکریپت وجود ندارند.
+*/
 
-    async function loadManagerialReport() {
-        const startDate = document.getElementById('date-start-picker').value;
-        const endDate = document.getElementById('date-end-picker').value;
-        const tbody = document.getElementById('report-tbody');
-        const errDisplay = document.getElementById('error-display');
+// ۱. تعریف متغیرهای سراسری (فقط یک بار)
+let finalProcessedRows = [];
+let reportCurrentPage = 1;
+const ROWS_PER_PAGE = 100;
+
+async function loadManagerialReport() {
+    const startDate = document.getElementById('date-start-picker').value;
+    const endDate = document.getElementById('date-end-picker').value;
+    const tbody = document.getElementById('report-tbody');
+    const errDisplay = document.getElementById('error-display');
+    
+    errDisplay.style.display = 'none';
+    tbody.innerHTML = '<tr><td colspan="7" class="loading-text">🔄 Fetching logs...</td></tr>';
+    clearColumnFilterInputs();
+    
+    // بازنشانی صفحه به ۱ هنگام بارگذاری گزارش جدید
+    reportCurrentPage = 1;
+
+    let onlineLogs = [];
+    if (navigator.onLine) {
+        try {
+            const startISO = convertLocalDateToISO(startDate, false);
+            const endISO = convertLocalDateToISO(endDate, true);
+            let query = _supabase.from('transfer_log').select('*').gte('created_at', startISO).lte('created_at', endISO);
+            if (currentTxFilter === 'non-sales') query = query.not('worker_name', 'ilike', '%System Auto-Sale%');
+            const { data, error: logError } = await query.order('created_at', { ascending: false }).limit(5000);
+            if (logError) throw logError;
+            onlineLogs = data || [];
+            cachedLogs = onlineLogs;
+        } catch (e) { onlineLogs = cachedLogs; }
+    } else { onlineLogs = cachedLogs; }
+
+    getOfflineQueueItems(async (offlineItems) => {
+        let mergedLogs = [...offlineItems.map(item => ({
+            id: `offline-${item.id}`, isOfflinePending: true, Barcode: item.barcode,
+            qty_transferred: item.qtyTransferred, worker_name: "Admin (Offline Correction)",
+            status: "Voided", created_at: item.timestamp
+        })), ...onlineLogs];
+
+        offlineItems.forEach(off => {
+            let target = mergedLogs.find(l => l.id === off.logId);
+            if (target) target.status = 'Voided';
+        });
+
+        if (mergedLogs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7">ℹ️ No activities found.</td></tr>';
+            document.getElementById('pagination-wrapper').style.display = 'none';
+            updateKPIs(0, 0, 0); return;
+        }
+
+        const uniqueBarcodes = [...new Set(mergedLogs.map(l => l.Barcode || l.barcode))].filter(Boolean);
+        let productMap = {}, itemCategoryMap = {}, showroomStockMap = {};
         
-        errDisplay.style.display = 'none';
-        tbody.innerHTML = '<tr><td colspan="7" class="loading-text">🔄 Fetching logs...</td></tr>';
-        clearColumnFilterInputs();
-        document.getElementById('pagination-wrapper').style.display = 'none';
-
-        let onlineLogs = [];
-        if (navigator.onLine) {
-            try {
-                const startISO = convertLocalDateToISO(startDate, false);
-                const endISO = convertLocalDateToISO(endDate, true);
-                let query = _supabase.from('transfer_log').select('*').gte('created_at', startISO).lte('created_at', endISO);
-                if (currentTxFilter === 'non-sales') query = query.not('worker_name', 'ilike', '%System Auto-Sale%');
-                const { data, error: logError } = await query.order('created_at', { ascending: false }).limit(5000);
-                if (logError) throw logError;
-                onlineLogs = data || [];
-                cachedLogs = onlineLogs;
-            } catch (e) { onlineLogs = cachedLogs; }
-        } else { onlineLogs = cachedLogs; }
-
-        getOfflineQueueItems(async (offlineItems) => {
-            let mergedLogs = [...offlineItems.map(item => ({
-                id: `offline-${item.id}`, isOfflinePending: true, Barcode: item.barcode,
-                qty_transferred: item.qtyTransferred, worker_name: "Admin (Offline Correction)",
-                status: "Voided", created_at: item.timestamp
-            })), ...onlineLogs];
-
-            offlineItems.forEach(off => {
-                let target = mergedLogs.find(l => l.id === off.logId);
-                if (target) target.status = 'Voided';
+        if (navigator.onLine && uniqueBarcodes.length > 0) {
+            const { data: products } = await _supabase.from('system_inventory').select('*').in(schemaKeys.system.barcode, uniqueBarcodes);
+            if (products) products.forEach(p => { 
+                productMap[p[schemaKeys.system.barcode]] = p[schemaKeys.system.itemName]; 
+                itemCategoryMap[p[schemaKeys.system.barcode]] = p[schemaKeys.system.category] || 'General';
             });
+            const { data: showroomData } = await _supabase.from('showroom_inventory').select('*').in(schemaKeys.showroom.barcode, uniqueBarcodes);
+            if (showroomData) showroomData.forEach(s => {
+                const bcd = s[schemaKeys.showroom.barcode] || '';
+                if (bcd) showroomStockMap[bcd] = s[schemaKeys.showroom.qty] ?? 0;
+            });
+        }
 
-            if (mergedLogs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7">ℹ️ No activities found.</td></tr>';
-                updateKPIs(0, 0, 0); return;
-            }
+        let totalRequests = 0, totalIntakeQty = 0, totalMovementQty = 0;
+        finalProcessedRows = []; 
 
-            const uniqueBarcodes = [...new Set(mergedLogs.map(l => l.Barcode || l.barcode))].filter(Boolean);
-            let productMap = {}, itemCategoryMap = {}, showroomStockMap = {};
-            
-            if (navigator.onLine && uniqueBarcodes.length > 0) {
-                const { data: products } = await _supabase.from('system_inventory').select('*').in(schemaKeys.system.barcode, uniqueBarcodes);
-                if (products) products.forEach(p => { 
-                    productMap[p[schemaKeys.system.barcode]] = p[schemaKeys.system.itemName]; 
-                    itemCategoryMap[p[schemaKeys.system.barcode]] = p[schemaKeys.system.category] || 'General';
-                });
-                const { data: showroomData } = await _supabase.from('showroom_inventory').select('*').in(schemaKeys.showroom.barcode, uniqueBarcodes);
-                if (showroomData) showroomData.forEach(s => {
-                    const bcd = s[schemaKeys.showroom.barcode] || '';
-                    if (bcd) showroomStockMap[bcd] = s[schemaKeys.showroom.qty] ?? 0;
-                });
-            }
+        mergedLogs.forEach(log => {
+            const workerStr = (log.worker_name || '').toLowerCase();
+            const qty = Math.abs(log.qty_transferred || 0);
+            const isVoided = log.status === 'Voided';
 
-            let totalRequests = 0, totalIntakeQty = 0, totalMovementQty = 0;
-            finalProcessedRows = []; 
-
-            mergedLogs.forEach(log => {
-                const workerStr = (log.worker_name || '').toLowerCase();
-                const qty = Math.abs(log.qty_transferred || 0);
-                const isVoided = log.status === 'Voided';
-
-                if (!isVoided) {
-                    if (workerStr.includes('intake')) {
-                        totalIntakeQty += qty; totalRequests++;
-                    } else if (!workerStr.includes('system auto-sale')) {
-                        totalMovementQty += qty; totalRequests++;
-                    }
+            if (!isVoided) {
+                if (workerStr.includes('intake')) {
+                    totalIntakeQty += qty; totalRequests++;
+                } else if (!workerStr.includes('system auto-sale')) {
+                    totalMovementQty += qty; totalRequests++;
                 }
+            }
 
-                finalProcessedRows.push({
-                    id: log.id, barcode: log.Barcode || log.barcode || '---',
-                    itemName: productMap[log.Barcode || log.barcode] || 'System Item',
-                    itemCategory: itemCategoryMap[log.Barcode || log.barcode] || 'General',
-                    worker: log.worker_name || '', qty_transferred: log.qty_transferred,
-                    isOfflinePending: log.isOfflinePending || false,
-                    status: log.status, created_at: log.created_at,
-                    liveShowroomStock: showroomStockMap[log.Barcode || log.barcode] ?? 0
-                });
+            finalProcessedRows.push({
+                id: log.id, barcode: log.Barcode || log.barcode || '---',
+                itemName: productMap[log.Barcode || log.barcode] || 'System Item',
+                itemCategory: itemCategoryMap[log.Barcode || log.barcode] || 'General',
+                worker: log.worker_name || '', qty_transferred: log.qty_transferred,
+                isOfflinePending: log.isOfflinePending || false,
+                status: log.status, created_at: log.created_at,
+                liveShowroomStock: showroomStockMap[log.Barcode || log.barcode] ?? 0
             });
-
-            updateKPIs(totalRequests, totalIntakeQty, totalMovementQty);
-            reportCurrentPage = 1;
-            renderTableChunk(finalProcessedRows);
-        });
-    }
-
-    function renderTableChunk(dataSource) {
-        const tbody = document.getElementById('report-tbody');
-        const paginationWrapper = document.getElementById('pagination-wrapper');
-        tbody.innerHTML = '';
-        
-        if (dataSource.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7">ℹ️ No rows matched.</td></tr>';
-            if (paginationWrapper) paginationWrapper.style.display = 'none';
-            return;
-        }
-
-        const totalEntries = dataSource.length;
-        const totalPages = Math.ceil(totalEntries / ROWS_PER_PAGE);
-
-        if (reportCurrentPage > totalPages) reportCurrentPage = totalPages;
-        if (reportCurrentPage < 1) reportCurrentPage = 1;
-
-        const startIndex = (reportCurrentPage - 1) * ROWS_PER_PAGE;
-        const endIndex = Math.min(startIndex + ROWS_PER_PAGE, totalEntries);
-        const pageItems = dataSource.slice(startIndex, endIndex);
-
-        pageItems.forEach(row => {
-            const workerLower = (row.worker || '').toLowerCase();
-            const isVoided = row.status === 'Voided';
-            
-            let badgeClass = 'badge movement';
-            if (row.isOfflinePending) badgeClass = 'badge pending-sync';
-            else if (isVoided) badgeClass = 'badge voided';
-            else if (workerLower.includes('intake')) badgeClass = 'badge intake';
-            else if (workerLower.includes('system auto-sale')) badgeClass = 'badge voided';
-
-            let actionButton = isVoided ? `<span style="color: #94a3b8;">❌ Voided</span>` : `<button class="void-btn" onclick="voidTransaction(${row.id}, '${row.barcode}', ${row.qty_transferred})">🚫 Void</button>`;
-            if (row.isOfflinePending) actionButton = `<span style="color: #ea580c;">⏳ Syncing...</span>`;
-
-            tbody.innerHTML += `
-                <tr style="${isVoided ? 'opacity: 0.55;' : ''}">
-                    <td>${new Date(row.created_at).toLocaleString()}</td>
-                    <td><code>${row.barcode}</code></td>
-                    <td>${row.itemName}</td>
-                    <td><span class="${badgeClass}">${row.worker}</span></td>
-                    <td>${(row.qty_transferred > 0 ? '+' : '') + row.qty_transferred} Pcs</td>
-                    <td>${row.liveShowroomStock} Pcs</td>
-                    <td>${actionButton}</td>
-                </tr>`;
         });
 
-        if (paginationWrapper) {
-            paginationWrapper.style.display = 'flex';
-            document.getElementById('pagination-text-info').textContent = `Showing ${startIndex + 1} to ${endIndex} of ${totalEntries} entries`;
-            document.getElementById('pagination-current-indicator').textContent = reportCurrentPage;
-            document.getElementById('pagination-prev-btn').disabled = (reportCurrentPage <= 1);
-            document.getElementById('pagination-next-btn').disabled = (reportCurrentPage >= totalPages);
-        }
-    }
-
-    function changeReportPage(direction) {
-        reportCurrentPage += direction;
-        // بازنویسی با همان داده‌های موجود در حافظه
+        updateKPIs(totalRequests, totalIntakeQty, totalMovementQty);
         renderTableChunk(finalProcessedRows);
+    });
+}
+
+function renderTableChunk(dataSource) {
+    const tbody = document.getElementById('report-tbody');
+    const paginationWrapper = document.getElementById('pagination-wrapper');
+    tbody.innerHTML = '';
+    
+    if (dataSource.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7">ℹ️ No rows matched.</td></tr>';
+        if (paginationWrapper) paginationWrapper.style.display = 'none';
+        return;
     }
 
+    const totalEntries = dataSource.length;
+    const totalPages = Math.ceil(totalEntries / ROWS_PER_PAGE);
+
+    if (reportCurrentPage > totalPages) reportCurrentPage = totalPages;
+    if (reportCurrentPage < 1) reportCurrentPage = 1;
+
+    const startIndex = (reportCurrentPage - 1) * ROWS_PER_PAGE;
+    const endIndex = Math.min(startIndex + ROWS_PER_PAGE, totalEntries);
+    const pageItems = dataSource.slice(startIndex, endIndex);
+
+    pageItems.forEach(row => {
+        const workerLower = (row.worker || '').toLowerCase();
+        const isVoided = row.status === 'Voided';
+        
+        let badgeClass = 'badge movement';
+        if (row.isOfflinePending) badgeClass = 'badge pending-sync';
+        else if (isVoided) badgeClass = 'badge voided';
+        else if (workerLower.includes('intake')) badgeClass = 'badge intake';
+        else if (workerLower.includes('system auto-sale')) badgeClass = 'badge voided';
+
+        let actionButton = isVoided ? `<span style="color: #94a3b8;">❌ Voided</span>` : `<button class="void-btn" onclick="voidTransaction(${row.id}, '${row.barcode}', ${row.qty_transferred})">🚫 Void</button>`;
+        if (row.isOfflinePending) actionButton = `<span style="color: #ea580c;">⏳ Syncing...</span>`;
+
+        tbody.innerHTML += `
+            <tr style="${isVoided ? 'opacity: 0.55;' : ''}">
+                <td>${new Date(row.created_at).toLocaleString()}</td>
+                <td><code>${row.barcode}</code></td>
+                <td>${row.itemName}</td>
+                <td><span class="${badgeClass}">${row.worker}</span></td>
+                <td>${(row.qty_transferred > 0 ? '+' : '') + row.qty_transferred} Pcs</td>
+                <td>${row.liveShowroomStock} Pcs</td>
+                <td>${actionButton}</td>
+            </tr>`;
+    });
+
+    if (paginationWrapper) {
+        paginationWrapper.style.display = 'flex';
+        document.getElementById('pagination-text-info').textContent = `Showing ${startIndex + 1} to ${endIndex} of ${totalEntries} entries`;
+        document.getElementById('pagination-current-indicator').textContent = reportCurrentPage;
+        document.getElementById('pagination-prev-btn').disabled = (reportCurrentPage <= 1);
+        document.getElementById('pagination-next-btn').disabled = (reportCurrentPage >= totalPages);
+    }
+}
+
+function changeReportPage(direction) {
+    reportCurrentPage += direction;
+    renderTableChunk(finalProcessedRows);
+}
     function updateKPIs(count, intake, move) {
         document.getElementById('stat-count').textContent = count;
         document.getElementById('stat-intake').textContent = `${intake} Pcs`;
