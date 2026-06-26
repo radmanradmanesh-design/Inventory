@@ -1063,14 +1063,14 @@
         return localISO.toISOString();
     }
 
-    async function loadManagerialReport() {
+  async function loadManagerialReport() {
         const startDate = document.getElementById('date-start-picker').value;
         const endDate = document.getElementById('date-end-picker').value;
         const tbody = document.getElementById('report-tbody');
         const errDisplay = document.getElementById('error-display');
         
         errDisplay.style.display = 'none';
-        tbody.innerHTML = '<tr><td colspan="7" class="loading-text">🔄 Fetching logs and analyzing activities...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="loading-text">🔄 Fetching logs...</td></tr>';
         clearColumnFilterInputs();
         document.getElementById('pagination-wrapper').style.display = 'none';
 
@@ -1079,137 +1079,76 @@
             try {
                 const startISO = convertLocalDateToISO(startDate, false);
                 const endISO = convertLocalDateToISO(endDate, true);
-
-                let query = _supabase
-                    .from('transfer_log')
-                    .select('*')
-                    .gte('created_at', startISO)
-                    .lte('created_at', endISO);
-
-                if (currentTxFilter === 'non-sales') {
-                    query = query.not('worker_name', 'ilike', '%System Auto-Sale%');
-                }
-
-                const { data, error: logError } = await query
-                    .order('created_at', { ascending: false })
-                    .limit(5000);
-
+                let query = _supabase.from('transfer_log').select('*').gte('created_at', startISO).lte('created_at', endISO);
+                if (currentTxFilter === 'non-sales') query = query.not('worker_name', 'ilike', '%System Auto-Sale%');
+                const { data, error: logError } = await query.order('created_at', { ascending: false }).limit(5000);
                 if (logError) throw logError;
                 onlineLogs = data || [];
                 cachedLogs = onlineLogs;
-            } catch (e) {
-                console.error("Could not fetch fresh data, using cache:", e);
-                onlineLogs = cachedLogs;
-            }
-        } else {
-            onlineLogs = cachedLogs;
-        }
+            } catch (e) { onlineLogs = cachedLogs; }
+        } else { onlineLogs = cachedLogs; }
 
         getOfflineQueueItems(async (offlineItems) => {
             let mergedLogs = [...offlineItems.map(item => ({
-                id: `offline-${item.id}`,
-                isOfflinePending: true,
-                Barcode: item.barcode,
-                qty_transferred: item.qtyTransferred,
-                worker_name: "Admin (Offline Correction)",
-                status: "Voided",
-                created_at: item.timestamp
+                id: `offline-${item.id}`, isOfflinePending: true, Barcode: item.barcode,
+                qty_transferred: item.qtyTransferred, worker_name: "Admin (Offline Correction)",
+                status: "Voided", created_at: item.timestamp
             })), ...onlineLogs];
 
             offlineItems.forEach(off => {
                 let target = mergedLogs.find(l => l.id === off.logId);
-                if (target) {
-                    target.status = 'Voided';
-                }
+                if (target) target.status = 'Voided';
             });
 
             if (mergedLogs.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="loading-text">ℹ️ No activities found for this range.</td></tr>';
-                updateKPIs(0, 0, 0);
-                return;
+                tbody.innerHTML = '<tr><td colspan="7">ℹ️ No activities found.</td></tr>';
+                updateKPIs(0, 0, 0); return;
             }
 
             const uniqueBarcodes = [...new Set(mergedLogs.map(l => l.Barcode || l.barcode))].filter(Boolean);
+            let productMap = {}, itemCategoryMap = {}, showroomStockMap = {};
             
-            let productMap = {};
-            let itemCategoryMap = {}; 
-            let showroomStockMap = {};
             if (navigator.onLine && uniqueBarcodes.length > 0) {
-                const { data: products } = await _supabase
-                    .from('system_inventory')
-                    .select('*')
-                    .in(schemaKeys.system.barcode, uniqueBarcodes);
-                if (products) {
-                    products.forEach(p => { 
-                        let bcd = p[schemaKeys.system.barcode];
-                        productMap[bcd] = p[schemaKeys.system.itemName]; 
-                        itemCategoryMap[bcd] = p[schemaKeys.system.category] || 'General';
-                    });
-                }
-
-                try {
-                    const { data: showroomData, error: showErr } = await _supabase
-                        .from('showroom_inventory')
-                        .select('*')
-                        .in(schemaKeys.showroom.barcode, uniqueBarcodes);
-                    if (!showErr && showroomData) {
-                        showroomData.forEach(s => {
-                            const bcd = s[schemaKeys.showroom.barcode] || '';
-                            if (bcd) {
-                                showroomStockMap[bcd] = s[schemaKeys.showroom.qty] !== undefined ? s[schemaKeys.showroom.qty] : 0;
-                            }
-                        });
-                    }
-                } catch (err) {
-                    console.error("Error building showroom map:", err);
-                }
+                const { data: products } = await _supabase.from('system_inventory').select('*').in(schemaKeys.system.barcode, uniqueBarcodes);
+                if (products) products.forEach(p => { 
+                    productMap[p[schemaKeys.system.barcode]] = p[schemaKeys.system.itemName]; 
+                    itemCategoryMap[p[schemaKeys.system.barcode]] = p[schemaKeys.system.category] || 'General';
+                });
+                const { data: showroomData } = await _supabase.from('showroom_inventory').select('*').in(schemaKeys.showroom.barcode, uniqueBarcodes);
+                if (showroomData) showroomData.forEach(s => {
+                    const bcd = s[schemaKeys.showroom.barcode] || '';
+                    if (bcd) showroomStockMap[bcd] = s[schemaKeys.showroom.qty] ?? 0;
+                });
             }
 
-            let totalRequests = 0;
-            let totalIntakeQty = 0;
-            let totalMovementQty = 0;
-
+            let totalRequests = 0, totalIntakeQty = 0, totalMovementQty = 0;
             finalProcessedRows = []; 
 
             mergedLogs.forEach(log => {
-                const currentBarcode = log.Barcode || log.barcode || '---';
-                const itemName = productMap[currentBarcode] || 'System Item';
-                const itemCategory = itemCategoryMap[currentBarcode] || 'General';
-                const worker = log.worker_name || '';
-
-                if (selectedCategories.length > 0 && !selectedCategories.includes(itemCategory)) {
-                    return; 
-                }
-
+                const workerStr = (log.worker_name || '').toLowerCase();
                 const qty = Math.abs(log.qty_transferred || 0);
-                const isVoided = log.status && log.status === 'Voided';
-                const worker = (worker || '').toLowerCase(); 
+                const isVoided = log.status === 'Voided';
 
                 if (!isVoided) {
-                    if (worker.includes('intake')) {
-                        totalIntakeQty += qty;
-                        totalRequests++;
-                } else if (!worker.includes('system auto-sale')) {
-                    totalMovementQty += qty;
-                    totalRequests++;
+                    if (workerStr.includes('intake')) {
+                        totalIntakeQty += qty; totalRequests++;
+                    } else if (!workerStr.includes('system auto-sale')) {
+                        totalMovementQty += qty; totalRequests++;
+                    }
                 }
-            }
+
                 finalProcessedRows.push({
-                    id: log.id,
-                    barcode: currentBarcode,
-                    itemName: itemName,
-                    itemCategory: itemCategory,
-                    worker: worker,
-                    qty_transferred: log.qty_transferred,
+                    id: log.id, barcode: log.Barcode || log.barcode || '---',
+                    itemName: productMap[log.Barcode || log.barcode] || 'System Item',
+                    itemCategory: itemCategoryMap[log.Barcode || log.barcode] || 'General',
+                    worker: log.worker_name || '', qty_transferred: log.qty_transferred,
                     isOfflinePending: log.isOfflinePending || false,
-                    status: log.status,
-                    created_at: log.created_at,
-                    liveShowroomStock: showroomStockMap[currentBarcode] !== undefined ? showroomStockMap[currentBarcode] : 0
+                    status: log.status, created_at: log.created_at,
+                    liveShowroomStock: showroomStockMap[log.Barcode || log.barcode] ?? 0
                 });
             });
 
             updateKPIs(totalRequests, totalIntakeQty, totalMovementQty);
-
             reportCurrentPage = 1;
             renderTableChunk(finalProcessedRows);
         });
@@ -1218,103 +1157,39 @@
     function renderTableChunk(dataSource) {
         const tbody = document.getElementById('report-tbody');
         tbody.innerHTML = '';
-
-        if(dataSource.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="loading-text">ℹ️ No rows matched the filters.</td></tr>';
-            document.getElementById('pagination-wrapper').style.display = 'none';
-            return;
-        }
-
-        const totalEntries = dataSource.length;
-        const totalPages = Math.ceil(totalEntries / ROWS_PER_PAGE);
-
-        if(reportCurrentPage > totalPages) reportCurrentPage = totalPages;
-        if(reportCurrentPage < 1) reportCurrentPage = 1;
+        if(dataSource.length === 0) { tbody.innerHTML = '<tr><td colspan="7">ℹ️ No rows matched.</td></tr>'; return; }
 
         const startIndex = (reportCurrentPage - 1) * ROWS_PER_PAGE;
-        const endIndex = Math.min(startIndex + ROWS_PER_PAGE, totalEntries);
+        const pageItems = dataSource.slice(startIndex, startIndex + ROWS_PER_PAGE);
 
-        const pageItems = dataSource.slice(startIndex, endIndex);
+        pageItems.forEach(row => {
+            const workerLower = (row.worker || '').toLowerCase();
+            const isVoided = row.status === 'Voided';
+            
+            let badgeClass = 'badge movement';
+            if (row.isOfflinePending) badgeClass = 'badge pending-sync';
+            else if (isVoided) badgeClass = 'badge voided';
+            else if (workerLower.includes('intake')) badgeClass = 'badge intake';
+            else if (workerLower.includes('system auto-sale')) badgeClass = 'badge voided';
 
-       pageItems.forEach(row => {
-    const qty = Math.abs(row.qty_transferred || 0);
-    const logDate = new Date(row.created_at).toLocaleString('en-GB', { timeZone: 'Asia/Muscat' });
-    const isVoided = row.status && row.status === 'Voided';
-
-    // تبدیل worker به حروف کوچک برای جلوگیری از خطاهای حساسیت به حروف
-    const workerName = (row.worker || '').toLowerCase(); 
-
-    let badgeClass = 'badge movement'; // پیش‌فرض
-    
-    if (row.isOfflinePending) {
-        badgeClass = 'badge pending-sync';
-    } else if (isVoided) {
-        badgeClass = 'badge voided';
-    } else if (workerName.includes('intake')) {
-        // این شرط حالا هم 'direct intake' و هم 'intake' ساده را تشخیص می‌دهد
-        badgeClass = 'badge intake';
-    } else {
-        badgeClass = 'badge movement';
-    }
-    
-    // ... ادامه کدهای شما برای ساخت ردیف‌های جدول ...
-});
-
-            if (row.worker.includes('System Auto-Sale')) {
-                badgeClass = 'badge voided';
-            }
-
-            let actionButton = isVoided 
-                ? `<span style="color: #94a3b8; font-size: 12px; font-weight:700;">❌ Voided</span>`
-                : `<button class="void-btn" onclick="voidTransaction(${row.id}, '${row.barcode}', ${row.qty_transferred})">🚫 Void</button>`;
-            if (row.isOfflinePending) {
-                actionButton = `<span style="color: #ea580c; font-size: 12px; font-weight:600;">⏳ Syncing...</span>`;
-            }
-
-            const stockAlertClass = parseInt(row.liveShowroomStock) <= 10 ? 'showroom-live-indicator low-stock' : 'showroom-live-indicator';
-
-            let qtyColor = '#10b981'; 
-            if (isVoided) {
-                qtyColor = '#94a3b8'; 
-            } else if (row.worker.includes('System Auto-Sale') || (row.qty_transferred || 0) < 0) {
-                qtyColor = '#ef4444'; 
-            }
-
-            let qtySign = '';
-            if (!isVoided) {
-                if (row.worker.includes('System Auto-Sale') || (row.qty_transferred || 0) < 0) {
-                    qtySign = '-';
-                } else if ((row.qty_transferred || 0) > 0) {
-                    qtySign = '+';
-                }
-            }
+            let actionButton = isVoided ? `<span style="color: #94a3b8;">❌ Voided</span>` : `<button class="void-btn" onclick="voidTransaction(${row.id}, '${row.barcode}', ${row.qty_transferred})">🚫 Void</button>`;
+            if (row.isOfflinePending) actionButton = `<span style="color: #ea580c;">⏳ Syncing...</span>`;
 
             tbody.innerHTML += `
-                <tr style="${isVoided ? 'opacity: 0.55; background-color: #f8fafc;' : ''}">
-                    <td style="font-size: 13px; font-weight: 700; color: var(--text-muted);">${logDate}</td>
+                <tr style="${isVoided ? 'opacity: 0.55;' : ''}">
+                    <td>${new Date(row.created_at).toLocaleString()}</td>
                     <td><code>${row.barcode}</code></td>
-                    <td style="font-weight: 700; color: var(--dark-slate); ${isVoided ? 'text-decoration: line-through;' : ''}">${row.itemName} <span style="font-size:11px; color:#64748b; font-weight:500;">(${row.itemCategory})</span></td>
-                    <td><span class="${badgeClass}">${isVoided ? 'VOID: ' + row.worker : row.worker}</span></td>
-                    <td style="font-weight: 800; font-size: 15px; text-decoration: ${isVoided ? 'line-through' : 'none'}; color: ${qtyColor};">
-                        ${qtySign}${qty} Pcs
-                    </td>
-                    <td><span class="${stockAlertClass}">${row.liveShowroomStock} Pcs</span></td> 
+                    <td>${row.itemName}</td>
+                    <td><span class="${badgeClass}">${row.worker}</span></td>
+                    <td>${(row.qty_transferred > 0 ? '+' : '') + row.qty_transferred} Pcs</td>
+                    <td>${row.liveShowroomStock} Pcs</td>
                     <td>${actionButton}</td>
-                </tr>
-            `;
+                </tr>`;
         });
-
-        document.getElementById('pagination-wrapper').style.display = 'flex';
-        document.getElementById('pagination-text-info').textContent = `Showing ${startIndex + 1} to ${endIndex} of ${totalEntries} entries`;
-        document.getElementById('pagination-current-indicator').textContent = reportCurrentPage;
-
-        document.getElementById('pagination-prev-btn').disabled = (reportCurrentPage === 1);
-        document.getElementById('pagination-next-btn').disabled = (reportCurrentPage === totalPages);
     }
 
     function changeReportPage(direction) {
         reportCurrentPage += direction;
-        
         const valBarcode = document.getElementById('filter-barcode').value.toLowerCase().trim();
         const valName = document.getElementById('filter-name').value.toLowerCase().trim();
         const valOperator = document.getElementById('filter-operator').value.toLowerCase().trim();
@@ -1326,10 +1201,7 @@
                        row.worker.toLowerCase().includes(valOperator);
             });
             renderTableChunk(filtered);
-        } else {
-            renderTableChunk(finalProcessedRows);
-        }
-        
+        } else { renderTableChunk(finalProcessedRows); }
         document.getElementById('report-table').scrollIntoView({ behavior: 'smooth' });
     }
 
@@ -1340,121 +1212,54 @@
     }
 
     async function voidTransaction(logId, barcode, qtyTransferred) {
-        const password = prompt("🔒 Admin Access Required.\nPlease enter the Manager Password to void this record:");
-        if (password === null) return; 
-        if (password !== ADMIN_PASSWORD) {
-            alert("⛔ Access Denied! Incorrect Admin Password.");
-            return;
-        }
+        const password = prompt("🔒 Admin Access Required.");
+        if (password === null || password !== ADMIN_PASSWORD) return;
+        if (!confirm(`Are you sure you want to void this?`)) return;
 
-        if (!confirm(`Are you sure you want to void this transaction? This will automatically reverse [ ${qtyTransferred} Pcs ] to correct the mistake.`)) {
-            return;
-        }
-
-        const txPayload = {
-            logId: logId,
-            barcode: barcode,
-            qtyTransferred: qtyTransferred,
-            timestamp: new Date().toISOString()
-        };
+        const txPayload = { logId, barcode, qtyTransferred, timestamp: new Date().toISOString() };
         if (navigator.onLine) {
             try {
                 await executeVoidOnServer(txPayload);
-                alert("✅ Success! Transaction successfully voided on server.");
-                loadManagerialReport();
-            } catch (error) {
-                alert(`❌ Server update failed, saving to offline queue instead: ${error.message}`);
-                pushToOfflineQueue(txPayload);
-            }
-        } else {
-            pushToOfflineQueue(txPayload);
-            alert("📡 Device is Offline! The correction has been securely queued locally.");
-            loadManagerialReport();
-        }
+                alert("✅ Success!"); loadManagerialReport();
+            } catch (error) { pushToOfflineQueue(txPayload); }
+        } else { pushToOfflineQueue(txPayload); alert("📡 Queued locally."); loadManagerialReport(); }
     }
 
     async function executeVoidOnServer(payload) {
-        const { data: itemData, error: fetchError } = await _supabase
-            .from('system_inventory')
-            .select('*') 
-            .eq(schemaKeys.system.barcode, payload.barcode)
-            .single();
-        if (fetchError) throw new Error("Item not found on database.");
-
+        const { data: itemData } = await _supabase.from('system_inventory').select('*').eq(schemaKeys.system.barcode, payload.barcode).single();
         const currentQty = itemData[schemaKeys.system.stock] || 0;
-        const correctedQty = currentQty - payload.qtyTransferred; 
-
-        let updateData = {};
-        updateData[schemaKeys.system.stock] = correctedQty;
-
-        const { error: updateInvError } = await _supabase
-            .from('system_inventory')
-            .update(updateData)
-            .eq(schemaKeys.system.barcode, payload.barcode);
-        if (updateInvError) throw updateInvError;
-
-        const { error: updateLogError } = await _supabase
-            .from('transfer_log')
-            .update({ status: 'Voided' })
-            .eq('id', payload.logId);
-        if (updateLogError) throw updateLogError;
+        await _supabase.from('system_inventory').update({ [schemaKeys.system.stock]: currentQty - payload.qtyTransferred }).eq(schemaKeys.system.barcode, payload.barcode);
+        await _supabase.from('transfer_log').update({ status: 'Voided' }).eq('id', payload.logId);
     }
 
     function pushToOfflineQueue(item) {
         if (!db) return;
         const transaction = db.transaction(["void_queue"], "readwrite");
-        const store = transaction.objectStore("void_queue");
-        store.add(item);
-        transaction.oncomplete = function() {
-            updateOfflineBadgeCount();
-        };
+        transaction.objectStore("void_queue").add(item);
+        transaction.oncomplete = () => updateOfflineBadgeCount();
     }
 
     function getOfflineQueueItems(callback) {
         if (!db) { callback([]); return; }
-        const transaction = db.transaction(["void_queue"], "readonly");
-        const store = transaction.objectStore("void_queue");
-        const request = store.getAll();
-        request.onsuccess = function() {
-            callback(request.result || []);
-        };
+        const request = db.transaction(["void_queue"], "readonly").objectStore("void_queue").getAll();
+        request.onsuccess = () => callback(request.result || []);
     }
 
     function updateOfflineBadgeCount() {
         getOfflineQueueItems((items) => {
             const badge = document.getElementById("offline-queue-count");
-            if (items.length > 0) {
-                badge.textContent = `⏳ ${items.length} Unsynced Fixes`;
-                badge.style.display = "inline-block";
-            } 
-            else {
-                badge.style.display = "none";
-            }
+            if (items.length > 0) { badge.textContent = `⏳ ${items.length} Unsynced`; badge.style.display = "inline-block"; }
+            else { badge.style.display = "none"; }
         });
     }
 
     async function syncOfflineQueue() {
         getOfflineQueueItems(async (items) => {
             if (items.length === 0) return;
-
-            console.log(`Starting background sync for ${items.length} pending corrections...`);
-            
-            const transaction = db.transaction(["void_queue"], "readwrite");
-            const store = transaction.objectStore("void_queue");
-
+            const store = db.transaction(["void_queue"], "readwrite").objectStore("void_queue");
             for (const item of items) {
-                try {
-                    await executeVoidOnServer(item);
-                    store.delete(item.id);
-                    console.log(`Successfully synced local ID: ${item.id}`);
-                } catch (err) {
-                    console.error(`Failed to sync item ID ${item.id}:`, err);
-                }
+                try { await executeVoidOnServer(item); store.delete(item.id); } catch (err) { console.error(err); }
             }
-            updateOfflineBadgeCount();
-            loadManagerialReport();
+            updateOfflineBadgeCount(); loadManagerialReport();
         });
     }
-</script>
-</body>
-</html>
