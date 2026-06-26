@@ -1030,76 +1030,68 @@
 
    async function submitTransfer() {
     if (!currentActiveOperatorName) {
-        alert("Action Denied: Session missing. Please authenticate.");
+        alert("Action Denied: Session missing.");
         return;
     }
 
-    const transferQtyInput = document.getElementById('transfer-qty');
-    const destShelfInput = document.getElementById('destinationShelf'); 
-    const qty = parseInt(transferQtyInput.value);
+    // ۱. استخراج داده‌ها
+    const qty = parseInt(document.getElementById('transfer-qty').value);
+    const destShelf = document.getElementById('destinationShelf').value;
     const txType = typeSelect.value;
     const barcode = finalCleanedBarcode;
-    const itemName = currentProduct ? (currentProduct['Item Name'] || currentProduct['item_name'] || 'Unknown Item') : 'Unknown Item';
-    
-    // ۱. بررسی مقدار و شلف مقصد
+    const selectedLoc = (txType === 'intake' && newLocInput.value.trim() !== '') ? newLocInput.value.trim() : sourceLocSelect.value;
+
+    // ۲. اعتبارسنجی
     if (!qty || qty <= 0) { alert('Enter valid quantity'); return; }
-    if (txType === 'out' && (!destShelfInput.value || destShelfInput.value.trim() === '')) {
-        alert('Please select a Destination Shelf!');
-        return;
-    }
-
-    let selectedLoc = sourceLocSelect.value;
-    if (txType === 'intake' && newLocInput.value.trim() !== '') { 
-        selectedLoc = newLocInput.value.trim();
-    }
-
-    // ۲. محاسبات مقادیر
-    let currentLocQty = locBalances[selectedLoc] || 0;
-    if (txType === 'out' && qty > currentLocQty) { alert('Error: Not enough stock!'); return; }
-    if (txType === 'in' && qty > currentShowroomQty) { alert(`Denied: Max returnable is ${currentShowroomQty}`); return; }
-
-    let newLocQty = currentLocQty;
-    let newShowroomQty = currentShowroomQty;
-    if (txType === 'out') { newLocQty = currentLocQty - qty; newShowroomQty = currentShowroomQty + qty; } 
-    else if (txType === 'in') { newLocQty = currentLocQty + qty; newShowroomQty = currentShowroomQty - qty; } 
-    else if (txType === 'intake') { newLocQty = currentLocQty + qty; }
-
-    // ۳. نمایش پیام تایید
-    let actionMessage = txType === 'out' 
-        ? `🔹 Move to Showroom\n📦 ITEM: ${itemName}\n🔢 QTY: -${qty}\n📍 FROM: [ ${selectedLoc} ]\n🏁 TO: [ ${destShelfInput.value} ]`
-        : `🔹 Transaction\n📦 ITEM: ${itemName}\n🔢 QTY: ${qty}\n📍 SHELF: [ ${selectedLoc} ]`;
-
-    if (!confirm(`${actionMessage}\n\nUpdate database?`)) return;
+    if (txType === 'out' && (!destShelf || destShelf.trim() === '')) { alert('Please select a Destination Shelf!'); return; }
+    if (txType === 'out' && qty > (locBalances[selectedLoc] || 0)) { alert('Error: Insufficient stock in source!'); return; }
+    if (txType === 'in' && qty > currentShowroomQty) { alert(`Denied: Only ${currentShowroomQty} available in showroom.`); return; }
 
     statusDiv.className = 'status loading';
     statusDiv.textContent = 'Processing transaction...';
 
-    // ۴. آپدیت انبار (Warehouse)
-    const { error: whseError } = await _supabase
-        .from('warehouse_inventory')
-        .upsert({ "Row Labels": barcode, "Attribute": selectedLoc, "Value": newLocQty }, { onConflict: 'Row Labels,Attribute' });
-    if (whseError) { alert(`Error: ${whseError.message}`); return; }
+    try {
+        // ۳. محاسبات انبار و شوروم (منطقی و بدون تکرار)
+        const whseQtyDelta = (txType === 'out') ? -qty : qty;
+        const showQtyDelta = (txType === 'out') ? qty : -qty;
 
-    // ۵. آپدیت شوروم (فقط یک بار اینجا انجام می‌شود)
-    if (txType !== 'intake') {
-        let showroomPayload = {};
-        showroomPayload[dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode'] = barcode;
-        showroomPayload[dbShowroomQtyKey] = newShowroomQty;
-        
-        if (txType === 'out') {
-            showroomPayload['zone_id'] = destShelfInput.value; // ثبت دقیق در ستون zone_id
+        // آپدیت انبار
+        await _supabase
+            .from('warehouse_inventory')
+            .upsert({ 
+                "Row Labels": barcode, 
+                "Attribute": selectedLoc, 
+                "Value": (locBalances[selectedLoc] || 0) + whseQtyDelta 
+            }, { onConflict: 'Row Labels,Attribute' });
+
+        // آپدیت شوروم (فقط اگر نیاز است)
+        if (txType !== 'intake') {
+            const showroomPayload = {
+                [dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode']: barcode,
+                [dbShowroomQtyKey]: currentShowroomQty + showQtyDelta
+            };
+            if (txType === 'out') showroomPayload['zone_id'] = destShelf;
+            
+            await _supabase.from('showroom_inventory').upsert(showroomPayload, { onConflict: dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode' });
         }
-        
-        await _supabase.from('showroom_inventory').upsert(showroomPayload, { onConflict: dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode' });
+
+        // ۴. ثبت لاگ (تنها یکبار و شفاف)
+        const logMsg = `${currentActiveOperatorName} | ${txType} | ${selectedLoc} ${txType === 'out' ? '-> ' + destShelf : ''}`;
+        await _supabase.from('transfer_log').insert([{ 
+            Barcode: barcode, 
+            qty_transferred: (txType === 'in' ? -qty : qty), 
+            worker_name: logMsg 
+        }]);
+
+        statusDiv.className = 'status success';
+        statusDiv.textContent = 'Updated successfully!';
+        setTimeout(resetPage, 1500);
+
+    } catch (err) {
+        console.error("Transaction Error:", err);
+        alert("System error: " + err.message);
+        statusDiv.style.display = 'none';
     }
-
-    // ۶. لاگ کردن
-    let logWorkerName = `${currentActiveOperatorName} | ${txType} | ${selectedLoc}`;
-    await _supabase.from('transfer_log').insert([{ Barcode: barcode, qty_transferred: (txType === 'in' ? -qty : qty), worker_name: logWorkerName }]);
-
-    statusDiv.className = 'status success';
-    statusDiv.textContent = 'Updated successfully!';
-    setTimeout(resetPage, 1500);
 }
     function resetPage() {
         barcodeInput.value = '';
