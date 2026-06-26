@@ -602,19 +602,34 @@
         }
   .nav-container {
     display: flex;
-    flex-direction: row;
-    gap: 15px;
-    align-items: center;
-    margin-bottom: 20px; /* فاصله از بقیه محتوای صفحه */
+    justify-content: center; /* وسط‌چین کردن افقی */
+    gap: 20px;
+    padding: 20px;
+    background: #f8f9fa; /* رنگ پس‌زمینه ملایم */
 }
 
 .back-btn {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    padding: 10px 20px;
     text-decoration: none;
-    padding: 8px 12px;
-    color: #333; /* رنگ متن را اینجا تنظیم کنید */
+    font-weight: bold;
+    color: #856404; /* رنگ متن طلایی تیره */
+    
+    /* استایل طلایی */
+    background: linear-gradient(135deg, #ffd700, #ffc107);
+    border: 1px solid #d4af37;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+    background: linear-gradient(135deg, #ffc107, #ffdb58);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+}
 }
     </style>
 </head>
