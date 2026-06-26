@@ -1062,7 +1062,12 @@
         return localISO.toISOString();
     }
 
-  async function loadManagerialReport() {
+ // تعریف متغیرهای سراسری مورد نیاز
+    let finalProcessedRows = [];
+    let reportCurrentPage = 1;
+    const ROWS_PER_PAGE = 100;
+
+    async function loadManagerialReport() {
         const startDate = document.getElementById('date-start-picker').value;
         const endDate = document.getElementById('date-end-picker').value;
         const tbody = document.getElementById('report-tbody');
@@ -1153,7 +1158,7 @@
         });
     }
 
-  function renderTableChunk(dataSource) {
+    function renderTableChunk(dataSource) {
         const tbody = document.getElementById('report-tbody');
         const paginationWrapper = document.getElementById('pagination-wrapper');
         tbody.innerHTML = '';
@@ -1199,20 +1204,21 @@
                 </tr>`;
         });
 
-        // آپدیت ایمن پنل صفحه‌بندی
         if (paginationWrapper) {
             paginationWrapper.style.display = 'flex';
-            const infoText = document.getElementById('pagination-text-info');
-            const currentInd = document.getElementById('pagination-current-indicator');
-            const prevBtn = document.getElementById('pagination-prev-btn');
-            const nextBtn = document.getElementById('pagination-next-btn');
-
-            if (infoText) infoText.textContent = `Showing ${startIndex + 1} to ${endIndex} of ${totalEntries} entries`;
-            if (currentInd) currentInd.textContent = reportCurrentPage;
-            if (prevBtn) prevBtn.disabled = (reportCurrentPage <= 1);
-            if (nextBtn) nextBtn.disabled = (reportCurrentPage >= totalPages);
+            document.getElementById('pagination-text-info').textContent = `Showing ${startIndex + 1} to ${endIndex} of ${totalEntries} entries`;
+            document.getElementById('pagination-current-indicator').textContent = reportCurrentPage;
+            document.getElementById('pagination-prev-btn').disabled = (reportCurrentPage <= 1);
+            document.getElementById('pagination-next-btn').disabled = (reportCurrentPage >= totalPages);
         }
     }
+
+    function changeReportPage(direction) {
+        reportCurrentPage += direction;
+        // بازنویسی با همان داده‌های موجود در حافظه
+        renderTableChunk(finalProcessedRows);
+    }
+
     function updateKPIs(count, intake, move) {
         document.getElementById('stat-count').textContent = count;
         document.getElementById('stat-intake').textContent = `${intake} Pcs`;
@@ -1223,13 +1229,9 @@
         const password = prompt("🔒 Admin Access Required.");
         if (password === null || password !== ADMIN_PASSWORD) return;
         if (!confirm(`Are you sure you want to void this?`)) return;
-
         const txPayload = { logId, barcode, qtyTransferred, timestamp: new Date().toISOString() };
         if (navigator.onLine) {
-            try {
-                await executeVoidOnServer(txPayload);
-                alert("✅ Success!"); loadManagerialReport();
-            } catch (error) { pushToOfflineQueue(txPayload); }
+            try { await executeVoidOnServer(txPayload); alert("✅ Success!"); loadManagerialReport(); } catch (error) { pushToOfflineQueue(txPayload); }
         } else { pushToOfflineQueue(txPayload); alert("📡 Queued locally."); loadManagerialReport(); }
     }
 
