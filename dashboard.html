@@ -1062,7 +1062,7 @@
         return localISO.toISOString();
     }
 
-// تعریف متغیرهای یکپارچه برای کل برنامه
+// تعریف آبجکت یکپارچه برای جلوگیری از تداخل
 window.reportData = {
     processedRows: [],
     currentPage: 1,
@@ -1109,39 +1109,53 @@ async function loadManagerialReport() {
         if (mergedLogs.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7">ℹ️ No activities found.</td></tr>';
             document.getElementById('pagination-wrapper').style.display = 'none';
+            updateKPIs(0, 0, 0); // ریست KPIها
             return;
         }
 
-        // واکشی داده‌های کمکی
         const uniqueBarcodes = [...new Set(mergedLogs.map(l => l.Barcode || l.barcode))].filter(Boolean);
-        let productMap = {}, itemCategoryMap = {}, showroomStockMap = {};
+        let productMap = {}, showroomStockMap = {};
         
         if (navigator.onLine && uniqueBarcodes.length > 0) {
             const { data: products } = await _supabase.from('system_inventory').select('*').in(schemaKeys.system.barcode, uniqueBarcodes);
-            if (products) products.forEach(p => { 
-                productMap[p[schemaKeys.system.barcode]] = p[schemaKeys.system.itemName]; 
-            });
+            if (products) products.forEach(p => productMap[p[schemaKeys.system.barcode]] = p[schemaKeys.system.itemName]);
             const { data: showroomData } = await _supabase.from('showroom_inventory').select('*').in(schemaKeys.showroom.barcode, uniqueBarcodes);
-            if (showroomData) showroomData.forEach(s => {
-                const bcd = s[schemaKeys.showroom.barcode] || '';
-                if (bcd) showroomStockMap[bcd] = s[schemaKeys.showroom.qty] ?? 0;
-            });
+            if (showroomData) showroomData.forEach(s => showroomStockMap[s[schemaKeys.showroom.barcode]] = s[schemaKeys.showroom.qty] ?? 0);
         }
 
-        window.reportData.processedRows = mergedLogs.map(log => ({
-            id: log.id, 
-            barcode: log.Barcode || log.barcode || '---',
-            itemName: productMap[log.Barcode || log.barcode] || 'System Item',
-            worker: log.worker_name || '', 
-            qty_transferred: log.qty_transferred,
-            isOfflinePending: log.isOfflinePending || false,
-            status: log.status, 
-            created_at: log.created_at,
-            liveShowroomStock: showroomStockMap[log.Barcode || log.barcode] ?? 0
-        }));
+        // محاسبه داده‌ها و KPIها
+        let totalRequests = 0, totalIntakeQty = 0, totalMovementQty = 0;
+        window.reportData.processedRows = mergedLogs.map(log => {
+            const workerStr = (log.worker_name || '').toLowerCase();
+            const qty = Math.abs(log.qty_transferred || 0);
+            const isVoided = log.status === 'Voided';
 
+            if (!isVoided) {
+                if (workerStr.includes('intake')) { totalIntakeQty += qty; totalRequests++; }
+                else if (!workerStr.includes('system auto-sale')) { totalMovementQty += qty; totalRequests++; }
+            }
+
+            return {
+                id: log.id, barcode: log.Barcode || log.barcode || '---',
+                itemName: productMap[log.Barcode || log.barcode] || 'System Item',
+                worker: log.worker_name || '', qty_transferred: log.qty_transferred,
+                status: log.status, created_at: log.created_at,
+                liveShowroomStock: showroomStockMap[log.Barcode || log.barcode] ?? 0
+            };
+        });
+
+        updateKPIs(totalRequests, totalIntakeQty, totalMovementQty); // آپدیت KPIها
         renderTableChunk(window.reportData.processedRows);
     });
+}
+
+function updateKPIs(count, intake, move) {
+    const elCount = document.getElementById('stat-count');
+    const elIntake = document.getElementById('stat-intake');
+    const elMove = document.getElementById('stat-move');
+    if (elCount) elCount.textContent = count;
+    if (elIntake) elIntake.textContent = `${intake} Pcs`;
+    if (elMove) elMove.textContent = `${move} Pcs`;
 }
 
 function renderTableChunk(dataSource) {
@@ -1157,17 +1171,16 @@ function renderTableChunk(dataSource) {
 
     const startIndex = (window.reportData.currentPage - 1) * window.reportData.rowsPerPage;
     const endIndex = Math.min(startIndex + window.reportData.rowsPerPage, totalEntries);
-    const pageItems = dataSource.slice(startIndex, endIndex);
-
-    pageItems.forEach(row => {
+    
+    dataSource.slice(startIndex, endIndex).forEach(row => {
         const isVoided = row.status === 'Voided';
         tbody.innerHTML += `<tr>
             <td>${new Date(row.created_at).toLocaleString()}</td>
             <td><code>${row.barcode}</code></td>
             <td>${row.itemName}</td>
             <td>${row.worker}</td>
-            <td>${row.qty_transferred}</td>
-            <td>${row.liveShowroomStock}</td>
+            <td>${row.qty_transferred > 0 ? '+' : ''}${row.qty_transferred}</td>
+            <td>${row.liveShowroomStock} Pcs</td>
             <td>${isVoided ? '❌ Voided' : `<button onclick="voidTransaction(${row.id})">Void</button>`}</td>
         </tr>`;
     });
@@ -1177,6 +1190,7 @@ function renderTableChunk(dataSource) {
         document.getElementById('pagination-current-indicator').textContent = window.reportData.currentPage;
         document.getElementById('pagination-prev-btn').disabled = (window.reportData.currentPage <= 1);
         document.getElementById('pagination-next-btn').disabled = (window.reportData.currentPage >= totalPages);
+        document.getElementById('pagination-text-info').textContent = `Showing ${startIndex + 1} to ${endIndex} of ${totalEntries} entries`;
     }
 }
 
