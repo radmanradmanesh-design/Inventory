@@ -2870,80 +2870,80 @@
         'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'
     );
 
-   async function updateMapStatus() {
-    const { data: inventory, error } = await window.mySupabase.from('showroom_inventory').select('*');
+    async function updateMapStatus() {
+        const { data: inventory, error } = await window.mySupabase.from('showroom_inventory').select('*');
 
-    if (error) {
-        console.error("Database Error:", error);
-        return;
+        if (error) {
+            console.error("Database Error:", error);
+            return;
+        }
+
+        // گروه‌بندی داده‌ها
+        const groupedData = {};
+        inventory.forEach(item => {
+            if (!groupedData[item.zone_id]) {
+                groupedData[item.zone_id] = [];
+            }
+            groupedData[item.zone_id].push(item);
+        });
+
+        // پردازش شلف‌ها
+        Object.keys(groupedData).forEach(zoneId => {
+            const shelf = document.getElementById(zoneId);
+            if (shelf) {
+                const itemsInShelf = groupedData[zoneId];
+                shelf.style.cursor = "pointer";
+
+                shelf.onclick = function() {
+                    let cardsHtml = ``;
+                    let totalQty = 0;
+
+                    itemsInShelf.forEach(i => {
+                        const qty = parseInt(i.showroom_qty || i.Showroom_Qty || 0);
+                        const barcode = i.Barcode || i.barcode || '---';
+                        totalQty += qty;
+
+                        cardsHtml += `
+                            <div class="product-card">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <span style="font-size: 0.65rem; color: #64748b;">BARCODE</span>
+                                        <div style="font-weight: 700; color: #1e293b;">${barcode}</div>
+                                    </div>
+                                    <div style="text-align: right;">
+                                        <span style="font-size: 0.65rem; color: #64748b;">QTY</span>
+                                        <div style="font-weight: 900; color: #059669; font-size: 1.1rem;">${qty}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+
+                    document.getElementById('popup-title').innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                            <span>Shelf: ${zoneId}</span>
+                            <span style="background: #e2e8f0; color: #1e293b; padding: 2px 10px; border-radius: 6px; font-size: 0.9rem;">
+                                Total: ${totalQty}
+                            </span>
+                        </div>
+                    `;
+                    
+                    document.getElementById('popup-content').innerHTML = cardsHtml;
+                    document.getElementById('info-popup').style.display = 'block';
+                };
+            }
+        });
     }
 
-    // گروه‌بندی داده‌ها
-    const groupedData = {};
-    inventory.forEach(item => {
-        if (!groupedData[item.zone_id]) {
-            groupedData[item.zone_id] = [];
-        }
-        groupedData[item.zone_id].push(item);
-    });
+    // اجرای اولیه
+    updateMapStatus();
 
-    // پردازش شلف‌ها بدون تغییر رنگ
-    Object.keys(groupedData).forEach(zoneId => {
-        const shelf = document.getElementById(zoneId);
-        if (shelf) {
-            const itemsInShelf = groupedData[zoneId];
-            
-            // دیگر هیچ تغییری روی shelf.style.fill انجام نمی‌دهیم
-            // این باعث می‌شود نقشه اصلی شما بدون تغییر باقی بماند
-            shelf.style.cursor = "pointer";
-
-           shelf.onclick = function() {
-    let cardsHtml = ``;
-    let totalQty = 0;
-
-    itemsInShelf.forEach(i => {
-        const qty = parseInt(i.showroom_qty || i.Showroom_Qty || 0);
-        const barcode = i.Barcode || i.barcode || '---';
-        totalQty += qty;
-
-        cardsHtml += `
-            <div class="product-card">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <span style="font-size: 0.65rem; color: #64748b;">BARCODE</span>
-                        <div style="font-weight: 700; color: #1e293b;">${barcode}</div>
-                    </div>
-                    <div style="text-align: right;">
-                        <span style="font-size: 0.65rem; color: #64748b;">QTY</span>
-                        <div style="font-weight: 900; color: #059669; font-size: 1.1rem;">${qty}</div>
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-
-    document.getElementById('popup-title').innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <span>Shelf: ${zoneId}</span>
-            <span style="background: #e2e8f0; color: #1e293b; padding: 2px 10px; border-radius: 6px; font-size: 0.9rem;">
-                Total: ${totalQty}
-            </span>
-        </div>
-    `;
-    
-    document.getElementById('popup-content').innerHTML = cardsHtml;
-    document.getElementById('info-popup').style.display = 'block';
-}; // این براکت و سمی‌کولن بسیار مهم هستند
-{
-// اجرای اولیه
-updateMapStatus();
-
-// بروزرسانی زنده (Real-time)
-window.mySupabase.channel('custom-all-channel')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'showroom_inventory' }, () => {
-        updateMapStatus();
-    })
-    .subscribe();
+    // بروزرسانی زنده (Real-time)
+    window.mySupabase.channel('custom-all-channel')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'showroom_inventory' }, () => {
+            updateMapStatus();
+        })
+        .subscribe();
 </script>
 </body>
 </html>
