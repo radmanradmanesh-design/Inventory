@@ -913,34 +913,33 @@
     }
 
     async function handleCSVUpload() {
-        if (!navigator.onLine) {
-            alert("⛔ Sync operations require an active network connection. You cannot sync stock files while offline.");
-            return;
-        }
+    if (!navigator.onLine) {
+        alert("⛔ Sync operations require an active network connection. You cannot sync stock files while offline.");
+        return;
+    }
 
-        const fileInput = document.getElementById('retailx-csv-file');
-        const syncBtn = document.getElementById('sync-trigger-btn');
-        const errDisplay = document.getElementById('error-display');
+    const fileInput = document.getElementById('retailx-csv-file');
+    const syncBtn = document.getElementById('sync-trigger-btn');
+    const errDisplay = document.getElementById('error-display');
 
-        if (!fileInput.files || fileInput.files.length === 0) {
-            alert("Please select a valid RetailX inventory CSV file first.");
-            return;
-        }
+    if (!fileInput.files || fileInput.files.length === 0) {
+        alert("Please select a valid RetailX inventory CSV file first.");
+        return;
+    }
 
-        const file = fileInput.files[0];
-        const password = prompt("🔒 Admin Security Lock.\nEnter Master Password to commit live inventory overwrite:");
-        if (password === null) return;
-        if (password !== ADMIN_PASSWORD) {
-            alert("⛔ Access Denied!");
-            return;
-        }
-
-        syncBtn.disabled = true;
-        syncBtn.textContent = "Processing & Syncing data...";
-        errDisplay.style.display = 'none';
-        async function handleCSVUpload() {
-    // ... (همان کدهای قبلی تا قبل از حلقه)
+    const file = fileInput.files[0];
+    const password = prompt("🔒 Admin Security Lock.\nEnter Master Password to commit live inventory overwrite:");
     
+    if (password === null) return;
+    if (password !== ADMIN_PASSWORD) {
+        alert("⛔ Access Denied!");
+        return;
+    }
+
+    syncBtn.disabled = true;
+    syncBtn.textContent = "Processing & Syncing data...";
+    errDisplay.style.display = 'none';
+
     Papa.parse(file, {
         header: true,
         skipEmptyLines: true,
@@ -954,10 +953,11 @@
                 const itemCode = row['Item Code'] || row['item code'] || row['ItemCode'] || row['item_code'];
                 const category = row['Category'] || row['category'] || row['Category Name'] || row['category_name'];
                 
-                // استخراج قیمت با دقت بالا
+                // استخراج قیمت
                 const rawPrice = row['Selling Price (Inc VAT)'] || row['selling price (inc vat)'] || '0';
                 const price = parseFloat(String(rawPrice).replace(/,/g, '')) || 0;
 
+                // استخراج موجودی
                 let rawStock = row['Stock'] || row['stock'] || row['Quantity'] || row['quantity'] || '0';
                 rawStock = String(rawStock).replace(/,/g, ''); 
                 const stock = Math.round(parseFloat(rawStock) || 0);
@@ -969,25 +969,44 @@
                     payloadRow[schemaKeys.system.itemCode] = itemCode ? itemCode.trim() : '';
                     payloadRow[schemaKeys.system.category] = category ? category.trim() : 'General';
                     payloadRow[schemaKeys.system.stock] = stock;
-                    
-                    // افزودن قیمت به دیتابیس (مطمئن شوید نام ستون دقیقاً 'Selling Price (Inc VAT)' باشد)
+                    // ستون قیمت در دیتابیس
                     payloadRow['Selling Price (Inc VAT)'] = price;
                     
                     formattedRows.push(payloadRow);
                 }
             }
 
-            // ... (بقیه کد که آپسرت می‌کند)
+            if (formattedRows.length === 0) {
+                alert("❌ Parsing Failed: Could not identify rows with valid 'Barcode' keys.");
+                syncBtn.disabled = false;
+                syncBtn.textContent = "Upload & Sync Inventory";
+                return;
+            }
+
             try {
                 const { error } = await _supabase
                     .from('system_inventory')
-                    .upsert(formattedRows, { onConflict: schemaKeys.system.barcode }); // قیمت هم با همین متد آپدیت می‌شود
-                
+                    .upsert(formattedRows, { onConflict: schemaKeys.system.barcode });
+
                 if (error) throw error;
-                // ...
+
+                alert(`🎉 Successfully matched and updated [ ${formattedRows.length} ] products.`);
+                fileInput.value = ""; 
+                await fetchCategoriesFromServer();
+                loadManagerialReport();
             } catch (err) {
-                // ...
+                console.error(err);
+                errDisplay.textContent = `🚨 Upsert Engine Error: ${err.message}`;
+                errDisplay.style.display = 'block';
+            } finally {
+                syncBtn.disabled = false;
+                syncBtn.textContent = "Upload & Sync Inventory";
             }
+        },
+        error: function(parseError) {
+            alert(`CSV Format Read Error: ${parseError.message}`);
+            syncBtn.disabled = false;
+            syncBtn.textContent = "Upload & Sync Inventory";
         }
     });
 }
