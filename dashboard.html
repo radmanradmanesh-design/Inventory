@@ -938,68 +938,59 @@
         syncBtn.disabled = true;
         syncBtn.textContent = "Processing & Syncing data...";
         errDisplay.style.display = 'none';
-        Papa.parse(file, {
-            header: true,
-            skipEmptyLines: true,
-            complete: async function(results) {
-                const csvRows = results.data;
-                const formattedRows = [];
+        async function handleCSVUpload() {
+    // ... (همان کدهای قبلی تا قبل از حلقه)
+    
+    Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async function(results) {
+            const csvRows = results.data;
+            const formattedRows = [];
 
-                for (let row of csvRows) {
-                    const barcode = row['Barcode'] || row['barcode'];
-                    const itemName = row['Item Name'] || row['item name'] || row['ItemName'] || row['item_name'];
-                    const itemCode = row['Item Code'] || row['item code'] || row['ItemCode'] || row['item_code'];
-                    const category = row['Category'] || row['category'] || row['Category Name'] || row['category_name'];
-                    let rawStock = row['Stock'] || row['stock'] || row['Quantity'] || row['quantity'] || '0';
+            for (let row of csvRows) {
+                const barcode = row['Barcode'] || row['barcode'];
+                const itemName = row['Item Name'] || row['item name'] || row['ItemName'] || row['item_name'];
+                const itemCode = row['Item Code'] || row['item code'] || row['ItemCode'] || row['item_code'];
+                const category = row['Category'] || row['category'] || row['Category Name'] || row['category_name'];
+                
+                // استخراج قیمت با دقت بالا
+                const rawPrice = row['Selling Price (Inc VAT)'] || row['selling price (inc vat)'] || '0';
+                const price = parseFloat(String(rawPrice).replace(/,/g, '')) || 0;
 
-                    rawStock = String(rawStock).replace(/,/g, ''); 
-                    const stock = Math.round(parseFloat(rawStock) || 0);
+                let rawStock = row['Stock'] || row['stock'] || row['Quantity'] || row['quantity'] || '0';
+                rawStock = String(rawStock).replace(/,/g, ''); 
+                const stock = Math.round(parseFloat(rawStock) || 0);
 
-                    if (barcode) {
-                        let payloadRow = {};
-                        payloadRow[schemaKeys.system.barcode] = barcode.trim();
-                        payloadRow[schemaKeys.system.itemName] = itemName ? itemName.trim() : 'System Product';
-                        payloadRow[schemaKeys.system.itemCode] = itemCode ? itemCode.trim() : '';
-                        payloadRow[schemaKeys.system.category] = category ? category.trim() : 'General';
-                        payloadRow[schemaKeys.system.stock] = stock;
-                        
-                        formattedRows.push(payloadRow);
-                    }
+                if (barcode) {
+                    let payloadRow = {};
+                    payloadRow[schemaKeys.system.barcode] = barcode.trim();
+                    payloadRow[schemaKeys.system.itemName] = itemName ? itemName.trim() : 'System Product';
+                    payloadRow[schemaKeys.system.itemCode] = itemCode ? itemCode.trim() : '';
+                    payloadRow[schemaKeys.system.category] = category ? category.trim() : 'General';
+                    payloadRow[schemaKeys.system.stock] = stock;
+                    
+                    // افزودن قیمت به دیتابیس (مطمئن شوید نام ستون دقیقاً 'Selling Price (Inc VAT)' باشد)
+                    payloadRow['Selling Price (Inc VAT)'] = price;
+                    
+                    formattedRows.push(payloadRow);
                 }
-
-                if (formattedRows.length === 0) {
-                    alert("❌ Parsing Failed: Could not identify rows with valid 'Barcode' keys inside the file.");
-                    syncBtn.disabled = false;
-                    syncBtn.textContent = "Upload & Sync Inventory";
-                    return;
-                }
-
-                try {
-                    const { error } = await _supabase
-                        .from('system_inventory')
-                        .upsert(formattedRows, { onConflict: schemaKeys.system.barcode });
-                    if (error) throw error;
-
-                    alert(`🎉 Excellent! Successfully matched and updated [ ${formattedRows.length} ] products. Showroom levels auto-recalibrated via triggers.`);
-                    fileInput.value = ""; 
-                    await fetchCategoriesFromServer();
-                    loadManagerialReport();
-                } catch (err) {
-                    console.error(err);
-                    errDisplay.textContent = `🚨 Upsert Engine Error: ${err.message || 'Check database constraints.'}`;
-                    errDisplay.style.display = 'block';
-                } finally {
-                    syncBtn.disabled = false;
-                    syncBtn.textContent = "Upload & Sync Inventory";
-                }
-            },
-            error: function(parseError) {
-                alert(`CSV Format Read Error: ${parseError.message}`);
-                syncBtn.disabled = false;
-                syncBtn.textContent = "Upload & Sync Inventory";
             }
-        });
-    }
+
+            // ... (بقیه کد که آپسرت می‌کند)
+            try {
+                const { error } = await _supabase
+                    .from('system_inventory')
+                    .upsert(formattedRows, { onConflict: schemaKeys.system.barcode }); // قیمت هم با همین متد آپدیت می‌شود
+                
+                if (error) throw error;
+                // ...
+            } catch (err) {
+                // ...
+            }
+        }
+    });
+}
 
     function initOfflineStorage() {
         const request = indexedDB.open("WarehouseOfflineDB", 1);
