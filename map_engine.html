@@ -2897,26 +2897,23 @@
             // این باعث می‌شود نقشه اصلی شما بدون تغییر باقی بماند
             shelf.style.cursor = "pointer";
 
-            shelf.onclick = function() {
-                let cardsHtml = ``;
-                 let totalQty = 0; // متغیر برای جمع کل
+           shelf.onclick = function() {
+    let cardsHtml = ``;
+    let totalQty = 0;
 
-                    itemsInShelf.forEach(i => {
-                // تبدیل مقدار به عدد برای جمع زدن صحیح
-                const qty = parseInt(i.showroom_qty || i.Showroom_Qty || 0);
-                const barcode = i.Barcode || i.barcode || '---';
+    itemsInShelf.forEach(i => {
+        const qty = parseInt(i.showroom_qty || i.Showroom_Qty || 0);
+        const barcode = i.Barcode || i.barcode || '---';
+        totalQty += qty;
 
-                // جمع کردن مقدار در متغیر کل
-                totalQty += qty;
-
-                    cardsHtml += `
-                        <div class="product-card">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <span style="font-size: 0.65rem; color: #64748b;">BARCODE</span>
-                                <div style="font-weight: 700; color: #1e293b;">${barcode}</div>
-                            </div>
-                            <div style="text-align: right;">
+        cardsHtml += `
+            <div class="product-card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <span style="font-size: 0.65rem; color: #64748b;">BARCODE</span>
+                        <div style="font-weight: 700; color: #1e293b;">${barcode}</div>
+                    </div>
+                    <div style="text-align: right;">
                         <span style="font-size: 0.65rem; color: #64748b;">QTY</span>
                         <div style="font-weight: 900; color: #059669; font-size: 1.1rem;">${qty}</div>
                     </div>
@@ -2925,7 +2922,6 @@
         `;
     });
 
-    // نمایش جمع کل در کنار عنوان شلف
     document.getElementById('popup-title').innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
             <span>Shelf: ${zoneId}</span>
@@ -2937,8 +2933,7 @@
     
     document.getElementById('popup-content').innerHTML = cardsHtml;
     document.getElementById('info-popup').style.display = 'block';
-};
-}
+}; // این براکت و سمی‌کولن بسیار مهم هستند
 
 // اجرای اولیه
 updateMapStatus();
