@@ -1104,13 +1104,13 @@
                     .gte('created_at', startISO)
                     .lte('created_at', endISO);
 
-                if (currentTxFilter === 'all') {
+                if (currentTxFilter === 'non-sales') {
                     query = query.not('worker_name', 'ilike', '%System Auto-Sale%');
                 }
 
                 const { data, error: logError } = await query
                     .order('created_at', { ascending: false })
-                    .limit(1000000);
+                    .limit(100000);
 
                 if (logError) throw logError;
                 onlineLogs = data || [];
