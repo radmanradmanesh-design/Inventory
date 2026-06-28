@@ -1203,7 +1203,7 @@
                 const isVoided = log.status && log.status === 'Voided';
 
                 if (!isVoided) {
-                    if (worker.includes('Direct Intake')) {
+                    if (worker.includes('Intake')) {
                         totalIntakeQty += qty;
                         totalRequests++;
                     } else if (!worker.includes('System Auto-Sale')) {
@@ -1264,7 +1264,7 @@
                 badgeClass = 'badge pending-sync';
             } else if (isVoided) {
                 badgeClass = 'badge voided';
-            } else if (row.worker.includes('Direct Intake')) {
+            } else if (row.worker.includes('Intake')) {
                 badgeClass = 'badge intake';
             } else {
                 badgeClass = 'badge movement';
