@@ -1,13 +1,1122 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>inventory-3d</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Premium Scanner Room</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        :root {
+            --turquoise-main: #06b6d4; 
+            --turquoise-dark: #0891b2; 
+            --turquoise-deep: #0e7490; 
+            --turquoise-light: #ecfeff; 
+            --royal-gold: #e5b822; 
+            --royal-gold-hover: #cfa319;
+            --royal-gold-light: #fffbeb;
+            --dark-slate: #0f172a;
+            --body-bg: #f0fdfa; 
+            --panel-bg: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #334155;
+            --border: #cbd5e1;
+            --success: #10b981;
+            --error: #f43f5e;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 24px 12px;
+            background-color: var(--body-bg);
+            min-height: 100vh;
+            color: var(--text-main);
+            direction: ltr;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .nav-wrapper {
+            max-width: 520px;
+            margin: 0 auto 16px auto;
+            text-align: center;
+        }
+
+        .nav-btn {
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 11px 20px;
+            background-color: var(--turquoise-deep);
+            color: white;
+            border-radius: 14px;
+            font-weight: 600;
+            font-size: 13px;
+            box-shadow: 0 4px 12px rgba(14, 116, 144, 0.2);
+            transition: all 0.2s ease;
+        }
+
+        .nav-btn:hover {
+            background-color: var(--dark-slate);
+            transform: translateY(-1px);
+        }
+
+        .container {
+            max-width: 520px;
+            margin: 0 auto;
+            background: var(--panel-bg);
+            padding: 32px 24px;
+            border-radius: 24px;
+            box-shadow: 0 10px 30px -5px rgba(6, 182, 212, 0.08);
+            border: 1px solid rgba(6, 182, 212, 0.15);
+        }
+
+        .operator-box {
+            background: var(--royal-gold-light);
+            padding: 16px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            border: 1.5px solid rgba(229, 184, 34, 0.3);
+        }
+
+        h2 {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 24px;
+            color: var(--turquoise-deep); 
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .camera-box {
+            background-color: #ffffff;
+            border: 3px solid var(--turquoise-main);
+            padding: 14px;
+            border-radius: 20px;
+            margin-bottom: 24px;
+            box-shadow: 0 8px 20px rgba(6, 182, 212, 0.1);
+        }
+
+        #reader {
+            width: 100%;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        label {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--turquoise-deep); 
+            text-transform: uppercase;
+            letter-spacing: 0.75px;
+        }
+
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            box-sizing: border-box;
+            font-size: 15px;
+            color: var(--text-main);
+            background-color: #fff;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--turquoise-main);
+            box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.15);
+        }
+
+        .status {
+            padding: 14px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            font-weight: 700;
+            font-size: 14px;
+            display: none;
+            line-height: 1.4;
+        }
+        .status.loading { background-color: var(--turquoise-light); color: var(--turquoise-deep); border-left: 5px solid var(--turquoise-main); }
+        .status.success { background-color: #ecfdf5; color: #065f46; border-left: 5px solid var(--success); }
+        .status.error { background-color: #fff1f2; color: #9f1239; border-left: 5px solid var(--error); }
+         
+        #product-info {
+            display: none;
+            background: #ffffff;
+            margin-bottom: 16px;
+        }
+
+        .info-card {
+            background: #fff;
+            padding: 18px;
+            border-radius: 16px;
+            border: 1.5px solid var(--border);
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .info-card p {
+            margin: 10px 0;
+            font-size: 14px;
+            color: var(--text-muted);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px dashed var(--border);
+            padding-bottom: 10px;
+        }
+        .info-card p:last-child { border-bottom: none; padding-bottom: 0; }
+        .value { font-weight: 700; color: var(--text-main); font-size: 15px; }
+         
+        .location-container {
+            background: #fff;
+            border: 1.5px solid var(--border);
+            border-radius: 14px;
+            padding: 14px;
+            margin-top: 6px;
+            margin-bottom: 20px;
+        }
+        .location-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .location-row:last-child { border-bottom: none; }
+        .loc-badge {
+            background: var(--turquoise-light);
+            color: var(--turquoise-deep);
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 12px;
+            border: 1px solid rgba(6, 182, 212, 0.15);
+        }
+
+        .stock-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-top: 8px;
+            margin-bottom: 20px;
+        }
+        .stock-box {
+            background: #fff;
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: 1.5px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .stock-title { font-size: 13px; color: var(--text-muted); font-weight: 600; }
+        .stock-count { font-size: 14px; font-weight: 700; padding: 4px 14px; border-radius: 8px; }
+        
+        .c-system { color: #b45309; background-color: #fef3c7; }
+        .c-showroom { color: var(--turquoise-deep); background-color: var(--turquoise-light); border: 1px solid rgba(6, 182, 212, 0.2); }
+        .c-warehouse { color: #047857; background-color: #d1fae5; }
+         
+        .diff-neutral { color: #475569; background-color: #f1f5f9; border: 1.5px solid #cbd5e1; }
+        .diff-shortage { color: #991b1b; background-color: #fee2e2; border: 1.5px solid #fca5a5; }
+        .diff-surplus { color: #065f46; background-color: #d1fae5; border: 1.5px solid #a7f3d0; }
+
+        button.action-btn {
+            width: 100%;
+            padding: 15px;
+            background-color: var(--royal-gold);
+            color: var(--dark-slate); 
+            border: none;
+            border-radius: 14px;
+            font-size: 15px;
+            cursor: pointer;
+            font-weight: 700;
+            box-shadow: 0 4px 14px rgba(229, 184, 34, 0.35);
+            transition: all 0.2s ease;
+        }
+        button.action-btn:hover { 
+            transform: translateY(-1px);
+            background-color: var(--royal-gold-hover);
+            box-shadow: 0 6px 20px rgba(229, 184, 34, 0.45);
+        }
+        
+        #manual-box {
+            margin-top: 14px;
+            display: flex;
+            gap: 10px;
+        }
+        #manual-box button {
+            width: auto;
+            padding: 0 24px; 
+            background-color: var(--turquoise-main); 
+            color: white; 
+            border: none; 
+            border-radius: 12px; 
+            font-weight: 700; 
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        #manual-box button:hover {
+            background-color: var(--turquoise-dark);
+        }
+        
+        #clear-btn {
+            margin-top: 12px;
+            background-color: transparent; 
+            color: var(--text-muted); 
+            border: 1.5px solid var(--border); 
+            padding: 12px; 
+            width: 100%; 
+            border-radius: 14px; 
+            font-weight: 600; 
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        #clear-btn:hover {
+            background-color: #f1f5f9;
+            color: var(--dark-slate);
+            border-color: var(--text-muted);
+        }
+
+        /* --- STYLES FOR SECURITY LOCK OVERLAY SYSTEM --- */
+        #security-lock-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #0f172a;
+            z-index: 99999;
+            display: flex; /* تغییر از none به flex برای نمایش اجباری تا زمان احراز هویت */
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .auth-card {
+            background: #ffffff;
+            width: 100%;
+            max-width: 400px;
+            padding: 30px 24px;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        .auth-title { color: #0e7490; font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+        .auth-subtitle { color: #475569; font-size: 13px; margin-bottom: 24px; line-height: 1.4; }
+        .pin-dots-container { display: flex; justify-content: center; gap: 16px; margin-bottom: 24px; }
+        .pin-dot { width: 16px; height: 16px; border: 2px solid #cbd5e1; border-radius: 50%; transition: all 0.1s ease; }
+        .pin-dot.active { background-color: #e5b822; border-color: #e5b822; transform: scale(1.1); }
+        .pin-pad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 280px; margin: 0 auto 20px auto; }
+        .pad-btn { background: #f1f5f9; border: none; padding: 18px; border-radius: 16px; font-size: 18px; font-weight: 700; color: #0f172a; cursor: pointer; transition: background 0.1s; }
+        .pad-btn:active { background: #cbd5e1; }
+        .biometric-action-btn { width: 100%; padding: 14px; background-color: #06b6d4; color: white; border: none; border-radius: 14px; font-weight: 700; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(6, 182, 212, 0.2); }
+        .biometric-action-btn:active { background-color: #0891b2; }
+        .auth-status-msg { min-height: 20px; font-size: 13px; font-weight: 600; margin-top: 12px; }
+    </style>
+</head>
+<body>
+
+<div id="security-lock-screen">
+    <div class="auth-card">
+        <div class="auth-title">Security Verification</div>
+        <div class="auth-subtitle">Scan your biometrics or enter your 4-digit security PIN to unlock the workstation.</div>
+        
+        <button id="biometric-trigger-btn" class="biometric-action-btn" onclick="triggerBiometricAuth()">
+            <span>🔒 Use Fingerprint / FaceID</span>
+        </button>
+        
+        <div style="margin: 16px 0; color: #94a3b8; font-size: 12px; font-weight: 600;">— OR USE SECURE ACCESS —</div>
+
+        <div class="pin-dots-container">
+            <div class="pin-dot" id="dot-1"></div>
+            <div class="pin-dot" id="dot-2"></div>
+            <div class="pin-dot" id="dot-3"></div>
+            <div class="pin-dot" id="dot-4"></div>
+        </div>
+
+        <div class="pin-pad-grid">
+            <button class="pad-btn" onclick="pressPinKey('1')">1</button>
+            <button class="pad-btn" onclick="pressPinKey('2')">2</button>
+            <button class="pad-btn" onclick="pressPinKey('3')">3</button>
+            <button class="pad-btn" onclick="pressPinKey('4')">4</button>
+            <button class="pad-btn" onclick="pressPinKey('5')">5</button>
+            <button class="pad-btn" onclick="pressPinKey('6')">6</button>
+            <button class="pad-btn" onclick="pressPinKey('7')">7</button>
+            <button class="pad-btn" onclick="pressPinKey('8')">8</button>
+            <button class="pad-btn" onclick="pressPinKey('9')">9</button>
+            <button class="pad-btn" style="background:transparent; color:#ef4444; font-size:14px;" onclick="clearPin()">Clear</button>
+            <button class="pad-btn" onclick="pressPinKey('0')">0</button>
+            <button class="pad-btn" style="background:transparent; color:#64748b; font-size:14px;" onclick="backspacePin()">⌫</button>
+        </div>
+
+        <button id="guest-trigger-btn" class="pad-btn" style="width: 100%; max-width: 280px; margin: 12px auto 0 auto; background: #f8fafc; border: 1.5px solid #cbd5e1; color: #475569; font-size: 14px; display: block;" onclick="loginAsGuest()">
+            👀 Continue as Guest (View Only)
+        </button>
+
+        <div id="auth-message-log" class="auth-status-msg"></div>
+    </div>
+</div>
+
+<div class="nav-wrapper">
+    <a href="dashboard.html" id="dashboard-link" class="nav-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 4px;"><path d="M3 3h7v7H3zm11 0h7v7h-7zm0 11h7v7h-7zM3 14h7v7H3z"/></svg>
+        View Management Dashboard
+    </a>
+</div>
+
+<div class="container">
+    <div class="operator-box">
+        <label style="color: var(--dark-slate); display: block; margin-bottom: 4px;">ACTIVE WORKSTATION OPERATOR</label>
+        <div id="active-operator-display" style="font-size: 16px; font-weight: 700; color: var(--turquoise-deep);">Securing Session...</div>
+    </div>
+
+    <h2>Live Scanner & Location Finder</h2>
+     
+    <div class="camera-box">
+        <label style="color: var(--turquoise-deep); font-size: 13px; margin-bottom: 8px; display: block; font-weight: 700;">📷 Align Barcode Inside Frame:</label>
+        <div id="reader"></div>
+         
+        <div id="manual-box">
+            <input type="text" id="barcode-input" placeholder="Or type barcode manually..." autocomplete="off">
+            <button onclick="handleManualSubmit()">Find</button>
+        </div>
+    </div>
+
+    <div id="status-div" class="status"></div>
+
+    <div id="product-info">
+        <div class="info-card">
+            <p><strong>Item Name</strong> <span id="p-name" class="value">---</span></p>
+            <p><strong>Item Code</strong> <span id="p-code" class="value">---</span></p>
+            <p><strong>Selling Price</strong> <span id="p-price" class="value" style="color: var(--success);">---</span></p>
+        </div>
+
+        <label>Core Inventory Fleet</label>
+        <div class="stock-grid">
+            <div class="stock-box">
+                <span class="stock-title">System Stock</span>
+                <span id="stock-system" class="stock-count c-system">0</span>
+            </div>
+            <div class="stock-box">
+                <span class="stock-title">Warehouse Stock</span>
+                <span id="stock-warehouse" class="stock-count c-warehouse">0</span>
+            </div>
+            <div class="stock-box">
+                <span class="stock-title">Showroom Stock (LIVE)</span>
+                <span id="stock-showroom" class="stock-count c-showroom">0</span>
+            </div>
+            <div id="variance-box" class="stock-box" style="margin-top: 4px;">
+                <span class="stock-title" style="font-weight: 700;">Discrepancy Variance</span>
+                <span id="stock-variance" class="stock-count" style="font-size: 16px;">0</span>
+            </div>
+        </div>
+
+        <label>📍 Warehouse Physical Coordinates:</label>
+        <div id="location-list" class="location-container"></div>
+         
+        <div id="transaction-panel">
+            <div class="form-group" style="margin-top: 20px;">
+                <label for="transaction-type">Transaction Type Action</label>
+                <select id="transaction-type" onchange="handleTypeChange()" style="margin-top: 4px;">
+                    <option value="out">Move to Showroom (Whse -> Showroom)</option>
+                    <option value="in">Return to Warehouse (Showroom -> Whse)</option>
+                    <option value="intake">➕ Direct Stock Intake (Add New Qty to Whse Shelf)</option>
+                </select>
+            </div>
+<div class="form-group" id="dest-shelf-group" style="margin-top: 20px;">
+    <label for="destinationShelf">Destination Shelf</label>
+    <input list="shelves-list" id="destinationShelf" class="form-control" placeholder="Select or type destination..." style="margin-top: 4px;">
+    <datalist id="shelves-list">
+                    <option value="Polo___Pantalon"><option value="Pen"><option value="Underware">
+                    <option value="100_Sheets"><option value="Compass_Sets_2"><option value="FMCG_1">
+                    <option value="40_Sheets"><option value="60_Sheets"><option value="80_Sheets"><option value="English_NB">
+                    <option value="Subjected_NB"><option value="Stationery"><option value="Drawing_Boards">
+                    <option value="FMCG_2"><option value="Underwear"><option value="Shila"><option value="Dress_line_1">
+                    <option value="White_Board_Items"><option value="Shoes_Shelves"><option value="Socks"><option value="Dress_line_2">
+                    <option value="Girl_Accessories"><option value="Reserved_1"><option value="FMCG_3"><option value="Dress_line_3">
+                    <option value="Shoes_Pallet1"><option value="Sport_Shoes"><option value="Small_NB"><option value="Dress_line_4">
+                    <option value="Shoes_Pallet3"><option value="Shoes_Pallet2"><option value="PP_NB"><option value="Dress_line_5">
+                    <option value="Cover"><option value="Highlighter2"><option value="Shoes_Wall"><option value="Dress_line_6">
+                    <option value="Mind_Toys_Wall"><option value="Column_5"><option value="Column_3"><option value="A4">
+                    <option value="Highlighter1"><option value="Reserved_Wall_Side"><option value="Spring_NB">
+                    <option value="Correction_Pen___Tape"><option value="Reserved_2"><option value="Reserved_Wall_Back">
+                    <option value="Pencil_Box"><option value="Drawing_Supplies"><option value="Column_2">
+                    <option value="Education_Items"><option value="Pencil_Box1"><option value="Bags_4">
+                    <option value="Bags_3"><option value="Column_1"><option value="Bags_2">
+                    <option value="Bags_1"><option value="Launch_Box"><option value="First_Wall">
+                    <option value="Water_Bottle"><option value="Perfumes_Wall"><option value="Shoes">
+                    <option value="Painting"><option value="Mind_Toys"><option value="Highlighter">
+                    <option value="Pencil"><option value="Pen___Pencil_Shelves"><option value="Front_Net1">
+                </datalist>
+            </div>
+            <div class="form-group" id="loc-select-group">
+                <label for="source-location">Select Source Location (Deduct from):</label>
+                <select id="source-location" style="margin-top: 4px;"></select>
+            </div>
+
+            <div class="form-group" id="new-loc-group" style="display: none;">
+                <label for="new-location-input">Define Brand New Location Name</label>
+                <input type="text" id="new-location-input" placeholder="e.g. Shelf-C5" style="margin-top: 4px;">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label for="transfer-qty">Transaction Qty</label>
+                <input type="number" id="transfer-qty" min="1" inputmode="numeric" placeholder="Enter transfer quantity" style="margin-top: 4px;">
+            </div>
+             
+            <button id="submit-btn" class="action-btn" onclick="submitTransfer()">Confirm Stock Movement</button>
+        </div>
+        
+        <button id="clear-btn" onclick="resetPage()">Clear & Flush Registry</button>
+    </div>
+</div>
+
+<script>
+    const SUPABASE_URL = 'https://qmurpnbrnmyjdxqjhybz.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'; 
+     
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const barcodeInput = document.getElementById('barcode-input');
+    const statusDiv = document.getElementById('status-div');
+    const productInfoDiv = document.getElementById('product-info');
+    const typeSelect = document.getElementById('transaction-type');
+    const sourceLocSelect = document.getElementById('source-location');
+    const newLocGroup = document.getElementById('new-loc-group');
+    const newLocInput = document.getElementById('new-location-input');
+    const submitBtn = document.getElementById('submit-btn');
+     
+    let currentProduct = null;
+    let locBalances = {};
+    let currentShowroomQty = 0;
+    let html5QrcodeScanner = null;
+    let finalCleanedBarcode = ""; 
+    let dbBarcodeKey = "Barcode"; 
+    let dbShowroomQtyKey = "showroom_qty";
+
+    let currentPin = "";
+    const SESSION_LIFETIME = 24 * 60 * 60 * 1000; 
+    let currentActiveOperatorName = "";
+
+    window.onload = function() {
+        startCameraScanner();
+        checkDailySession(); 
+    };
+
+    function checkDailySession() {
+        const savedSession = localStorage.getItem('sc_auth_session');
+        if (savedSession) {
+            try {
+                const sessionData = JSON.parse(savedSession);
+                const now = new Date().getTime();
+                
+                if (now - sessionData.loginTime < SESSION_LIFETIME) {
+                    document.getElementById('security-lock-screen').style.display = 'none';
+                    currentActiveOperatorName = sessionData.operatorName;
+                    document.getElementById('active-operator-display').textContent = `${sessionData.operatorName} (${sessionData.role.toUpperCase()})`;
+                    applyRoleAccessControl(sessionData.role);
+                    return;
+                }
+            } catch (e) {
+                console.error("Session reading failed, clearing corrupted data.", e);
+            }
+        }
+        document.getElementById('security-lock-screen').style.display = 'flex';
+        triggerBiometricAuth();
+    }
+
+    function pressPinKey(num) {
+        if (currentPin.length < 4) {
+            currentPin += num;
+            updatePinDots();
+        }
+        if (currentPin.length === 4) {
+            verifyPinWithSupabase(currentPin);
+        }
+    }
+
+    function clearPin() {
+        currentPin = "";
+        updatePinDots();
+        document.getElementById('auth-message-log').textContent = "";
+    }
+
+    function backspacePin() {
+        if (currentPin.length > 0) {
+            currentPin = currentPin.slice(0, -1);
+            updatePinDots();
+        }
+    }
+
+    function updatePinDots() {
+        for (let i = 1; i <= 4; i++) {
+            const dot = document.getElementById(`dot-${i}`);
+            if (i <= currentPin.length) { dot.classList.add('active'); } 
+            else { dot.classList.remove('active'); }
+        }
+    }
+
+    function loginAsGuest() {
+        const msgArea = document.getElementById('auth-message-log');
+        msgArea.style.color = "#475569";
+        msgArea.textContent = "Accessing as Guest (View-Only Picker)...";
+        
+        setTimeout(() => {
+            const guestSession = {
+                role: 'guest',
+                operatorName: 'Guest Picker',
+                loginTime: new Date().getTime()
+            };
+            localStorage.setItem('sc_auth_session', JSON.stringify(guestSession));
+            
+            document.getElementById('security-lock-screen').style.display = 'none';
+            currentActiveOperatorName = "Guest Picker";
+            document.getElementById('active-operator-display').textContent = "Guest Picker (GUEST)";
+            applyRoleAccessControl('guest');
+        }, 600);
+    }
+
+    async function verifyPinWithSupabase(pin) {
+        const msgArea = document.getElementById('auth-message-log');
+        msgArea.style.color = "#e5b822";
+        msgArea.textContent = "Verifying secure PIN...";
+
+        try {
+            const { data: operators, error } = await _supabase
+                .from('authorized_operators')
+                .select('*')
+                .eq('pin_code', pin)
+                .eq('is_active', true);
+
+            if (error) throw error;
+
+            if (!operators || operators.length === 0) {
+                msgArea.style.color = "#ef4444";
+                msgArea.textContent = "Invalid PIN code. Access Denied.";
+                setTimeout(clearPin, 1500);
+                return;
+            }
+
+            const currentOperator = operators[0];
+
+            if (!currentOperator.biometric_credential_id || !currentOperator.biometric_public_key) {
+                msgArea.style.color = "#06b6d4";
+                msgArea.textContent = `Welcome ${currentOperator.full_name}! Biometric setup required.`;
+                setTimeout(() => { startBiometricRegistration(currentOperator); }, 1000);
+                return;
+            }
+
+            msgArea.style.color = "#22c55e";
+            msgArea.textContent = "Verification Successful! Unlocking...";
+
+            setTimeout(() => {
+                completeSuccessfulLogin(currentOperator);
+            }, 800);
+
+        } catch (err) {
+            console.error(err);
+            msgArea.style.color = "#ef4444";
+            msgArea.textContent = "Connection error. Please try again.";
+            setTimeout(clearPin, 2000);
+        }
+    }
+
+    async function startBiometricRegistration(operator) {
+        const msgArea = document.getElementById('auth-message-log');
+        if (!window.PublicKeyCredential) {
+            msgArea.style.color = "#ef4444";
+            msgArea.textContent = "Biometric hardware unsupported. Bypassing with PIN...";
+            setTimeout(() => { completeSuccessfulLogin(operator); }, 1500);
+            return;
+        }
+
+        try {
+            msgArea.style.color = "#06b6d4";
+            msgArea.textContent = "Touch your fingerprint sensor or verify your Face ID...";
+
+            const randomChallenge = new Uint8Array(32);
+            window.crypto.getRandomValues(randomChallenge);
+            const userIdBuffer = new TextEncoder().encode(operator.id.toString());
+
+            const creationOptions = {
+                publicKey: {
+                    challenge: randomChallenge,
+                    rp: { name: "Radman Warehouse System", id: window.location.hostname },
+                    user: { id: userIdBuffer, name: operator.full_name, displayName: operator.full_name },
+                    pubKeyCredParams: [{ type: "public-key", alg: -7 }],
+                    timeout: 60000,
+                    authenticatorSelection: { userVerification: "required" },
+                    attestation: "none"
+                }
+            };
+
+            const credential = await navigator.credentials.create(creationOptions);
+
+            if (credential) {
+                const credentialIdBase64 = btoa(String.fromCharCode(...new Uint8Array(credential.rawId)));
+                const publicKeyBase64 = btoa(String.fromCharCode(...new Uint8Array(credential.response.attestationObject)));
+
+                const { error } = await _supabase
+                    .from('authorized_operators')
+                    .update({
+                        biometric_credential_id: credentialIdBase64,
+                        biometric_public_key: publicKeyBase64
+                    })
+                    .eq('id', operator.id);
+
+                if (error) throw error;
+
+                msgArea.style.color = "#22c55e";
+                msgArea.textContent = "Biometrics successfully linked! Unlocking...";
+                completeSuccessfulLogin(operator);
+            }
+        } catch (err) {
+            console.error(err);
+            msgArea.style.color = "#ef4444";
+            msgArea.textContent = "Biometric registration failed. Bypassing...";
+            setTimeout(() => { completeSuccessfulLogin(operator); }, 1500);
+        }
+    }
+
+    async function triggerBiometricAuth() {
+        const msgArea = document.getElementById('auth-message-log');
+        if (!window.PublicKeyCredential) return;
+
+        try {
+            const randomChallenge = new Uint8Array(32);
+            window.crypto.getRandomValues(randomChallenge);
+
+            const assertionOptions = {
+                publicKey: { challenge: randomChallenge, timeout: 60000, userVerification: "required", rpId: window.location.hostname }
+            };
+
+            const assertion = await navigator.credentials.get(assertionOptions);
+            if (assertion) {
+                msgArea.style.color = "#06b6d4";
+                msgArea.textContent = "Verifying biometrics matrix...";
+
+                const detectedIdBase64 = btoa(String.fromCharCode(...new Uint8Array(assertion.rawId)));
+
+                const { data: operators, error } = await _supabase
+                    .from('authorized_operators')
+                    .select('*')
+                    .eq('biometric_credential_id', detectedIdBase64)
+                    .eq('is_active', true);
+
+                if (error) throw error;
+
+                if (!operators || operators.length === 0) {
+                    msgArea.style.color = "#ef4444";
+                    msgArea.textContent = "Biometrics match unrecognized or revoked operator.";
+                    return;
+                }
+
+                msgArea.style.color = "#22c55e";
+                msgArea.textContent = `Authorized! Welcome, ${operators[0].full_name}.`;
+                completeSuccessfulLogin(operators[0]);
+            }
+        } catch (err) {
+            console.log("Biometric scan idle/dismissed.", err);
+        }
+    }
+
+    function completeSuccessfulLogin(operator) {
+    // پاک کردن نشست قبلی (اگر مهمان بوده)
+    localStorage.removeItem('sc_auth_session');
+    
+    const secureSession = {
+        role: operator.role || 'guest',
+        operatorName: operator.full_name,
+        loginTime: new Date().getTime()
+    };
+    localStorage.setItem('sc_auth_session', JSON.stringify(secureSession));
+    
+    // مخفی کردن صفحه لاگین و اعمال تغییرات
+    document.getElementById('security-lock-screen').style.display = 'none';
+    currentActiveOperatorName = operator.full_name;
+    document.getElementById('active-operator-display').textContent = `${operator.full_name} (${secureSession.role.toUpperCase()})`;
+    
+    // اعمال مجدد دسترسی‌ها و حذف بنر مهمان
+    applyRoleAccessControl(secureSession.role);
+    
+    const guestBanner = document.getElementById('picker-view-notice');
+    if (guestBanner) guestBanner.remove();
+    
+    clearPin();
+}
+
+    function applyRoleAccessControl(role) {
+        const txPanel = document.getElementById('transaction-panel');
+        const dashLink = document.getElementById('dashboard-link');
+
+        if (txPanel) txPanel.style.display = 'block';
+        if (dashLink) dashLink.style.display = 'inline-flex';
+
+        if (role === 'guest') {
+            if (txPanel) txPanel.style.display = 'none';
+            if (dashLink) dashLink.style.display = 'none';
+            injectGuestWarningBanner();
+        } else if (role === 'operator') {
+            if (dashLink) dashLink.style.display = 'none';
+        }
+    }
+
+    function injectGuestWarningBanner() {
+    if (document.getElementById('picker-view-notice')) return;
+    
+    const banner = document.createElement('div');
+    banner.id = 'picker-view-notice';
+    banner.style.cssText = "background: #fff1f2; border: 1.5px dashed var(--error); color: #9f1239; padding: 16px; border-radius: 14px; text-align: center; font-size: 13px; font-weight: 700; margin-top: 16px; line-height: 1.4;";
+    
+    banner.innerHTML = `
+        ℹ️ VIEW-ONLY ACCESS: You are logged in as a Cargo Picker.<br>
+        <button onclick="reAuthenticate()" style="margin-top: 10px; padding: 8px 16px; background: #9f1239; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 12px;">
+            🔒Upgrade Your Access
+        </button>
+    `;
+    
+    document.getElementById('product-info').appendChild(banner);
+}
+
+    // تابع جدید برای باز کردن دوباره صفحه لاگین
+    function reAuthenticate() {
+    document.getElementById('security-lock-screen').style.display = 'flex';
+    document.getElementById('auth-message-log').textContent = "لطفاً برای ارتقاء نقش، پین خود را وارد کنید.";
+}
+
+    function startCameraScanner() {
+        html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
+            fps: 15, 
+            qrbox: { width: 280, height: 150 }, 
+            aspectRatio: 1.0
+        }, false);
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    }
+
+    function onScanSuccess(decodedText, decodedResult) {
+        if (decodedText) {
+            try { new AudioContext().createOscillator().connect(new AudioContext().destination); } catch(e){}
+            handleScannedBarcode(decodedText.trim());
+        }
+    }
+
+    function onScanFailure(error) {}
+
+    function handleManualSubmit() {
+        const barcode = barcodeInput.value.trim();
+        if (barcode) handleScannedBarcode(barcode);
+    }
+
+    barcodeInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') handleManualSubmit();
+    });
+
+    function handleTypeChange() {
+        const txType = typeSelect.value;
+        newLocGroup.style.display = 'none';
+        if (txType === 'out') {
+            submitBtn.textContent = 'Confirm Stock Movement';
+            submitBtn.style.backgroundColor = 'var(--royal-gold)';
+            submitBtn.style.color = 'var(--dark-slate)';
+            submitBtn.style.boxShadow = '0 4px 14px rgba(229, 184, 34, 0.35)';
+            document.getElementById('loc-select-group').querySelector('label').textContent = "Select Source Location (Deduct from):";
+        } else if (txType === 'in') {
+            submitBtn.textContent = 'Confirm & Return Stock';
+            submitBtn.style.backgroundColor = 'var(--turquoise-main)';
+            submitBtn.style.color = '#ffffff';
+            submitBtn.style.boxShadow = '0 4px 14px rgba(6, 182, 212, 0.3)';
+            document.getElementById('loc-select-group').querySelector('label').textContent = "Select Target Location (Add to):";
+        } else if (txType === 'intake') {
+            submitBtn.textContent = '➕ Add New Physical Stock to Warehouse';
+            submitBtn.style.backgroundColor = '#10b981'; 
+            submitBtn.style.color = '#ffffff';
+            submitBtn.style.boxShadow = '0 4px 14px rgba(16, 185, 129, 0.2)';
+            document.getElementById('loc-select-group').querySelector('label').textContent = "Select Existing Shelf:";
+            newLocGroup.style.display = 'block';
+        }
+    }
+
+    async function handleScannedBarcode(barcode) {
+    let cleanedBarcode = barcode.toString().trim().replace(/[\r\n\t]/g, "");
+    if (!cleanedBarcode) {
+        statusDiv.className = 'status error';
+        statusDiv.textContent = '❌ Scanned barcode is empty!';
+        return;
+    }
+
+    statusDiv.className = 'status loading';
+    statusDiv.textContent = `Searching database for [ ${cleanedBarcode} ]...`;
+    statusDiv.style.display = 'block';
+    productInfoDiv.style.display = 'none';
+    newLocInput.value = '';
+
+    const pastNotice = document.getElementById('picker-view-notice');
+    if (pastNotice) pastNotice.remove();
+
+    if (navigator.onLine) {
+        try {
+            // کوئری اول: اضافه شدن ستون قیمت
+            let { data: systemData, error: err1 } = await _supabase
+                .from('system_inventory')
+                .select('*, "Selling Price (Inc VAT)"')
+                .eq('Barcode', cleanedBarcode)
+                .maybeSingle();
+            
+            dbBarcodeKey = "Barcode";
+
+            if (!systemData) {
+                // کوئری دوم (در صورت عدم یافتن در اولی): اضافه شدن ستون قیمت
+                let { data: systemDataCheck, error: err2 } = await _supabase
+                    .from('system_inventory')
+                    .select('*, "Selling Price (Inc VAT)"')
+                    .eq('barcode', cleanedBarcode)
+                    .maybeSingle();
+                
+                if (systemDataCheck) {
+                    systemData = systemDataCheck;
+                    dbBarcodeKey = "barcode";
+                }
+            }
+
+            if (!systemData) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `⚠️ Barcode [ ${cleanedBarcode} ] not found in system table.`;
+                return;
+            }
+
+            finalCleanedBarcode = (systemData[dbBarcodeKey] || cleanedBarcode).toString();
+            const { data: whseRows } = await _supabase.from('warehouse_inventory').select('*').eq('Row Labels', finalCleanedBarcode);
+            let { data: showData } = await _supabase.from('showroom_inventory').select('*').eq(dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode', finalCleanedBarcode).maybeSingle();
+            
+            dbShowroomQtyKey = "showroom_qty";
+            if (showData) {
+                if (showData.showroom_quantity !== undefined) dbShowroomQtyKey = "showroom_quantity";
+                else if (showData.showroom_qty !== undefined) dbShowroomQtyKey = "showroom_qty";
+            }
+
+            const payloadToCache = { barcode: finalCleanedBarcode, systemData, whseRows, showData, dbBarcodeKey, dbShowroomQtyKey };
+            cacheProductLocally(payloadToCache);
+
+            renderProductDataHTML(systemData, whseRows, showData);
+
+        } catch (e) {
+            console.error("Database linkage error:", e);
+            statusDiv.className = 'status error';
+            statusDiv.textContent = 'Database linkage temporary issue. Trying local cache...';
+            loadProductFromCache(cleanedBarcode);
+        }
+    } else {
+        loadProductFromCache(cleanedBarcode);
+    }
+}
+
+    function renderProductDataHTML(systemData, whseRows, showData) {
+        currentProduct = systemData;
+        locBalances = {};
+        let totalWarehouseQty = 0;
+
+        const locContainer = document.getElementById('location-list');
+        locContainer.innerHTML = '';
+        sourceLocSelect.innerHTML = '';
+
+        if (whseRows && whseRows.length > 0) {
+            whseRows.forEach(row => {
+                let rawVal = row['Value'] ? row['Value'].toString().replace(/,/g, '') : '0';
+                let qty = parseInt(rawVal) || 0;
+                let locName = row['Attribute'];
+                
+                if(qty > 0 && locName && locName !== 'Grand Total' && locName.trim() !== '') {
+                    totalWarehouseQty += qty;
+                    locBalances[locName] = (locBalances[locName] || 0) + qty;
+                }
+            });
+        }
+
+        const dynamicLocs = Object.keys(locBalances);
+        if (dynamicLocs.length > 0) {
+            dynamicLocs.forEach(loc => {
+                let qty = locBalances[loc];
+                locContainer.innerHTML += `<div class="location-row"><span class="loc-badge">${loc}</span><span class="value">${qty} pcs</span></div>`;
+                sourceLocSelect.innerHTML += `<option value="${loc}">${loc} (${qty} available)</option>`;
+            });
+        } else {
+            locContainer.innerHTML = `<div style="color:#718096; font-size:14px; text-align:center; padding:10px;">⚠️ Not found on any warehouse shelf.</div>`;
+            sourceLocSelect.innerHTML += `<option value="Default-Shelf">Default-Shelf (0 available)</option>`;
+            locBalances["Default-Shelf"] = 0;
+        }
+
+        let systemStock = 0;
+        if (systemData) {
+            let rawStock = systemData['Stock'] || systemData['stock'] || systemData['STOCK'] || '0';
+            systemStock = parseInt(rawStock.toString().replace(/,/g, '')) || 0;
+        }
+         
+        currentShowroomQty = (showData && showData[dbShowroomQtyKey]) ?
+            (parseInt(showData[dbShowroomQtyKey].toString().replace(/,/g, '')) || 0) : 0;
+         
+        let variance = (totalWarehouseQty + currentShowroomQty) - systemStock;
+
+        document.getElementById('p-name').textContent = systemData['Item Name'] || systemData['item_name'] || '---';
+        document.getElementById('p-code').textContent = systemData['Item Code'] || systemData['item_code'] || '---';
+        document.getElementById('stock-system').textContent = systemStock;
+        document.getElementById('stock-warehouse').textContent = totalWarehouseQty;
+        document.getElementById('stock-showroom').textContent = currentShowroomQty;
+        
+        const varianceElement = document.getElementById('stock-variance');
+        const varianceBox = document.getElementById('variance-box');
+        if (variance === 0) { 
+            varianceBox.className = "stock-box diff-neutral";
+            varianceElement.textContent = "Matched (0)";
+        } else if (variance < 0) { 
+            varianceBox.className = "stock-box diff-shortage";
+            varianceElement.textContent = `Shortage (${variance})`;
+        } else { 
+            varianceBox.className = "stock-box diff-surplus";
+            varianceElement.textContent = `Surplus (+${variance})`;
+        }
+
+        statusDiv.className = 'status success';
+        statusDiv.textContent = 'Product successfully located!';
+        productInfoDiv.style.display = 'block';
+        
+        const savedSession = localStorage.getItem('sc_auth_session');
+        if(savedSession) {
+            const parsed = JSON.parse(savedSession);
+            applyRoleAccessControl(parsed.role);
+        }
+
+        typeSelect.value = 'out';
+        handleTypeChange();
+        document.getElementById('transfer-qty').focus();
+        // اضافه کردن این بخش به انتهای تابع renderProductDataHTML:
+        const price = systemData['Selling Price (Inc VAT)'];
+        const priceElement = document.getElementById('p-price');
+        if (priceElement) {
+            priceElement.textContent = price ? price : '---';
+        }
+    }
+
+    function cacheProductLocally(payload) {
+        try {
+            localStorage.setItem(`cache_bc_${payload.barcode}`, JSON.stringify(payload));
+        } catch (e) {}
+    }
+
+    function loadProductFromCache(barcode) {
+        const cachedData = localStorage.getItem(`cache_bc_${barcode}`);
+        if (cachedData) {
+            const parsed = JSON.parse(cachedData);
+            statusDiv.className = 'status success';
+            statusDiv.textContent = '⚠️ Loaded from local cache (OFFLINE MODE)';
+            finalCleanedBarcode = barcode;
+            dbBarcodeKey = parsed.dbBarcodeKey || "Barcode";
+            dbShowroomQtyKey = parsed.dbShowroomQtyKey || "showroom_qty";
+            renderProductDataHTML(parsed.systemData, parsed.whseRows, parsed.showData);
+        } else {
+            statusDiv.className = 'status error';
+            statusDiv.textContent = `❌ Offline: Barcode [ ${barcode} ] not found in cache.`;
+        }
+    }
+
+   async function submitTransfer() {
+    if (!currentActiveOperatorName) {
+        alert("Action Denied: Session missing. Please authenticate.");
+        return;
+    }
+
+    const transferQtyInput = document.getElementById('transfer-qty');
+    const destShelfInput = document.getElementById('destinationShelf'); 
+    const qty = parseInt(transferQtyInput.value);
+    const txType = typeSelect.value;
+    const barcode = finalCleanedBarcode;
+    const itemName = currentProduct ? (currentProduct['Item Name'] || currentProduct['item_name'] || 'Unknown Item') : 'Unknown Item';
+    
+    // ۱. بررسی مقدار و شلف مقصد
+    if (!qty || qty <= 0) { alert('Enter valid quantity'); return; }
+    if (txType === 'out' && (!destShelfInput.value || destShelfInput.value.trim() === '')) {
+        alert('Please select a Destination Shelf!');
+        return;
+    }
+
+    let selectedLoc = sourceLocSelect.value;
+    if (txType === 'intake' && newLocInput.value.trim() !== '') { 
+        selectedLoc = newLocInput.value.trim();
+    }
+
+    // ۲. محاسبات مقادیر
+    let currentLocQty = locBalances[selectedLoc] || 0;
+    if (txType === 'out' && qty > currentLocQty) { alert('Error: Not enough stock!'); return; }
+    if (txType === 'in' && qty > currentShowroomQty) { alert(`Denied: Max returnable is ${currentShowroomQty}`); return; }
+
+    let newLocQty = currentLocQty;
+    let newShowroomQty = currentShowroomQty;
+    if (txType === 'out') { newLocQty = currentLocQty - qty; newShowroomQty = currentShowroomQty + qty; } 
+    else if (txType === 'in') { newLocQty = currentLocQty + qty; newShowroomQty = currentShowroomQty - qty; } 
+    else if (txType === 'intake') { newLocQty = currentLocQty + qty; }
+
+    // ۳. نمایش پیام تایید
+    let actionMessage = txType === 'out' 
+        ? `🔹 Move to Showroom\n📦 ITEM: ${itemName}\n🔢 QTY: -${qty}\n📍 FROM: [ ${selectedLoc} ]\n🏁 TO: [ ${destShelfInput.value} ]`
+        : `🔹 Transaction\n📦 ITEM: ${itemName}\n🔢 QTY: ${qty}\n📍 SHELF: [ ${selectedLoc} ]`;
+
+    if (!confirm(`${actionMessage}\n\nUpdate database?`)) return;
+
+    statusDiv.className = 'status loading';
+    statusDiv.textContent = 'Processing transaction...';
+
+    // ۴. آپدیت انبار (Warehouse)
+    const { error: whseError } = await _supabase
+        .from('warehouse_inventory')
+        .upsert({ "Row Labels": barcode, "Attribute": selectedLoc, "Value": newLocQty }, { onConflict: 'Row Labels,Attribute' });
+    if (whseError) { alert(`Error: ${whseError.message}`); return; }
+
+    // ۵. آپدیت شوروم (فقط یک بار اینجا انجام می‌شود)
+    if (txType !== 'intake') {
+        let showroomPayload = {};
+        showroomPayload[dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode'] = barcode;
+        showroomPayload[dbShowroomQtyKey] = newShowroomQty;
+        
+        if (txType === 'out') {
+            showroomPayload['zone_id'] = destShelfInput.value; // ثبت دقیق در ستون zone_id
+        }
+        
+        await _supabase.from('showroom_inventory').upsert(showroomPayload, { onConflict: dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode' });
+    }
+
+    // ۶. لاگ کردن
+    let logWorkerName = `${currentActiveOperatorName} | ${txType} | ${selectedLoc}`;
+    await _supabase.from('transfer_log').insert([{ Barcode: barcode, qty_transferred: (txType === 'in' ? -qty : qty), worker_name: logWorkerName }]);
+
+    statusDiv.className = 'status success';
+    statusDiv.textContent = 'Updated successfully!';
+    setTimeout(resetPage, 1500);
+}
+    function resetPage() {
+        barcodeInput.value = '';
+        newLocInput.value = '';
+        document.getElementById('transfer-qty').value = '';
+        productInfoDiv.style.display = 'none';
+        statusDiv.style.display = 'none';
+        statusDiv.textContent = '';
+        statusDiv.className = 'status';
+        barcodeInput.focus();
+        
+        const savedSession = localStorage.getItem('sc_auth_session');
+        if(savedSession) {
+            const parsed = JSON.parse(savedSession);
+            applyRoleAccessControl(parsed.role);
+        }
+    }
+</script>
+</body>
 </html>
