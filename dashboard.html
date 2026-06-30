@@ -1202,15 +1202,21 @@
                 const qty = Math.abs(log.qty_transferred || 0);
                 const isVoided = log.status && log.status === 'Voided';
 
-                if (!isVoided) {
-                    if (worker.includes('Intake')) {
-                        totalIntakeQty += qty;
-                        totalRequests++;
-                    } else if (!worker.includes('System Auto-Sale')) {
-                        totalMovementQty += qty;
-                        totalRequests++;
-                    }
-                }
+               if (!isVoided) {
+    // ۱. تبدیل به حروف کوچک برای اینکه فرقی نکند "Intake" باشد یا "intake"
+    const workerLower = (worker || "").toLowerCase();
+
+    // ۲. چک کردن اینکه آیا کلمه intake در جمله وجود دارد (فارغ از اینکه قبل یا بعدش چه چیزی نوشته شده)
+    if (workerLower.includes('intake')) {
+        totalIntakeQty += qty;
+        totalRequests++;
+    } 
+    // ۳. چک کردن برای بقیه موارد به جز Auto-Sale
+    else if (!workerLower.includes('system auto-sale')) {
+        totalMovementQty += qty;
+        totalRequests++;
+    }
+}
 
                 finalProcessedRows.push({
                     id: log.id,
