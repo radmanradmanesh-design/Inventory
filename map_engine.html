@@ -2597,19 +2597,19 @@
                     let totalQty = 0;
 
                   itemsInShelf.forEach(item => {
-    // خواندن مقدار فعلی و بارکد
-    const qty = parseInt(item.showroom_qty || 0);
-    const barcode = item.Barcode || item.barcode || '---';
+                // خواندن مقدار فعلی و بارکد
+                const qty = parseInt(item.showroom_qty || 0);
+                const barcode = item.Barcode || item.barcode || '---';
+            
+                // خواندن مقدار دیروز
+                const yStock = item.yesterday_stock || '0';
+                const soldToday = Math.max(0, parseFloat(yStock) - qty);
     
-    // خواندن مقدار دیروز
-    const yStock = item.yesterday_stock || '0';
-    const soldToday = Math.max(0, parseFloat(yStock) - qty);
-    
-    totalQty += qty;
+                totalQty += qty;
 
-    // ساخت کارت محصول
-    cardsHtml += `
-        <div class="product-card">
+                // ساخت کارت محصول
+                cardsHtml += `
+                <div class="product-card">
             <div style="display: flex; justify-content: space-between; align-items: center;">
                 <div>
                     <span style="font-size: 0.65rem; color: #64748b;">BARCODE</span>
