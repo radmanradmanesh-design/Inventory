@@ -2574,7 +2574,8 @@
         .from('showroom_inventory')
         .select('*')
         .limit(5000); // <--- این لیمیت اینجاست!
-
+        console.log("تعداد کل داده‌های دریافتی:", inventory ? inventory.length : "خطا در دریافت");
+        console.log("تمام آیتم‌ها:", inventory);
     if (error) {
         console.error("Database Error:", error);
         return;
