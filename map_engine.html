@@ -2573,7 +2573,9 @@
     const { data: inventory, error } = await window.mySupabase
         .from('showroom_inventory')
         .select('*')
-        .limit(5000); // <--- این لیمیت اینجاست!
+        .from('showroom_inventory')
+.select('*', { count: 'exact' }) // اضافه کردن شمارش برای اطمینان
+.range(0, 4999);
         console.log("تعداد کل داده‌های دریافتی:", inventory ? inventory.length : "خطا در دریافت");
         console.log("تمام آیتم‌ها:", inventory);
     if (error) {
