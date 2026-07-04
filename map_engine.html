@@ -2583,18 +2583,26 @@
 
     // ۲. گروه‌بندی داده‌ها (همراه با حذف فاصله‌های اضافی)
    // گروه‌بندی داده‌ها
+// گروه‌بندی داده‌ها با قابلیت مشاهده خطا
 const groupedData = {};
-inventory.forEach(item => {
-    // تبدیل به رشته و حذف فاصله‌های اضافه از هر دو طرف
-    const rawZoneId = String(item.zone_id || "").trim();
-    
-    if (!rawZoneId) return; // اگر خالی بود رد شو
+console.log("تعداد کل رکوردها:", inventory.length);
 
-    if (!groupedData[rawZoneId]) {
-        groupedData[rawZoneId] = [];
+inventory.forEach(item => {
+    // ۱. استخراج و تمیزکاری نام شلف
+    const zoneId = item.zone_id ? String(item.zone_id).trim() : "UNKNOWN";
+    
+    // ۲. چک کردن اینکه آیا این آیتم در شلفِ English_NB قرار می‌گیرد یا نه
+    if (zoneId === "English_NB") {
+        console.log("یک آیتم برای English_NB پیدا شد:", item.Barcode || "بدون بارکد");
     }
-    groupedData[rawZoneId].push(item);
+
+    if (!groupedData[zoneId]) {
+        groupedData[zoneId] = [];
+    }
+    groupedData[zoneId].push(item);
 });
+
+console.log("لیست تمام شلف‌های پیدا شده:", Object.keys(groupedData));
 
     // پردازش شلف‌ها
     Object.keys(groupedData).forEach(zoneId => {
