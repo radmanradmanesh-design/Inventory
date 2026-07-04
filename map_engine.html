@@ -2581,19 +2581,19 @@
     }
 
     // ۲. گروه‌بندی داده‌ها (همراه با حذف فاصله‌های اضافی)
-    const groupedData = {};
-    inventory.forEach(item => {
-        // اگر رکوردی zone_id نداشت، ازش رد شو
-        if (!item.zone_id) return; 
+   // گروه‌بندی داده‌ها
+const groupedData = {};
+inventory.forEach(item => {
+    // تبدیل به رشته و حذف فاصله‌های اضافه از هر دو طرف
+    const rawZoneId = String(item.zone_id || "").trim();
+    
+    if (!rawZoneId) return; // اگر خالی بود رد شو
 
-        // حذف فاصله‌های خالی قبل و بعد از اسم شلف
-        const cleanZoneId = item.zone_id.trim(); 
-
-        if (!groupedData[cleanZoneId]) {
-            groupedData[cleanZoneId] = [];
-        }
-        groupedData[cleanZoneId].push(item);
-    });
+    if (!groupedData[rawZoneId]) {
+        groupedData[rawZoneId] = [];
+    }
+    groupedData[rawZoneId].push(item);
+});
 
     // پردازش شلف‌ها
     Object.keys(groupedData).forEach(zoneId => {
