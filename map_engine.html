@@ -2569,7 +2569,8 @@
     );
 
     async function updateMapStatus() {
-        const { data: inventory, error } = await window.mySupabase.from('showroom_inventory').select('*');
+        const { data: inventory, error } = await window.mySupabase.from('showroom_inventory').select('*')
+            .limit(5000);
 
         if (error) {
             console.error("Database Error:", error);
