@@ -996,25 +996,28 @@
             applyRoleAccessControl(parsed.role);
         }
 
-        typeSelect.value = 'out';
-    handleTypeChange();
-    document.getElementById('transfer-qty').focus();
+        // ... ادامه کدهای قبلی
+            typeSelect.value = 'out';
+            handleTypeChange();
+            document.getElementById('transfer-qty').focus();
 
-    // بخش جدید:
-    const price = systemData['Selling Price (Inc VAT)'];
-    const cost = systemData['Cost (Inc VAT)'];
+    // تست دقیق داده‌ها
+            console.log("System Data Object:", systemData);
     
+                const price = systemData['Selling Price (Inc VAT)'];
+                const cost = systemData['Cost (Inc VAT)'];
 
-    const priceElement = document.getElementById('p-price');
-    const costElement = document.getElementById('p-cost');
+                const priceElement = document.getElementById('p-price');
+                const costElement = document.getElementById('p-cost');
 
-    if (priceElement) {
-        priceElement.textContent = price ? price : '---';
-    }
+                if (priceElement) {
+                    priceElement.textContent = (price !== undefined && price !== null) ? price : '---';
+                }
 
-    if (costElement) {
-        costElement.textContent = cost ? cost : '---';
-    }
+                if (costElement) {
+                    costElement.textContent = (cost !== undefined && cost !== null) ? cost : '---';
+            }
+        } // <--- این آکولاد بسته شدن تابع renderProductDataHTML است
     }
 
     function cacheProductLocally(payload) {
