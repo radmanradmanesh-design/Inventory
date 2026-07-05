@@ -1000,19 +1000,20 @@
         handleTypeChange();
         document.getElementById('transfer-qty').focus();
         // اضافه کردن این بخش به انتهای تابع renderProductDataHTML:
-const price = systemData['Selling Price (Inc VAT)'];
-const cost = systemData['Cost (Inc VAT)'];
+    const price = systemData['Selling Price (Inc VAT)'];
+    const cost = systemData['Cost (Inc VAT)'];
 
-const priceElement = document.getElementById('p-price');
-const costElement = document.getElementById('p-cost');
+    const priceElement = document.getElementById('p-price');
+    const costElement = document.getElementById('p-cost');
 
-if (priceElement) {
-    priceElement.textContent = price ? price : '---';
-} // <--- این آکولاد بسته شدن شرط اول بود که در کد شما نبود
+            if (priceElement) {
+            priceElement.textContent = price ? price : '---';
+        } // <--- این آکولاد بسته شدن شرط اول بود که در کد شما نبود
 
-if (costElement) {
-    costElement.textContent = cost ? cost : '---';
-}
+        if (costElement) {
+        costElement.textContent = cost ? cost : '---';
+        }
+    }
 
     function cacheProductLocally(payload) {
         try {
