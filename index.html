@@ -1001,21 +1001,24 @@
             handleTypeChange();
             document.getElementById('transfer-qty').focus();
 
-    // تست دقیق داده‌ها
-            console.log("System Data Object:", systemData);
-    
-                const price = systemData['Selling Price (Inc VAT)'];
-                const cost = systemData['"Cost (Inc VAT)"'];
+        // تست دقیق داده‌ها
+        console.log("System Data Object:", systemData);
 
-                const priceElement = document.getElementById('p-price');
-                const costElement = document.getElementById('p-cost');
+        // اصلاح نام ستون‌ها (برداشتن کوتیشن‌های اضافه)
+        const price = systemData['Selling Price (Inc VAT)'];
+        const cost = systemData['Cost (Inc VAT)']; // اصلاح شد!
 
-                if (priceElement) {
-                    priceElement.textContent = (price !== undefined && price !== null) ? price : '---';
-                }
+        const priceElement = document.getElementById('p-price');
+        const costElement = document.getElementById('p-cost');
 
-                if (costElement) {
-                    costElement.textContent = (cost !== undefined && cost !== null) ? cost : '---';
+            if (priceElement) {
+            // استفاده از شرطِ درست برای نمایش مقدار یا خط‌چین
+            priceElement.textContent = (price !== undefined && price !== null) ? price : '---';
+        }
+
+        if (costElement) {
+            // اصلاح شد: از همان متغیرِ cost استفاده می‌کنیم
+            costElement.textContent = (cost !== undefined && cost !== null) ? cost : '---';
             }
         } // <--- این آکولاد بسته شدن تابع renderProductDataHTML است
  
