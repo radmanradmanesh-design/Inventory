@@ -869,7 +869,7 @@
             // کوئری اول: اضافه شدن ستون قیمت
             let { data: systemData, error: err1 } = await _supabase
                 .from('system_inventory')
-               .select('*, "Selling Price (Inc VAT)", cost_inc_vat')
+               .select('*, "Selling Price (Inc VAT)", "Cost (Inc VAT)"')
                 .eq('Barcode', cleanedBarcode)
                 .maybeSingle();
             
@@ -879,7 +879,7 @@
                 // کوئری دوم (در صورت عدم یافتن در اولی): اضافه شدن ستون قیمت
                 let { data: systemDataCheck, error: err2 } = await _supabase
                     .from('system_inventory')
-                    .select('*, "Selling Price (Inc VAT)", cost_inc_vat')
+                    .select('*, "Selling Price (Inc VAT)", "Cost (Inc VAT)"')
                     .eq('barcode', cleanedBarcode)
                     .maybeSingle();
                 
@@ -1005,7 +1005,7 @@
             console.log("System Data Object:", systemData);
     
                 const price = systemData['Selling Price (Inc VAT)'];
-                const cost = systemData['cost_inc_vat'];
+                const cost = systemData['"Cost (Inc VAT)"'];
 
                 const priceElement = document.getElementById('p-price');
                 const costElement = document.getElementById('p-cost');
