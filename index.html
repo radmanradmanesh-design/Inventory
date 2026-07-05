@@ -869,7 +869,7 @@
             // کوئری اول: اضافه شدن ستون قیمت
             let { data: systemData, error: err1 } = await _supabase
                 .from('system_inventory')
-                .select('*, "Selling Price (Inc VAT)", "Cost (Inc VAT)"')
+               .select('*, "Selling Price (Inc VAT)", "Cost (Inc VAT)"')
                 .eq('Barcode', cleanedBarcode)
                 .maybeSingle();
             
@@ -1003,6 +1003,7 @@
     // بخش جدید:
     const price = systemData['Selling Price (Inc VAT)'];
     const cost = systemData['Cost (Inc VAT)'];
+    
 
     const priceElement = document.getElementById('p-price');
     const costElement = document.getElementById('p-cost');
