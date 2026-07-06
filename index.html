@@ -1099,26 +1099,18 @@
     if (whseError) { alert(`Error: ${whseError.message}`); return; }
 
     // ۵. آپدیت شوروم (فقط یک بار اینجا انجام می‌شود)
-   if (txType !== 'intake') {
-    let showroomPayload = {};
-    const barcodeField = (dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode');
-    
-    showroomPayload[barcodeField] = barcode;
-    showroomPayload[dbShowroomQtyKey] = newShowroomQty;
-    showroomPayload['zone_id'] = destShelfInput.value; // زون باید همیشه ثبت شود
-    
-    // اصلاح در اینجا: onConflict باید شامل هر دو ستون کلید اصلی باشد
-    const { error: showError } = await _supabase
-        .from('showroom_inventory')
-        .upsert(showroomPayload, { 
-            onConflict: `${barcodeField},zone_id` 
-        });
-
-    if (showError) {
-        console.error("Showroom Update Error:", showError);
-        alert(`Error: ${showError.message}`);
+    if (txType !== 'intake') {
+        let showroomPayload = {};
+        showroomPayload[dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode'] = barcode;
+        showroomPayload[dbShowroomQtyKey] = newShowroomQty;
+        
+        if (txType === 'out') {
+            showroomPayload['zone_id'] = destShelfInput.value; // ثبت دقیق در ستون zone_id
+        }
+        
+        await _supabase.from('showroom_inventory').upsert(showroomPayload, { onConflict: dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode' });
     }
- }
+
     // ۶. لاگ کردن
     let logWorkerName = `${currentActiveOperatorName} | ${txType} | ${selectedLoc}`;
     await _supabase.from('transfer_log').insert([{ Barcode: barcode, qty_transferred: (txType === 'in' ? -qty : qty), worker_name: logWorkerName }]);
