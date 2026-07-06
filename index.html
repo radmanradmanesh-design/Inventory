@@ -1100,17 +1100,36 @@
 
     // ۵. آپدیت شوروم (فقط یک بار اینجا انجام می‌شود)
    if (txType !== 'intake') {
-    let showroomPayload = {};
     const barcodeField = (dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode');
+    const targetZone = (destShelfInput.value && destShelfInput.value.trim() !== '') ? destShelfInput.value : 'General';
+
+    // گام اول: موجودی فعلیِ همین زونِ خاص را بخوان (نه کلِ موجودیِ بارکد را!)
+    const { data: existingData } = await _supabase
+        .from('showroom_inventory')
+        .select('showroom_qty')
+        .eq(barcodeField, barcode)
+        .eq('zone_id', targetZone)
+        .maybeSingle();
+
+    const currentQtyInZone = existingData ? parseInt(existingData.showroom_qty) : 0;
     
-    showroomPayload[barcodeField] = barcode;
-    showroomPayload[dbShowroomQtyKey] = newShowroomQty;
-    showroomPayload['zone_id'] = destShelfInput.value; // زون باید همیشه ثبت شود
-    
-    // اصلاح در اینجا: onConflict باید شامل هر دو ستون کلید اصلی باشد
+    // گام دوم: حالا محاسبه کن (اگر خروجی باشد، جمع کن)
+    // دقت کن که اینجا فقط با موجودیِ همین زون جمع/تفریق می‌کنیم
+    let finalQtyForZone;
+    if (txType === 'out') {
+        finalQtyForZone = currentQtyInZone + qty;
+    } else {
+        finalQtyForZone = Math.max(0, currentQtyInZone - qty);
+    }
+
+    // گام سوم: ثبتِ مقدارِ اختصاصیِ همین زون در دیتابیس
     const { error: showError } = await _supabase
         .from('showroom_inventory')
-        .upsert(showroomPayload, { 
+        .upsert({
+            [barcodeField]: barcode,
+            'zone_id': targetZone,
+            [dbShowroomQtyKey]: finalQtyForZone
+        }, { 
             onConflict: `${barcodeField},zone_id` 
         });
 
@@ -1118,7 +1137,7 @@
         console.error("Showroom Update Error:", showError);
         alert(`Error: ${showError.message}`);
     }
- }
+}
     // ۶. لاگ کردن
     let logWorkerName = `${currentActiveOperatorName} | ${txType} | ${selectedLoc}`;
     await _supabase.from('transfer_log').insert([{ Barcode: barcode, qty_transferred: (txType === 'in' ? -qty : qty), worker_name: logWorkerName }]);
