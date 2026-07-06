@@ -1104,14 +1104,17 @@
     const targetZone = (destShelfInput.value && destShelfInput.value.trim() !== '') ? destShelfInput.value : 'General';
 
     // گام اول: موجودی فعلیِ همین زونِ خاص را بخوان (نه کلِ موجودیِ بارکد را!)
-    const { data: existingData } = await _supabase
-        .from('showroom_inventory')
-        .select('showroom_qty')
-        .eq(barcodeField, barcode)
-        .eq('zone_id', targetZone)
-        .maybeSingle();
+    // کد جدید برای خواندن موجودی (با بررسی دقیق‌تر)
+const { data: existingData, error: fetchError } = await _supabase
+    .from('showroom_inventory')
+    .select('showroom_qty, zone_id')
+    .eq(barcodeField, barcode)
+    .eq('zone_id', targetZone.trim()) // .trim() برای حذف فاصله احتمالی
+    .maybeSingle();
 
-    const currentQtyInZone = existingData ? parseInt(existingData.showroom_qty) : 0;
+console.log("DEBUG: Raw DB Data:", existingData); // ببینیم واقعاً چی برمی‌گرداند
+
+const currentQtyInZone = existingData ? parseInt(existingData.showroom_qty) : 0;
     
     // گام دوم: حالا محاسبه کن (اگر خروجی باشد، جمع کن)
     // دقت کن که اینجا فقط با موجودیِ همین زون جمع/تفریق می‌کنیم
