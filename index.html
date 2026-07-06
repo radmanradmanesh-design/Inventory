@@ -1099,35 +1099,31 @@
     if (whseError) { alert(`Error: ${whseError.message}`); return; }
 
     // ۵. آپدیت شوروم (فقط یک بار اینجا انجام می‌شود)
-   if (txType !== 'intake') {
+  // ۵. آپدیت شوروم
+if (txType !== 'intake') {
     const barcodeField = (dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode');
-    const targetZone = (destShelfInput.value && destShelfInput.value.trim() !== '') ? destShelfInput.value : 'General';
+    const targetZone = (destShelfInput.value && destShelfInput.value.trim() !== '') ? destShelfInput.value.trim() : 'General';
 
-    // گام اول: موجودی فعلیِ همین زونِ خاص را بخوان (نه کلِ موجودیِ بارکد را!)
-    // کد جدید برای خواندن موجودی (با بررسی دقیق‌تر)
-const { data: existingData, error: fetchError } = await _supabase
-    .from('showroom_inventory')
-    .select('showroom_qty, zone_id')
-    .eq(barcodeField, barcode)
-    .eq('zone_id', targetZone.trim()) // .trim() برای حذف فاصله احتمالی
-    .maybeSingle();
+    // خواندن موجودیِ دقیقِ همین زون
+    const { data: existingData } = await _supabase
+        .from('showroom_inventory')
+        .select('showroom_qty')
+        .eq(barcodeField, barcode)
+        .eq('zone_id', targetZone)
+        .maybeSingle();
 
-console.log("DEBUG: Raw DB Data:", existingData); // ببینیم واقعاً چی برمی‌گرداند
-
-const currentQtyInZone = existingData ? parseInt(existingData.showroom_qty) : 0;
+    const currentQtyInZone = existingData ? parseInt(existingData.showroom_qty) : 0;
     
-    // گام دوم: حالا محاسبه کن (اگر خروجی باشد، جمع کن)
-    // دقت کن که اینجا فقط با موجودیِ همین زون جمع/تفریق می‌کنیم
+    // محاسبه نهایی بر اساس نوع تراکنش
     let finalQtyForZone;
     if (txType === 'out') {
         finalQtyForZone = currentQtyInZone + qty;
     } else {
+        // برای حالت 'in' (برگشت از شوروم)
         finalQtyForZone = Math.max(0, currentQtyInZone - qty);
     }
-    console.log("DEBUG: Target Zone is:", targetZone);
-    console.log("DEBUG: Current Qty in this zone:", currentQtyInZone);
-    console.log("DEBUG: Calculation:", currentQtyInZone, (txType === 'out' ? '+' : '-'), qty, "=", finalQtyForZone);
-    // گام سوم: ثبتِ مقدارِ اختصاصیِ همین زون در دیتابیس
+
+    // ثبت در دیتابیس
     const { error: showError } = await _supabase
         .from('showroom_inventory')
         .upsert({
@@ -1141,6 +1137,7 @@ const currentQtyInZone = existingData ? parseInt(existingData.showroom_qty) : 0;
     if (showError) {
         console.error("Showroom Update Error:", showError);
         alert(`Error: ${showError.message}`);
+        return; // اگر خطا داشت، ادامه نده
     }
 }
     // ۶. لاگ کردن
