@@ -2462,6 +2462,7 @@
     );
 
     async function updateMapStatus() {
+        // ۱. دریافت تمام داده‌ها (این کار در حالت عادی برای شوروم مشکلی ندارد)
         const { data: inventory, error } = await window.mySupabase.from('showroom_inventory').select('*');
 
         if (error) {
@@ -2469,57 +2470,58 @@
             return;
         }
 
-        // گروه‌بندی داده‌ها
+        // ۲. گروه‌بندی صحیح داده‌ها بر اساس zone_id
         const groupedData = {};
         inventory.forEach(item => {
-            if (!groupedData[item.zone_id]) {
-                groupedData[item.zone_id] = [];
-            }
-            groupedData[item.zone_id].push(item);
+            const zone = item.zone_id || 'General'; // اگر زون خالی بود به General اختصاص بده
+            if (!groupedData[zone]) groupedData[zone] = [];
+            groupedData[zone].push(item);
         });
 
-        // پردازش شلف‌ها
-        Object.keys(groupedData).forEach(zoneId => {
+        // ۳. پردازش شلف‌ها (نقشه)
+        const allShelfIds = ['Dress_line_1', 'Dress_line_2', 'Dress_line_3', 'Dress_line_4', 'Dress_line_5', 'Dress_line_6']; 
+        
+        allShelfIds.forEach(zoneId => {
             const shelf = document.getElementById(zoneId);
             if (shelf) {
-                const itemsInShelf = groupedData[zoneId];
                 shelf.style.cursor = "pointer";
-
+                
+                // قرار دادنِ تابع کلیک به صورت تمیز
                 shelf.onclick = function() {
+                    const itemsInShelf = groupedData[zoneId] || []; // فقط داده‌های همین زون را بردار
                     let cardsHtml = ``;
                     let totalQty = 0;
 
-                  itemsInShelf.forEach(item => {
-                // خواندن مقدار فعلی و بارکد
-                const qty = parseInt(item.showroom_qty || 0);
-                const barcode = item.Barcode || item.barcode || '---';
-            
-                // خواندن مقدار دیروز
-                const yStock = item.yesterday_stock || '0';
-                const soldToday = Math.max(0, parseFloat(yStock) - qty);
-    
-                totalQty += qty;
+                    if (itemsInShelf.length === 0) {
+                        cardsHtml = `<div style="padding:20px; text-align:center;">No items in this zone.</div>`;
+                    } else {
+                        itemsInShelf.forEach(item => {
+                            const qty = parseInt(item.showroom_qty || 0);
+                            const barcode = item.Barcode || item.barcode || '---';
+                            const yStock = item.yesterday_stock || '0';
+                            const soldToday = Math.max(0, parseFloat(yStock) - qty);
+                            totalQty += qty;
 
-                // ساخت کارت محصول
-                cardsHtml += `
-                <div class="product-card">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <span style="font-size: 0.65rem; color: #64748b;">BARCODE</span>
-                    <div style="font-weight: 700; color: #1e293b;">${barcode}</div>
-                </div>
-                <div style="text-align: right;">
-                    <span style="font-size: 0.65rem; color: #64748b;">QTY</span>
-                    <div style="font-weight: 900; color: #059669; font-size: 1.1rem;">${qty}</div>
-                </div>
-            </div>
-            <div style="margin-top: 8px; border-top: 1px solid #f1f5f9; padding-top: 8px; display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 0.65rem; color: #e11d48; font-weight: 600;">SOLD TODAY:</span>
-                <span style="font-size: 0.85rem; color: #e11d48; font-weight: 800;">${soldToday}</span>
-            </div>
-        </div>
-    `;
-});
+                            cardsHtml += `
+                                <div class="product-card" style="margin-bottom:10px; padding:10px; border:1px solid #e2e8f0; border-radius:8px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <div>
+                                            <span style="font-size: 0.65rem; color: #64748b;">BARCODE</span>
+                                            <div style="font-weight: 700; color: #1e293b;">${barcode}</div>
+                                        </div>
+                                        <div style="text-align: right;">
+                                            <span style="font-size: 0.65rem; color: #64748b;">QTY</span>
+                                            <div style="font-weight: 900; color: #059669; font-size: 1.1rem;">${qty}</div>
+                                        </div>
+                                    </div>
+                                    <div style="margin-top: 8px; border-top: 1px solid #f1f5f9; padding-top: 8px; display: flex; justify-content: space-between;">
+                                        <span style="font-size: 0.65rem; color: #e11d48; font-weight: 600;">SOLD TODAY:</span>
+                                        <span style="font-size: 0.85rem; color: #e11d48; font-weight: 800;">${soldToday}</span>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
 
                     document.getElementById('popup-title').innerHTML = `
                         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -2529,7 +2531,6 @@
                             </span>
                         </div>
                     `;
-                    
                     document.getElementById('popup-content').innerHTML = cardsHtml;
                     document.getElementById('info-popup').style.display = 'block';
                 };
@@ -2537,10 +2538,9 @@
         });
     }
 
-    // اجرای اولیه
     updateMapStatus();
 
-    // بروزرسانی زنده (Real-time)
+    // Real-time update
     window.mySupabase.channel('custom-all-channel')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'showroom_inventory' }, () => {
             updateMapStatus();
