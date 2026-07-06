@@ -963,24 +963,18 @@
     // ۳. محاسبه موجودی کل شوروم از طریق View (دقیق‌ترین روش)
     const barcode = systemData['Barcode'] || systemData['barcode'] || '';
     let showroomStock = 0;
-    
     if (barcode) {
         const { data: totalData } = await _supabase
             .from('view_total_inventory')
             .select('total_qty')
             .eq('Barcode', barcode)
             .maybeSingle();
-            
         showroomStock = totalData ? parseInt(totalData.total_qty) : 0;
     }
+    currentShowroomQty = showroomStock;
 
     // ۴. محاسبات نهایی و نمایش
-    let systemStock = 0;
-    if (systemData) {
-        let rawStock = systemData['Stock'] || systemData['stock'] || systemData['STOCK'] || '0';
-        systemStock = parseInt(rawStock.toString().replace(/,/g, '')) || 0;
-    }
-        
+    let systemStock = parseInt((systemData['Stock'] || systemData['stock'] || systemData['STOCK'] || '0').toString().replace(/,/g, '')) || 0;
     let variance = (totalWarehouseQty + showroomStock) - systemStock;
 
     document.getElementById('p-name').textContent = systemData['Item Name'] || systemData['item_name'] || '---';
@@ -1002,14 +996,12 @@
         varianceElement.textContent = `Surplus (+${variance})`;
     }
 
-    // ۵. کنترل دسترسی (بخشِ احیا شده)
+    // ۵. کنترل دسترسی
     const savedSession = localStorage.getItem('sc_auth_session');
     if(savedSession) {
-        const parsed = JSON.parse(savedSession);
-        applyRoleAccessControl(parsed.role);
+        applyRoleAccessControl(JSON.parse(savedSession).role);
     }
 
-    // ۶. تنظیمات نهایی
     statusDiv.className = 'status success';
     statusDiv.textContent = 'Product successfully located!';
     productInfoDiv.style.display = 'block';
@@ -1017,53 +1009,35 @@
     typeSelect.value = 'out';
     handleTypeChange();
     document.getElementById('transfer-qty').focus();
+
+    // نمایش قیمت‌ها
+    const price = systemData['Selling Price (Inc VAT)'];
+    const cost = systemData['Cost (Inc VAT)'];
+    document.getElementById('p-price').textContent = (price !== undefined && price !== null) ? price : '---';
+    document.getElementById('p-cost').textContent = (cost !== undefined && cost !== null) ? cost : '---';
 }
 
-        // تست دقیق داده‌ها
-        console.log("System Data Object:", systemData);
+function cacheProductLocally(payload) {
+    try { localStorage.setItem(`cache_bc_${payload.barcode}`, JSON.stringify(payload)); } catch (e) {}
+}
 
-        // اصلاح نام ستون‌ها (برداشتن کوتیشن‌های اضافه)
-        const price = systemData['Selling Price (Inc VAT)'];
-        const cost = systemData['Cost (Inc VAT)']; // اصلاح شد!
-
-        const priceElement = document.getElementById('p-price');
-        const costElement = document.getElementById('p-cost');
-
-            if (priceElement) {
-            // استفاده از شرطِ درست برای نمایش مقدار یا خط‌چین
-            priceElement.textContent = (price !== undefined && price !== null) ? price : '---';
-        }
-
-        if (costElement) {
-            // اصلاح شد: از همان متغیرِ cost استفاده می‌کنیم
-            costElement.textContent = (cost !== undefined && cost !== null) ? cost : '---';
-            }
-        } // <--- این آکولاد بسته شدن تابع renderProductDataHTML است
- 
-
-    function cacheProductLocally(payload) {
-        try {
-            localStorage.setItem(`cache_bc_${payload.barcode}`, JSON.stringify(payload));
-        } catch (e) {}
+function loadProductFromCache(barcode) {
+    const cachedData = localStorage.getItem(`cache_bc_${barcode}`);
+    if (cachedData) {
+        const parsed = JSON.parse(cachedData);
+        statusDiv.className = 'status success';
+        statusDiv.textContent = '⚠️ Loaded from local cache (OFFLINE MODE)';
+        finalCleanedBarcode = barcode;
+        dbBarcodeKey = parsed.dbBarcodeKey || "Barcode";
+        dbShowroomQtyKey = parsed.dbShowroomQtyKey || "showroom_qty";
+        renderProductDataHTML(parsed.systemData, parsed.whseRows, parsed.showData);
+    } else {
+        statusDiv.className = 'status error';
+        statusDiv.textContent = `❌ Offline: Barcode [ ${barcode} ] not found in cache.`;
     }
+}
 
-    function loadProductFromCache(barcode) {
-        const cachedData = localStorage.getItem(`cache_bc_${barcode}`);
-        if (cachedData) {
-            const parsed = JSON.parse(cachedData);
-            statusDiv.className = 'status success';
-            statusDiv.textContent = '⚠️ Loaded from local cache (OFFLINE MODE)';
-            finalCleanedBarcode = barcode;
-            dbBarcodeKey = parsed.dbBarcodeKey || "Barcode";
-            dbShowroomQtyKey = parsed.dbShowroomQtyKey || "showroom_qty";
-            renderProductDataHTML(parsed.systemData, parsed.whseRows, parsed.showData);
-        } else {
-            statusDiv.className = 'status error';
-            statusDiv.textContent = `❌ Offline: Barcode [ ${barcode} ] not found in cache.`;
-        }
-    }
-
-   async function submitTransfer() {
+async function submitTransfer() {
     if (!currentActiveOperatorName) {
         alert("Action Denied: Session missing. Please authenticate.");
         return;
@@ -1076,7 +1050,6 @@
     const barcode = finalCleanedBarcode;
     const itemName = currentProduct ? (currentProduct['Item Name'] || currentProduct['item_name'] || 'Unknown Item') : 'Unknown Item';
     
-    // ۱. بررسی مقدار و شلف مقصد
     if (!qty || qty <= 0) { alert('Enter valid quantity'); return; }
     if (txType === 'out' && (!destShelfInput.value || destShelfInput.value.trim() === '')) {
         alert('Please select a Destination Shelf!');
@@ -1088,18 +1061,11 @@
         selectedLoc = newLocInput.value.trim();
     }
 
-    // ۲. محاسبات مقادیر
     let currentLocQty = locBalances[selectedLoc] || 0;
     if (txType === 'out' && qty > currentLocQty) { alert('Error: Not enough stock!'); return; }
     if (txType === 'in' && qty > currentShowroomQty) { alert(`Denied: Max returnable is ${currentShowroomQty}`); return; }
 
-    let newLocQty = currentLocQty;
-    let newShowroomQty = currentShowroomQty;
-    if (txType === 'out') { newLocQty = currentLocQty - qty; newShowroomQty = currentShowroomQty + qty; } 
-    else if (txType === 'in') { newLocQty = currentLocQty + qty; newShowroomQty = currentShowroomQty - qty; } 
-    else if (txType === 'intake') { newLocQty = currentLocQty + qty; }
-
-    // ۳. نمایش پیام تایید
+    // نمایش پیام تایید
     let actionMessage = txType === 'out' 
         ? `🔹 Move to Showroom\n📦 ITEM: ${itemName}\n🔢 QTY: -${qty}\n📍 FROM: [ ${selectedLoc} ]\n🏁 TO: [ ${destShelfInput.value} ]`
         : `🔹 Transaction\n📦 ITEM: ${itemName}\n🔢 QTY: ${qty}\n📍 SHELF: [ ${selectedLoc} ]`;
@@ -1109,78 +1075,43 @@
     statusDiv.className = 'status loading';
     statusDiv.textContent = 'Processing transaction...';
 
-    // ۴. آپدیت انبار (Warehouse)
-    const { error: whseError } = await _supabase
-        .from('warehouse_inventory')
-        .upsert({ "Row Labels": barcode, "Attribute": selectedLoc, "Value": newLocQty }, { onConflict: 'Row Labels,Attribute' });
-    if (whseError) { alert(`Error: ${whseError.message}`); return; }
+    // آپدیت انبار
+    const newLocQty = (txType === 'out') ? (currentLocQty - qty) : (currentLocQty + qty);
+    await _supabase.from('warehouse_inventory').upsert({ "Row Labels": barcode, "Attribute": selectedLoc, "Value": newLocQty }, { onConflict: 'Row Labels,Attribute' });
 
-    // ۵. آپدیت شوروم (فقط یک بار اینجا انجام می‌شود)
-  // ۵. آپدیت شوروم
-if (txType !== 'intake') {
-    const barcodeField = (dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode');
-    const targetZone = (destShelfInput.value && destShelfInput.value.trim() !== '') ? destShelfInput.value.trim() : 'General';
+    // آپدیت شوروم
+    if (txType !== 'intake') {
+        const barcodeField = (dbBarcodeKey === 'barcode' ? 'barcode' : 'Barcode');
+        const targetZone = (destShelfInput.value && destShelfInput.value.trim() !== '') ? destShelfInput.value.trim() : 'General';
 
-    // خواندن موجودیِ دقیقِ همین زون
-    const { data: existingData } = await _supabase
-        .from('showroom_inventory')
-        .select('showroom_qty')
-        .eq(barcodeField, barcode)
-        .eq('zone_id', targetZone)
-        .maybeSingle();
+        const { data: existingData } = await _supabase.from('showroom_inventory').select('showroom_qty').eq(barcodeField, barcode).eq('zone_id', targetZone).maybeSingle();
+        const currentQtyInZone = existingData ? parseInt(existingData.showroom_qty) : 0;
+        const finalQtyForZone = (txType === 'out') ? (currentQtyInZone + qty) : Math.max(0, currentQtyInZone - qty);
 
-    const currentQtyInZone = existingData ? parseInt(existingData.showroom_qty) : 0;
-    
-    // محاسبه نهایی بر اساس نوع تراکنش
-    let finalQtyForZone;
-    if (txType === 'out') {
-        finalQtyForZone = currentQtyInZone + qty;
-    } else {
-        // برای حالت 'in' (برگشت از شوروم)
-        finalQtyForZone = Math.max(0, currentQtyInZone - qty);
+        await _supabase.from('showroom_inventory').upsert({ [barcodeField]: barcode, 'zone_id': targetZone, [dbShowroomQtyKey]: finalQtyForZone }, { onConflict: `${barcodeField},zone_id` });
     }
 
-    // ثبت در دیتابیس
-    const { error: showError } = await _supabase
-        .from('showroom_inventory')
-        .upsert({
-            [barcodeField]: barcode,
-            'zone_id': targetZone,
-            [dbShowroomQtyKey]: finalQtyForZone
-        }, { 
-            onConflict: `${barcodeField},zone_id` 
-        });
-
-    if (showError) {
-        console.error("Showroom Update Error:", showError);
-        alert(`Error: ${showError.message}`);
-        return; // اگر خطا داشت، ادامه نده
-    }
-}
-    // ۶. لاگ کردن
-    let logWorkerName = `${currentActiveOperatorName} | ${txType} | ${selectedLoc}`;
-    await _supabase.from('transfer_log').insert([{ Barcode: barcode, qty_transferred: (txType === 'in' ? -qty : qty), worker_name: logWorkerName }]);
+    await _supabase.from('transfer_log').insert([{ Barcode: barcode, qty_transferred: (txType === 'in' ? -qty : qty), worker_name: `${currentActiveOperatorName} | ${txType} | ${selectedLoc}` }]);
 
     statusDiv.className = 'status success';
     statusDiv.textContent = 'Updated successfully!';
     setTimeout(resetPage, 1500);
 }
-    function resetPage() {
-        barcodeInput.value = '';
-        newLocInput.value = '';
-        document.getElementById('transfer-qty').value = '';
-        productInfoDiv.style.display = 'none';
-        statusDiv.style.display = 'none';
-        statusDiv.textContent = '';
-        statusDiv.className = 'status';
-        barcodeInput.focus();
-        
-        const savedSession = localStorage.getItem('sc_auth_session');
-        if(savedSession) {
-            const parsed = JSON.parse(savedSession);
-            applyRoleAccessControl(parsed.role);
-        }
+
+function resetPage() {
+    const barcodeInput = document.getElementById('barcode-input');
+    barcodeInput.value = '';
+    document.getElementById('transfer-qty').value = '';
+    productInfoDiv.style.display = 'none';
+    statusDiv.style.display = 'none';
+    statusDiv.className = 'status';
+    barcodeInput.focus();
+    
+    const savedSession = localStorage.getItem('sc_auth_session');
+    if(savedSession) {
+        applyRoleAccessControl(JSON.parse(savedSession).role);
     }
+}
 </script>
 </body>
 </html>
