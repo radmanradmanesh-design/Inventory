@@ -1118,7 +1118,7 @@
         console.error("Showroom Update Error:", showError);
         alert(`Error: ${showError.message}`);
     }
-
+ }
     // ۶. لاگ کردن
     let logWorkerName = `${currentActiveOperatorName} | ${txType} | ${selectedLoc}`;
     await _supabase.from('transfer_log').insert([{ Barcode: barcode, qty_transferred: (txType === 'in' ? -qty : qty), worker_name: logWorkerName }]);
