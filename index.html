@@ -922,85 +922,102 @@
     }
 }
 
-    function renderProductDataHTML(systemData, whseRows, showData) {
-        currentProduct = systemData;
-        locBalances = {};
-        let totalWarehouseQty = 0;
+  async function renderProductDataHTML(systemData, whseRows, showData) {
+    currentProduct = systemData;
+    locBalances = {};
+    let totalWarehouseQty = 0;
 
-        const locContainer = document.getElementById('location-list');
-        locContainer.innerHTML = '';
-        sourceLocSelect.innerHTML = '';
+    const locContainer = document.getElementById('location-list');
+    const sourceLocSelect = document.getElementById('sourceLocSelect');
+    locContainer.innerHTML = '';
+    sourceLocSelect.innerHTML = '';
 
-        if (whseRows && whseRows.length > 0) {
-            whseRows.forEach(row => {
-                let rawVal = row['Value'] ? row['Value'].toString().replace(/,/g, '') : '0';
-                let qty = parseInt(rawVal) || 0;
-                let locName = row['Attribute'];
-                
-                if(qty > 0 && locName && locName !== 'Grand Total' && locName.trim() !== '') {
-                    totalWarehouseQty += qty;
-                    locBalances[locName] = (locBalances[locName] || 0) + qty;
-                }
-            });
-        }
+    // ۱. پردازش انبار (Warehouse)
+    if (whseRows && whseRows.length > 0) {
+        whseRows.forEach(row => {
+            let rawVal = row['Value'] ? row['Value'].toString().replace(/,/g, '') : '0';
+            let qty = parseInt(rawVal) || 0;
+            let locName = row['Attribute'];
+            
+            if(qty > 0 && locName && locName !== 'Grand Total' && locName.trim() !== '') {
+                totalWarehouseQty += qty;
+                locBalances[locName] = (locBalances[locName] || 0) + qty;
+            }
+        });
+    }
 
-        const dynamicLocs = Object.keys(locBalances);
-        if (dynamicLocs.length > 0) {
-            dynamicLocs.forEach(loc => {
-                let qty = locBalances[loc];
-                locContainer.innerHTML += `<div class="location-row"><span class="loc-badge">${loc}</span><span class="value">${qty} pcs</span></div>`;
-                sourceLocSelect.innerHTML += `<option value="${loc}">${loc} (${qty} available)</option>`;
-            });
-        } else {
-            locContainer.innerHTML = `<div style="color:#718096; font-size:14px; text-align:center; padding:10px;">⚠️ Not found on any warehouse shelf.</div>`;
-            sourceLocSelect.innerHTML += `<option value="Default-Shelf">Default-Shelf (0 available)</option>`;
-            locBalances["Default-Shelf"] = 0;
-        }
+    // ۲. نمایش لیست لوکیشن‌های انبار
+    const dynamicLocs = Object.keys(locBalances);
+    if (dynamicLocs.length > 0) {
+        dynamicLocs.forEach(loc => {
+            let qty = locBalances[loc];
+            locContainer.innerHTML += `<div class="location-row"><span class="loc-badge">${loc}</span><span class="value">${qty} pcs</span></div>`;
+            sourceLocSelect.innerHTML += `<option value="${loc}">${loc} (${qty} available)</option>`;
+        });
+    } else {
+        locContainer.innerHTML = `<div style="color:#718096; font-size:14px; text-align:center; padding:10px;">⚠️ Not found on any warehouse shelf.</div>`;
+        sourceLocSelect.innerHTML += `<option value="Default-Shelf">Default-Shelf (0 available)</option>`;
+        locBalances["Default-Shelf"] = 0;
+    }
 
-        let systemStock = 0;
-        if (systemData) {
-            let rawStock = systemData['Stock'] || systemData['stock'] || systemData['STOCK'] || '0';
-            systemStock = parseInt(rawStock.toString().replace(/,/g, '')) || 0;
-        }
-         
-        currentShowroomQty = (showData && showData[dbShowroomQtyKey]) ?
-            (parseInt(showData[dbShowroomQtyKey].toString().replace(/,/g, '')) || 0) : 0;
-         
-        let variance = (totalWarehouseQty + currentShowroomQty) - systemStock;
+    // ۳. محاسبه موجودی کل شوروم از طریق View (دقیق‌ترین روش)
+    const barcode = systemData['Barcode'] || systemData['barcode'] || '';
+    let showroomStock = 0;
+    
+    if (barcode) {
+        const { data: totalData } = await _supabase
+            .from('view_total_inventory')
+            .select('total_qty')
+            .eq('Barcode', barcode)
+            .maybeSingle();
+            
+        showroomStock = totalData ? parseInt(totalData.total_qty) : 0;
+    }
 
-        document.getElementById('p-name').textContent = systemData['Item Name'] || systemData['item_name'] || '---';
-        document.getElementById('p-code').textContent = systemData['Item Code'] || systemData['item_code'] || '---';
-        document.getElementById('stock-system').textContent = systemStock;
-        document.getElementById('stock-warehouse').textContent = totalWarehouseQty;
-        document.getElementById('stock-showroom').textContent = currentShowroomQty;
+    // ۴. محاسبات نهایی و نمایش
+    let systemStock = 0;
+    if (systemData) {
+        let rawStock = systemData['Stock'] || systemData['stock'] || systemData['STOCK'] || '0';
+        systemStock = parseInt(rawStock.toString().replace(/,/g, '')) || 0;
+    }
         
-        const varianceElement = document.getElementById('stock-variance');
-        const varianceBox = document.getElementById('variance-box');
-        if (variance === 0) { 
-            varianceBox.className = "stock-box diff-neutral";
-            varianceElement.textContent = "Matched (0)";
-        } else if (variance < 0) { 
-            varianceBox.className = "stock-box diff-shortage";
-            varianceElement.textContent = `Shortage (${variance})`;
-        } else { 
-            varianceBox.className = "stock-box diff-surplus";
-            varianceElement.textContent = `Surplus (+${variance})`;
-        }
+    let variance = (totalWarehouseQty + showroomStock) - systemStock;
 
-        statusDiv.className = 'status success';
-        statusDiv.textContent = 'Product successfully located!';
-        productInfoDiv.style.display = 'block';
-        
-        const savedSession = localStorage.getItem('sc_auth_session');
-        if(savedSession) {
-            const parsed = JSON.parse(savedSession);
-            applyRoleAccessControl(parsed.role);
-        }
+    document.getElementById('p-name').textContent = systemData['Item Name'] || systemData['item_name'] || '---';
+    document.getElementById('p-code').textContent = systemData['Item Code'] || systemData['item_code'] || '---';
+    document.getElementById('stock-system').textContent = systemStock;
+    document.getElementById('stock-warehouse').textContent = totalWarehouseQty;
+    document.getElementById('stock-showroom').textContent = showroomStock; 
+    
+    const varianceElement = document.getElementById('stock-variance');
+    const varianceBox = document.getElementById('variance-box');
+    if (variance === 0) { 
+        varianceBox.className = "stock-box diff-neutral";
+        varianceElement.textContent = "Matched (0)";
+    } else if (variance < 0) { 
+        varianceBox.className = "stock-box diff-shortage";
+        varianceElement.textContent = `Shortage (${variance})`;
+    } else { 
+        varianceBox.className = "stock-box diff-surplus";
+        varianceElement.textContent = `Surplus (+${variance})`;
+    }
 
-        // ... ادامه کدهای قبلی
-            typeSelect.value = 'out';
-            handleTypeChange();
-            document.getElementById('transfer-qty').focus();
+    // ۵. کنترل دسترسی (بخشِ احیا شده)
+    const savedSession = localStorage.getItem('sc_auth_session');
+    if(savedSession) {
+        const parsed = JSON.parse(savedSession);
+        applyRoleAccessControl(parsed.role);
+    }
+
+    // ۶. تنظیمات نهایی
+    statusDiv.className = 'status success';
+    statusDiv.textContent = 'Product successfully located!';
+    productInfoDiv.style.display = 'block';
+    
+    typeSelect.value = 'out';
+    handleTypeChange();
+    document.getElementById('transfer-qty').focus();
+}
 
         // تست دقیق داده‌ها
         console.log("System Data Object:", systemData);
