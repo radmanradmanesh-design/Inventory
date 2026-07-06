@@ -1091,7 +1091,9 @@
 
     statusDiv.className = 'status loading';
     statusDiv.textContent = 'Processing transaction...';
-
+console.log("DEBUG: Target Zone is:", targetZone);
+console.log("DEBUG: Current Qty in this zone:", currentQtyInZone);
+console.log("DEBUG: Calculation:", currentQtyInZone, "+", qty, "=", finalQtyForZone);
     // ۴. آپدیت انبار (Warehouse)
     const { error: whseError } = await _supabase
         .from('warehouse_inventory')
