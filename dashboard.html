@@ -1388,75 +1388,89 @@
             loadManagerialReport();
         }
     }
-async function executeVoidOnServer(payload) {
-    // ۱. فقط وضعیتِ تراکنش را در دیتابیس به 'Voided' تغییر می‌دهیم.
-    // تریگرِ دیتابیس به صورت خودکار فعال شده و موجودی‌ها را اصلاح می‌کند.
-    const { error: updateLogError } = await _supabase
-        .from('transfer_log')
-        .update({ status: 'Voided' })
-        .eq('id', payload.logId);
 
-    if (updateLogError) {
-        throw new Error("Failed to update log status: " + updateLogError.message);
+    async function executeVoidOnServer(payload) {
+        const { data: itemData, error: fetchError } = await _supabase
+            .from('system_inventory')
+            .select('*') 
+            .eq(schemaKeys.system.barcode, payload.barcode)
+            .single();
+        if (fetchError) throw new Error("Item not found on database.");
+
+        const currentQty = itemData[schemaKeys.system.stock] || 0;
+        const correctedQty = currentQty - payload.qtyTransferred; 
+
+        let updateData = {};
+        updateData[schemaKeys.system.stock] = correctedQty;
+
+        const { error: updateInvError } = await _supabase
+            .from('system_inventory')
+            .update(updateData)
+            .eq(schemaKeys.system.barcode, payload.barcode);
+        if (updateInvError) throw updateInvError;
+
+        const { error: updateLogError } = await _supabase
+            .from('transfer_log')
+            .update({ status: 'Voided' })
+            .eq('id', payload.logId);
+        if (updateLogError) throw updateLogError;
     }
-}
 
-function pushToOfflineQueue(item) {
-    if (!db) return;
-    const transaction = db.transaction(["void_queue"], "readwrite");
-    const store = transaction.objectStore("void_queue");
-    store.add(item);
-    transaction.oncomplete = function() {
-        updateOfflineBadgeCount();
-    };
-}
+    function pushToOfflineQueue(item) {
+        if (!db) return;
+        const transaction = db.transaction(["void_queue"], "readwrite");
+        const store = transaction.objectStore("void_queue");
+        store.add(item);
+        transaction.oncomplete = function() {
+            updateOfflineBadgeCount();
+        };
+    }
 
-function getOfflineQueueItems(callback) {
-    if (!db) { callback([]); return; }
-    const transaction = db.transaction(["void_queue"], "readonly");
-    const store = transaction.objectStore("void_queue");
-    const request = store.getAll();
-    request.onsuccess = function() {
-        callback(request.result || []);
-    };
-}
+    function getOfflineQueueItems(callback) {
+        if (!db) { callback([]); return; }
+        const transaction = db.transaction(["void_queue"], "readonly");
+        const store = transaction.objectStore("void_queue");
+        const request = store.getAll();
+        request.onsuccess = function() {
+            callback(request.result || []);
+        };
+    }
 
-function updateOfflineBadgeCount() {
-    getOfflineQueueItems((items) => {
-        const badge = document.getElementById("offline-queue-count");
-        if (badge) { // اضافه کردن بررسی وجودِ badge برای جلوگیری از خطا
+    function updateOfflineBadgeCount() {
+        getOfflineQueueItems((items) => {
+            const badge = document.getElementById("offline-queue-count");
             if (items.length > 0) {
                 badge.textContent = `⏳ ${items.length} Unsynced Fixes`;
                 badge.style.display = "inline-block";
-            } else {
+            } 
+            else {
                 badge.style.display = "none";
             }
-        }
-    });
-}
+        });
+    }
 
-async function syncOfflineQueue() {
-    getOfflineQueueItems(async (items) => {
-        if (items.length === 0) return;
+    async function syncOfflineQueue() {
+        getOfflineQueueItems(async (items) => {
+            if (items.length === 0) return;
 
-        console.log(`Starting background sync for ${items.length} pending corrections...`);
-        
-        const transaction = db.transaction(["void_queue"], "readwrite");
-        const store = transaction.objectStore("void_queue");
+            console.log(`Starting background sync for ${items.length} pending corrections...`);
+            
+            const transaction = db.transaction(["void_queue"], "readwrite");
+            const store = transaction.objectStore("void_queue");
 
-        for (const item of items) {
-            try {
-                await executeVoidOnServer(item);
-                store.delete(item.id);
-                console.log(`Successfully synced local ID: ${item.id}`);
-            } catch (err) {
-                console.error(`Failed to sync item ID ${item.id}:`, err);
+            for (const item of items) {
+                try {
+                    await executeVoidOnServer(item);
+                    store.delete(item.id);
+                    console.log(`Successfully synced local ID: ${item.id}`);
+                } catch (err) {
+                    console.error(`Failed to sync item ID ${item.id}:`, err);
+                }
             }
-        }
-        updateOfflineBadgeCount();
-        loadManagerialReport();
-    });
-}
+            updateOfflineBadgeCount();
+            loadManagerialReport();
+        });
+    }
 </script>
 </body>
 </html>
