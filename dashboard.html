@@ -1388,18 +1388,18 @@
             loadManagerialReport();
         }
     }
+async function executeVoidOnServer(payload) {
+    // ۱. فقط وضعیتِ تراکنش را در دیتابیس به 'Voided' تغییر می‌دهیم.
+    // تریگرِ دیتابیس به صورت خودکار فعال شده و موجودی‌ها را اصلاح می‌کند.
+    const { error: updateLogError } = await _supabase
+        .from('transfer_log')
+        .update({ status: 'Voided' })
+        .eq('id', payload.logId);
 
-   async function executeVoidOnServer(payload) {
-    // ۱. اصلاح موجودی در جداول (استفاده از RPC که انبار را افزایش و شوروم را کاهش می‌دهد)
-    // این کار جایگزینِ محاسبه‌ی دستیِ qty در جاوااسکریپت می‌شود و امنیت بالاتری دارد
-    const { error: rpcError } = await _supabase
-        .rpc('adjust_stock_on_void', { 
-            p_barcode: payload.barcode, 
-            p_qty: Math.abs(payload.qtyTransferred) 
-        });
-
-    if (rpcError) throw new Error("Database correction failed: " + rpcError.message);
-
+    if (updateLogError) {
+        throw new Error("Failed to update log status: " + updateLogError.message);
+    }
+}
     // ۲. ابطال تراکنش در transfer_log
     // این کار گزارشات مدیریتی شما را به‌روز می‌کند و نشان می‌دهد که این لاگ دیگر معتبر نیست
     const { error: updateLogError } = await _supabase
