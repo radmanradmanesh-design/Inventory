@@ -1389,33 +1389,26 @@
         }
     }
 
-    async function executeVoidOnServer(payload) {
-        const { data: itemData, error: fetchError } = await _supabase
-            .from('system_inventory')
-            .select('*') 
-            .eq(schemaKeys.system.barcode, payload.barcode)
-            .single();
-        if (fetchError) throw new Error("Item not found on database.");
+   async function executeVoidOnServer(payload) {
+    // ۱. اصلاح موجودی در جداول (استفاده از RPC که انبار را افزایش و شوروم را کاهش می‌دهد)
+    // این کار جایگزینِ محاسبه‌ی دستیِ qty در جاوااسکریپت می‌شود و امنیت بالاتری دارد
+    const { error: rpcError } = await _supabase
+        .rpc('adjust_stock_on_void', { 
+            p_barcode: payload.barcode, 
+            p_qty: Math.abs(payload.qtyTransferred) 
+        });
 
-        const currentQty = itemData[schemaKeys.system.stock] || 0;
-        const correctedQty = currentQty - payload.qtyTransferred; 
+    if (rpcError) throw new Error("Database correction failed: " + rpcError.message);
 
-        let updateData = {};
-        updateData[schemaKeys.system.stock] = correctedQty;
+    // ۲. ابطال تراکنش در transfer_log
+    // این کار گزارشات مدیریتی شما را به‌روز می‌کند و نشان می‌دهد که این لاگ دیگر معتبر نیست
+    const { error: updateLogError } = await _supabase
+        .from('transfer_log')
+        .update({ status: 'Voided' })
+        .eq('id', payload.logId);
 
-        const { error: updateInvError } = await _supabase
-            .from('system_inventory')
-            .update(updateData)
-            .eq(schemaKeys.system.barcode, payload.barcode);
-        if (updateInvError) throw updateInvError;
-
-        const { error: updateLogError } = await _supabase
-            .from('transfer_log')
-            .update({ status: 'Voided' })
-            .eq('id', payload.logId);
-        if (updateLogError) throw updateLogError;
-    }
-
+    if (updateLogError) throw updateLogError;
+}
     function pushToOfflineQueue(item) {
         if (!db) return;
         const transaction = db.transaction(["void_queue"], "readwrite");
