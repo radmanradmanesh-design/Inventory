@@ -1448,38 +1448,29 @@
             }
         });
     }
-async function syncOfflineQueue() {
-    // گرفتن آیتم‌های صف
-    getOfflineQueueItems(async (items) => {
-        if (items.length === 0) return;
 
-        console.log(`Starting background sync for ${items.length} pending corrections...`);
+    async function syncOfflineQueue() {
+        getOfflineQueueItems(async (items) => {
+            if (items.length === 0) return;
 
-        for (const item of items) {
-            try {
-                // اجرای عملیات در سرور (فقط آپدیت وضعیت لاگ)
-                await executeVoidOnServer(item);
+            console.log(`Starting background sync for ${items.length} pending corrections...`);
+            
+            const transaction = db.transaction(["void_queue"], "readwrite");
+            const store = transaction.objectStore("void_queue");
 
-                // باز کردن یک تراکنش جدید و مستقل برای حذف هر آیتم
-                const tx = db.transaction(["void_queue"], "readwrite");
-                const store = tx.objectStore("void_queue");
-                
-                await new Promise((resolve, reject) => {
-                    const req = store.delete(item.id);
-                    req.onsuccess = () => resolve();
-                    req.onerror = () => reject(req.error);
-                });
-
-                console.log(`Successfully synced and cleared local ID: ${item.id}`);
-            } catch (err) {
-                console.error(`Failed to sync item ID ${item.id}:`, err);
+            for (const item of items) {
+                try {
+                    await executeVoidOnServer(item);
+                    store.delete(item.id);
+                    console.log(`Successfully synced local ID: ${item.id}`);
+                } catch (err) {
+                    console.error(`Failed to sync item ID ${item.id}:`, err);
+                }
             }
-        }
-        updateOfflineBadgeCount();
-        loadManagerialReport();
-    });
-}
- 
+            updateOfflineBadgeCount();
+            loadManagerialReport();
+        });
+    }
 </script>
 </body>
 </html>
