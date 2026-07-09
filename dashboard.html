@@ -953,27 +953,34 @@
                 const itemCode = row['Item Code'] || row['item code'] || row['ItemCode'] || row['item_code'];
                 const category = row['Category'] || row['category'] || row['Category Name'] || row['category_name'];
                 
-                // استخراج قیمت
-                const rawPrice = row['Selling Price (Inc VAT)'] || row['selling price (inc vat)'] || '0';
-                const price = parseFloat(String(rawPrice).replace(/,/g, '')) || 0;
+               // ... درون حلقه for (let row of csvRows)
+// ۱. استخراج قیمت فروش (همانی که داشتید)
+const rawPrice = row['Selling Price (Inc VAT)'] || row['selling price (inc vat)'] || '0';
+const price = parseFloat(String(rawPrice).replace(/,/g, '')) || 0;
 
-                // استخراج موجودی
-                let rawStock = row['Stock'] || row['stock'] || row['Quantity'] || row['quantity'] || '0';
-                rawStock = String(rawStock).replace(/,/g, ''); 
-                const stock = Math.round(parseFloat(rawStock) || 0);
+// ۲. استخراج قیمت خرید (Cost) - این خط را اضافه کنید
+const rawCost = row['Cost (Inc VAT)'] || row['cost (inc vat)'] || '0';
+const costPrice = parseFloat(String(rawCost).replace(/,/g, '')) || 0;
 
-                if (barcode) {
-                    let payloadRow = {};
-                    payloadRow[schemaKeys.system.barcode] = barcode.trim();
-                    payloadRow[schemaKeys.system.itemName] = itemName ? itemName.trim() : 'System Product';
-                    payloadRow[schemaKeys.system.itemCode] = itemCode ? itemCode.trim() : '';
-                    payloadRow[schemaKeys.system.category] = category ? category.trim() : 'General';
-                    payloadRow[schemaKeys.system.stock] = stock;
-                    // ستون قیمت در دیتابیس
-                    payloadRow['Selling Price (Inc VAT)'] = price;
-                    
-                    formattedRows.push(payloadRow);
-                }
+// ۳. استخراج موجودی
+let rawStock = row['Stock'] || row['stock'] || row['Quantity'] || row['quantity'] || '0';
+rawStock = String(rawStock).replace(/,/g, ''); 
+const stock = Math.round(parseFloat(rawStock) || 0);
+
+if (barcode) {
+    let payloadRow = {};
+    payloadRow[schemaKeys.system.barcode] = barcode.trim();
+    payloadRow[schemaKeys.system.itemName] = itemName ? itemName.trim() : 'System Product';
+    payloadRow[schemaKeys.system.itemCode] = itemCode ? itemCode.trim() : '';
+    payloadRow[schemaKeys.system.category] = category ? category.trim() : 'General';
+    payloadRow[schemaKeys.system.stock] = stock;
+    
+    // ۴. ثبت هر دو قیمت در دیتابیس
+    payloadRow['Selling Price (Inc VAT)'] = price;
+    payloadRow['Cost (Inc VAT)'] = costPrice; // <--- این خط مشکل شما را حل می‌کند
+    
+    formattedRows.push(payloadRow);
+}
             }
 
             if (formattedRows.length === 0) {
