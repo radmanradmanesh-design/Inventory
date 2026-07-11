@@ -507,9 +507,28 @@
     let dbBarcodeKey = "Barcode"; 
     let dbShowroomQtyKey = "showroom_qty";
 
-    let currentPin = "";
+  let currentPin = "";
     const SESSION_LIFETIME = 24 * 60 * 60 * 1000; 
     let currentActiveOperatorName = "";
+
+    // اضافه کردن کنترل‌کننده رویدادهای لمسی برای اطمینان از عملکرد در موبایل
+    document.addEventListener('DOMContentLoaded', () => {
+        const buttons = document.querySelectorAll('.pad-btn');
+        buttons.forEach(btn => {
+            btn.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                const text = btn.innerText.trim();
+                
+                if (text === 'Clear') {
+                    clearPin();
+                } else if (text === '⌫') {
+                    backspacePin();
+                } else if (!isNaN(text) && text !== "") {
+                    pressPinKey(text);
+                }
+            });
+        });
+    });
 
     window.onload = function() {
         startCameraScanner();
