@@ -344,20 +344,21 @@
             <div class="pin-dot" id="dot-4"></div>
         </div>
 
-        <div class="pin-pad-grid">
-            <button class="pad-btn" onclick="pressPinKey('1')">1</button>
-            <button class="pad-btn" onclick="pressPinKey('2')">2</button>
-            <button class="pad-btn" onclick="pressPinKey('3')">3</button>
-            <button class="pad-btn" onclick="pressPinKey('4')">4</button>
-            <button class="pad-btn" onclick="pressPinKey('5')">5</button>
-            <button class="pad-btn" onclick="pressPinKey('6')">6</button>
-            <button class="pad-btn" onclick="pressPinKey('7')">7</button>
-            <button class="pad-btn" onclick="pressPinKey('8')">8</button>
-            <button class="pad-btn" onclick="pressPinKey('9')">9</button>
-            <button class="pad-btn" style="background:transparent; color:#ef4444; font-size:14px;" onclick="clearPin()">Clear</button>
-            <button class="pad-btn" onclick="pressPinKey('0')">0</button>
-            <button class="pad-btn" style="background:transparent; color:#64748b; font-size:14px;" onclick="backspacePin()">⌫</button>
-        </div>
+      <div class="pin-pad-grid">
+    <button class="pad-btn" onclick="pressPinKey('1')" ontouchstart="pressPinKey('1'); event.preventDefault();">1</button>
+    <button class="pad-btn" onclick="pressPinKey('2')" ontouchstart="pressPinKey('2'); event.preventDefault();">2</button>
+    <button class="pad-btn" onclick="pressPinKey('3')" ontouchstart="pressPinKey('3'); event.preventDefault();">3</button>
+    <button class="pad-btn" onclick="pressPinKey('4')" ontouchstart="pressPinKey('4'); event.preventDefault();">4</button>
+    <button class="pad-btn" onclick="pressPinKey('5')" ontouchstart="pressPinKey('5'); event.preventDefault();">5</button>
+    <button class="pad-btn" onclick="pressPinKey('6')" ontouchstart="pressPinKey('6'); event.preventDefault();">6</button>
+    <button class="pad-btn" onclick="pressPinKey('7')" ontouchstart="pressPinKey('7'); event.preventDefault();">7</button>
+    <button class="pad-btn" onclick="pressPinKey('8')" ontouchstart="pressPinKey('8'); event.preventDefault();">8</button>
+    <button class="pad-btn" onclick="pressPinKey('9')" ontouchstart="pressPinKey('9'); event.preventDefault();">9</button>
+    
+    <button class="pad-btn" style="background:transparent; color:#ef4444; font-size:14px;" onclick="clearPin()" ontouchstart="clearPin(); event.preventDefault();">Clear</button>
+    <button class="pad-btn" onclick="pressPinKey('0')" ontouchstart="pressPinKey('0'); event.preventDefault();">0</button>
+    <button class="pad-btn" style="background:transparent; color:#64748b; font-size:14px;" onclick="backspacePin()" ontouchstart="backspacePin(); event.preventDefault();">⌫</button>
+</div>
 
         <button id="guest-trigger-btn" class="pad-btn" style="width: 100%; max-width: 280px; margin: 12px auto 0 auto; background: #f8fafc; border: 1.5px solid #cbd5e1; color: #475569; font-size: 14px; display: block;" onclick="loginAsGuest()">
             👀 Continue as Guest (View Only)
