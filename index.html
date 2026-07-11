@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Premium Scanner Room</title>
-    <script src="html5-qrcode.min.js"></script>
- 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         :root {
-            --turquoise-main: #06b6d4;  
+            --turquoise-main: #06b6d4; 
             --turquoise-dark: #0891b2; 
             --turquoise-deep: #0e7490; 
             --turquoise-light: #ecfeff; 
@@ -394,14 +394,12 @@
 
     <div id="status-div" class="status"></div>
 
-  <div id="product-info">
-    <div class="info-card">
-        <p><strong>Item Name</strong> <span id="p-name" class="value">---</span></p>
-        <p><strong>Item Code</strong> <span id="p-code" class="value">---</span></p>
-        <p><strong>Selling Price</strong> <span id="p-price" class="value" style="color: var(--success);">---</span></p>
-        <p><strong>Cost Price</strong> <span id="p-cost" class="value" style="color: var(--danger);">---</span></p>
-    </div>
-</div>
+    <div id="product-info">
+        <div class="info-card">
+            <p><strong>Item Name</strong> <span id="p-name" class="value">---</span></p>
+            <p><strong>Item Code</strong> <span id="p-code" class="value">---</span></p>
+            <p><strong>Selling Price</strong> <span id="p-price" class="value" style="color: var(--success);">---</span></p>
+        </div>
 
         <label>Core Inventory Fleet</label>
         <div class="stock-grid">
@@ -439,10 +437,10 @@
     <label for="destinationShelf">Destination Shelf</label>
     <input list="shelves-list" id="destinationShelf" class="form-control" placeholder="Select or type destination..." style="margin-top: 4px;">
     <datalist id="shelves-list">
-                    <option value="Polo___Pantalon"><option value="Pen"><option value="Underware"><option value="University_NB">
-                    <option value="100_Sheets"><option value="Compass_Sets_2"><option value="FMCG_1"><option value= "Educational_NB">
+                    <option value="Polo___Pantalon"><option value="Pen"><option value="Underware">
+                    <option value="100_Sheets"><option value="Compass_Sets_2"><option value="FMCG_1">
                     <option value="40_Sheets"><option value="60_Sheets"><option value="80_Sheets"><option value="English_NB">
-                    <option value="Subjected_NB"><option value="Stationery"><option value="Drawing_Boards"><option value="Glasseware">
+                    <option value="Subjected_NB"><option value="Stationery"><option value="Drawing_Boards">
                     <option value="FMCG_2"><option value="Underwear"><option value="Shila"><option value="Dress_line_1">
                     <option value="White_Board_Items"><option value="Shoes_Shelves"><option value="Socks"><option value="Dress_line_2">
                     <option value="Girl_Accessories"><option value="Reserved_1"><option value="FMCG_3"><option value="Dress_line_3">
@@ -454,10 +452,10 @@
                     <option value="Correction_Pen___Tape"><option value="Reserved_2"><option value="Reserved_Wall_Back">
                     <option value="Pencil_Box"><option value="Drawing_Supplies"><option value="Column_2">
                     <option value="Education_Items"><option value="Pencil_Box1"><option value="Bags_4">
-                    <option value="Bags_3"><option value="Column_1"><option value="Bags_2"><option value="Educational_NB_Shelves">
+                    <option value="Bags_3"><option value="Column_1"><option value="Bags_2">
                     <option value="Bags_1"><option value="Launch_Box"><option value="First_Wall">
                     <option value="Water_Bottle"><option value="Perfumes_Wall"><option value="Shoes">
-                    <option value="Stationery"><option value="Mind_Toys"><option value="Highlighter">
+                    <option value="Painting"><option value="Mind_Toys"><option value="Highlighter">
                     <option value="Pencil"><option value="Pen___Pencil_Shelves"><option value="Front_Net1">
                 </datalist>
             </div>
@@ -870,7 +868,7 @@
             // کوئری اول: اضافه شدن ستون قیمت
             let { data: systemData, error: err1 } = await _supabase
                 .from('system_inventory')
-               .select('*, "Selling Price (Inc VAT)", "Cost (Inc VAT)"')
+                .select('*, "Selling Price (Inc VAT)"')
                 .eq('Barcode', cleanedBarcode)
                 .maybeSingle();
             
@@ -880,7 +878,7 @@
                 // کوئری دوم (در صورت عدم یافتن در اولی): اضافه شدن ستون قیمت
                 let { data: systemDataCheck, error: err2 } = await _supabase
                     .from('system_inventory')
-                    .select('*, "Selling Price (Inc VAT)", "Cost (Inc VAT)"')
+                    .select('*, "Selling Price (Inc VAT)"')
                     .eq('barcode', cleanedBarcode)
                     .maybeSingle();
                 
@@ -997,32 +995,16 @@
             applyRoleAccessControl(parsed.role);
         }
 
-        // ... ادامه کدهای قبلی
-            typeSelect.value = 'out';
-            handleTypeChange();
-            document.getElementById('transfer-qty').focus();
-
-        // تست دقیق داده‌ها
-        console.log("System Data Object:", systemData);
-
-        // اصلاح نام ستون‌ها (برداشتن کوتیشن‌های اضافه)
+        typeSelect.value = 'out';
+        handleTypeChange();
+        document.getElementById('transfer-qty').focus();
+        // اضافه کردن این بخش به انتهای تابع renderProductDataHTML:
         const price = systemData['Selling Price (Inc VAT)'];
-        const cost = systemData['Cost (Inc VAT)']; // اصلاح شد!
-
         const priceElement = document.getElementById('p-price');
-        const costElement = document.getElementById('p-cost');
-
-            if (priceElement) {
-            // استفاده از شرطِ درست برای نمایش مقدار یا خط‌چین
-            priceElement.textContent = (price !== undefined && price !== null) ? price : '---';
+        if (priceElement) {
+            priceElement.textContent = price ? price : '---';
         }
-
-        if (costElement) {
-            // اصلاح شد: از همان متغیرِ cost استفاده می‌کنیم
-            costElement.textContent = (cost !== undefined && cost !== null) ? cost : '---';
-            }
-        } // <--- این آکولاد بسته شدن تابع renderProductDataHTML است
- 
+    }
 
     function cacheProductLocally(payload) {
         try {
