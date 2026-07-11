@@ -399,6 +399,7 @@
             <p><strong>Item Name</strong> <span id="p-name" class="value">---</span></p>
             <p><strong>Item Code</strong> <span id="p-code" class="value">---</span></p>
             <p><strong>Selling Price</strong> <span id="p-price" class="value" style="color: var(--success);">---</span></p>
+            <p><strong>Cost Price</strong> <span id="p-cost" class="value" style="color: var(--danger);">---</span></p>
         </div>
 
         <label>Core Inventory Fleet</label>
@@ -868,7 +869,7 @@
             // کوئری اول: اضافه شدن ستون قیمت
             let { data: systemData, error: err1 } = await _supabase
                 .from('system_inventory')
-                .select('*, "Selling Price (Inc VAT)"')
+                .select('*, "Selling Price (Inc VAT)", "Cost (Inc VAT)"')
                 .eq('Barcode', cleanedBarcode)
                 .maybeSingle();
             
@@ -878,7 +879,7 @@
                 // کوئری دوم (در صورت عدم یافتن در اولی): اضافه شدن ستون قیمت
                 let { data: systemDataCheck, error: err2 } = await _supabase
                     .from('system_inventory')
-                    .select('*, "Selling Price (Inc VAT)"')
+                    .select('*, "Selling Price (Inc VAT)", "Cost (Inc VAT)"')
                     .eq('barcode', cleanedBarcode)
                     .maybeSingle();
                 
@@ -1000,9 +1001,20 @@
         document.getElementById('transfer-qty').focus();
         // اضافه کردن این بخش به انتهای تابع renderProductDataHTML:
         const price = systemData['Selling Price (Inc VAT)'];
+        const cost = systemData['Cost (Inc VAT)']; // اصلاح شد!
+
         const priceElement = document.getElementById('p-price');
-        if (priceElement) {
-            priceElement.textContent = price ? price : '---';
+        const costElement = document.getElementById('p-cost');
+
+            if (priceElement) {
+            // استفاده از شرطِ درست برای نمایش مقدار یا خط‌چین
+            priceElement.textContent = (price !== undefined && price !== null) ? price : '---';
+        }
+
+        if (costElement) {
+            // اصلاح شد: از همان متغیرِ cost استفاده می‌کنیم
+            costElement.textContent = (cost !== undefined && cost !== null) ? cost : '---';
+
         }
     }
 
