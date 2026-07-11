@@ -292,16 +292,16 @@
 
         /* --- STYLES FOR SECURITY LOCK OVERLAY SYSTEM --- */
         #security-lock-screen {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-color: #0f172a;
-            z-index: 99999;
-            display: none; /* تغییر از none به flex برای نمایش اجباری تا زمان احراز هویت */
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            box-sizing: border-box;
-        }
+    /* به جای display: flex یا none، از opacity و pointer-events استفاده کنید */
+    position: fixed;
+    top: 0; 
+    left: 0; 
+    width: 0; 
+    height: 0; 
+    opacity: 0;
+    pointer-events: none; /* این خط حیاتی است: باعث می‌شود کلیک‌ها از روی این دیو رد شوند */
+    z-index: -1; /* این لایه را می‌فرستد پشتِ همه چیز */
+}
         .auth-card {
             background: #ffffff;
             width: 100%;
