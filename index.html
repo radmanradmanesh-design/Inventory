@@ -292,16 +292,16 @@
 
         /* --- STYLES FOR SECURITY LOCK OVERLAY SYSTEM --- */
         #security-lock-screen {
-    /* به جای display: flex یا none، از opacity و pointer-events استفاده کنید */
-    position: fixed;
-    top: 0; 
-    left: 0; 
-    width: 0; 
-    height: 0; 
-    opacity: 0;
-    pointer-events: none; /* این خط حیاتی است: باعث می‌شود کلیک‌ها از روی این دیو رد شوند */
-    z-index: -1; /* این لایه را می‌فرستد پشتِ همه چیز */
-}
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #0f172a;
+            z-index: 99999;
+            display: flex; /* تغییر از none به flex برای نمایش اجباری تا زمان احراز هویت */
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
         .auth-card {
             background: #ffffff;
             width: 100%;
@@ -344,21 +344,20 @@
             <div class="pin-dot" id="dot-4"></div>
         </div>
 
-      <div class="pin-pad-grid">
-    <button class="pad-btn" onclick="pressPinKey('1')" ontouchstart="pressPinKey('1'); event.preventDefault();">1</button>
-    <button class="pad-btn" onclick="pressPinKey('2')" ontouchstart="pressPinKey('2'); event.preventDefault();">2</button>
-    <button class="pad-btn" onclick="pressPinKey('3')" ontouchstart="pressPinKey('3'); event.preventDefault();">3</button>
-    <button class="pad-btn" onclick="pressPinKey('4')" ontouchstart="pressPinKey('4'); event.preventDefault();">4</button>
-    <button class="pad-btn" onclick="pressPinKey('5')" ontouchstart="pressPinKey('5'); event.preventDefault();">5</button>
-    <button class="pad-btn" onclick="pressPinKey('6')" ontouchstart="pressPinKey('6'); event.preventDefault();">6</button>
-    <button class="pad-btn" onclick="pressPinKey('7')" ontouchstart="pressPinKey('7'); event.preventDefault();">7</button>
-    <button class="pad-btn" onclick="pressPinKey('8')" ontouchstart="pressPinKey('8'); event.preventDefault();">8</button>
-    <button class="pad-btn" onclick="pressPinKey('9')" ontouchstart="pressPinKey('9'); event.preventDefault();">9</button>
-    
-    <button class="pad-btn" style="background:transparent; color:#ef4444; font-size:14px;" onclick="clearPin()" ontouchstart="clearPin(); event.preventDefault();">Clear</button>
-    <button class="pad-btn" onclick="pressPinKey('0')" ontouchstart="pressPinKey('0'); event.preventDefault();">0</button>
-    <button class="pad-btn" style="background:transparent; color:#64748b; font-size:14px;" onclick="backspacePin()" ontouchstart="backspacePin(); event.preventDefault();">⌫</button>
-</div>
+        <div class="pin-pad-grid">
+            <button class="pad-btn" onclick="pressPinKey('1')">1</button>
+            <button class="pad-btn" onclick="pressPinKey('2')">2</button>
+            <button class="pad-btn" onclick="pressPinKey('3')">3</button>
+            <button class="pad-btn" onclick="pressPinKey('4')">4</button>
+            <button class="pad-btn" onclick="pressPinKey('5')">5</button>
+            <button class="pad-btn" onclick="pressPinKey('6')">6</button>
+            <button class="pad-btn" onclick="pressPinKey('7')">7</button>
+            <button class="pad-btn" onclick="pressPinKey('8')">8</button>
+            <button class="pad-btn" onclick="pressPinKey('9')">9</button>
+            <button class="pad-btn" style="background:transparent; color:#ef4444; font-size:14px;" onclick="clearPin()">Clear</button>
+            <button class="pad-btn" onclick="pressPinKey('0')">0</button>
+            <button class="pad-btn" style="background:transparent; color:#64748b; font-size:14px;" onclick="backspacePin()">⌫</button>
+        </div>
 
         <button id="guest-trigger-btn" class="pad-btn" style="width: 100%; max-width: 280px; margin: 12px auto 0 auto; background: #f8fafc; border: 1.5px solid #cbd5e1; color: #475569; font-size: 14px; display: block;" onclick="loginAsGuest()">
             👀 Continue as Guest (View Only)
@@ -443,7 +442,7 @@
                     <option value="Polo___Pantalon"><option value="Pen"><option value="Underware"><option value="University_NB">
                     <option value="100_Sheets"><option value="Compass_Sets_2"><option value="FMCG_1"><option value= "Educational_NB">
                     <option value="40_Sheets"><option value="60_Sheets"><option value="80_Sheets"><option value="English_NB">
-                    <option value="Subjected_NB"><option value="Stationery"><option value="Drawing_Boards">
+                    <option value="Subjected_NB"><option value="Stationery"><option value="Drawing_Boards"><option value="Glasseware">
                     <option value="FMCG_2"><option value="Underwear"><option value="Shila"><option value="Dress_line_1">
                     <option value="White_Board_Items"><option value="Shoes_Shelves"><option value="Socks"><option value="Dress_line_2">
                     <option value="Girl_Accessories"><option value="Reserved_1"><option value="FMCG_3"><option value="Dress_line_3">
@@ -453,11 +452,11 @@
                     <option value="Mind_Toys_Wall"><option value="Column_5"><option value="Column_3"><option value="A4">
                     <option value="Highlighter1"><option value="Reserved_Wall_Side"><option value="Spring_NB">
                     <option value="Correction_Pen___Tape"><option value="Reserved_2"><option value="Reserved_Wall_Back">
-                    <option value="Pencil_Box"><option value="Drawing_Supplies"><option value="Column_2"><option value="Bags_Reserved">
-                    <option value="Education_Items"><option value="Pencil_Box1"><option value="Bags_4"><option value= "Glassware">
+                    <option value="Pencil_Box"><option value="Drawing_Supplies"><option value="Column_2">
+                    <option value="Education_Items"><option value="Pencil_Box1"><option value="Bags_4">
                     <option value="Bags_3"><option value="Column_1"><option value="Bags_2"><option value="Educational_NB_Shelves">
-                    <option value="Bags_1"><option value="Launch_Box"><option value="First_Wall"><option value= "Shoes_Pallet1">
-                    <option value="Water_Bottle"><option value="Perfumes_Wall"><option value="Shoes"><option value= "Shoes_Pallet2">
+                    <option value="Bags_1"><option value="Launch_Box"><option value="First_Wall">
+                    <option value="Water_Bottle"><option value="Perfumes_Wall"><option value="Shoes">
                     <option value="Stationery"><option value="Mind_Toys"><option value="Highlighter">
                     <option value="Pencil"><option value="Pen___Pencil_Shelves"><option value="Front_Net1">
                 </datalist>
@@ -485,13 +484,10 @@
 </div>
 
 <script>
-   window.onerror = function(message, source, lineno, colno, error) {
-    alert("خطای سیستم: " + message + " در خط " + lineno);
-};
     const SUPABASE_URL = 'https://qmurpnbrnmyjdxqjhybz.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec'; 
      
-    //const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const barcodeInput = document.getElementById('barcode-input');
     const statusDiv = document.getElementById('status-div');
@@ -510,32 +506,13 @@
     let dbBarcodeKey = "Barcode"; 
     let dbShowroomQtyKey = "showroom_qty";
 
-  let currentPin = "";
+    let currentPin = "";
     const SESSION_LIFETIME = 24 * 60 * 60 * 1000; 
     let currentActiveOperatorName = "";
 
-    // اضافه کردن کنترل‌کننده رویدادهای لمسی برای اطمینان از عملکرد در موبایل
-    document.addEventListener('DOMContentLoaded', () => {
-        const buttons = document.querySelectorAll('.pad-btn');
-        buttons.forEach(btn => {
-            btn.addEventListener('pointerdown', (e) => {
-                e.preventDefault();
-                const text = btn.innerText.trim();
-                
-                if (text === 'Clear') {
-                    clearPin();
-                } else if (text === '⌫') {
-                    backspacePin();
-                } else if (!isNaN(text) && text !== "") {
-                    pressPinKey(text);
-                }
-            });
-        });
-    });
-
     window.onload = function() {
-    console.log("Camera loading skipped for testing");
-    checkDailySession();
+        startCameraScanner();
+        checkDailySession(); 
     };
 
     function checkDailySession() {
