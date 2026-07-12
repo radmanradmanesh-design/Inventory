@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Premium Scanner Room</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="console.error('Supabase Failed')"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         :root {
@@ -536,62 +536,35 @@
         triggerBiometricAuth();
     }
 
- // متغیر سراسری برای پین
-let currentPin = "";
+    function pressPinKey(num) {
+        if (currentPin.length < 4) {
+            currentPin += num;
+            updatePinDots();
+        }
+        if (currentPin.length === 4) {
+            verifyPinWithSupabase(currentPin);
+        }
+    }
 
-function pressPinKey(num) {
-    if (currentPin.length < 4) {
-        currentPin += num;
+    function clearPin() {
+        currentPin = "";
         updatePinDots();
+        document.getElementById('auth-message-log').textContent = "";
     }
-    
-    // اگر پین کامل شد، بررسی را انجام بده
-    if (currentPin.length === 4) {
-        verifyPinWithSupabase(currentPin);
-    }
-}
 
-function clearPin() {
-    currentPin = "";
-    updatePinDots();
-    document.getElementById('auth-message-log').textContent = "";
-}
-
-function backspacePin() {
-    if (currentPin.length > 0) {
-        currentPin = currentPin.slice(0, -1);
-        updatePinDots();
-    }
-}
-
-function updatePinDots() {
-    for (let i = 1; i <= 4; i++) {
-        const dot = document.getElementById(`dot-${i}`);
-        if (dot) { // بررسی وجود المنت برای جلوگیری از خطا
-            if (i <= currentPin.length) { 
-                dot.classList.add('active'); 
-            } else { 
-                dot.classList.remove('active'); 
-            }
+    function backspacePin() {
+        if (currentPin.length > 0) {
+            currentPin = currentPin.slice(0, -1);
+            updatePinDots();
         }
     }
-}
 
-// تابع ایمن‌سازی شده برای جلوگیری از کرش کردن برنامه
-function verifyPinWithSupabase(pin) {
-    console.log("در حال بررسی پین: " + pin);
-    
-    // محافظت در برابر لود نشدن Supabase
-    if (typeof supabase === 'undefined') {
-        const log = document.getElementById('auth-message-log');
-        if (log) {
-            log.textContent = "خطا: سیستم لاگین در دسترس نیست. لطفا دوباره تلاش کنید.";
-            log.style.color = "red";
+    function updatePinDots() {
+        for (let i = 1; i <= 4; i++) {
+            const dot = document.getElementById(`dot-${i}`);
+            if (i <= currentPin.length) { dot.classList.add('active'); } 
+            else { dot.classList.remove('active'); }
         }
-        console.error("خطا: Supabase تعریف نشده است.");
-        return;
-        }
-
     }
 
     function loginAsGuest() {
@@ -1157,6 +1130,5 @@ function verifyPinWithSupabase(pin) {
         }
     }
 </script>
-<script async src="html5-qrcode.min.js"></script>
 </body>
 </html>
