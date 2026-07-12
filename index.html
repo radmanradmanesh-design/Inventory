@@ -536,35 +536,62 @@
         triggerBiometricAuth();
     }
 
-    function pressPinKey(num) {
-        if (currentPin.length < 4) {
-            currentPin += num;
-            updatePinDots();
-        }
-        if (currentPin.length === 4) {
-            verifyPinWithSupabase(currentPin);
-        }
-    }
+ // متغیر سراسری برای پین
+let currentPin = "";
 
-    function clearPin() {
-        currentPin = "";
+function pressPinKey(num) {
+    if (currentPin.length < 4) {
+        currentPin += num;
         updatePinDots();
-        document.getElementById('auth-message-log').textContent = "";
     }
+    
+    // اگر پین کامل شد، بررسی را انجام بده
+    if (currentPin.length === 4) {
+        verifyPinWithSupabase(currentPin);
+    }
+}
 
-    function backspacePin() {
-        if (currentPin.length > 0) {
-            currentPin = currentPin.slice(0, -1);
-            updatePinDots();
+function clearPin() {
+    currentPin = "";
+    updatePinDots();
+    document.getElementById('auth-message-log').textContent = "";
+}
+
+function backspacePin() {
+    if (currentPin.length > 0) {
+        currentPin = currentPin.slice(0, -1);
+        updatePinDots();
+    }
+}
+
+function updatePinDots() {
+    for (let i = 1; i <= 4; i++) {
+        const dot = document.getElementById(`dot-${i}`);
+        if (dot) { // بررسی وجود المنت برای جلوگیری از خطا
+            if (i <= currentPin.length) { 
+                dot.classList.add('active'); 
+            } else { 
+                dot.classList.remove('active'); 
+            }
         }
     }
+}
 
-    function updatePinDots() {
-        for (let i = 1; i <= 4; i++) {
-            const dot = document.getElementById(`dot-${i}`);
-            if (i <= currentPin.length) { dot.classList.add('active'); } 
-            else { dot.classList.remove('active'); }
+// تابع ایمن‌سازی شده برای جلوگیری از کرش کردن برنامه
+function verifyPinWithSupabase(pin) {
+    console.log("در حال بررسی پین: " + pin);
+    
+    // محافظت در برابر لود نشدن Supabase
+    if (typeof supabase === 'undefined') {
+        const log = document.getElementById('auth-message-log');
+        if (log) {
+            log.textContent = "خطا: سیستم لاگین در دسترس نیست. لطفا دوباره تلاش کنید.";
+            log.style.color = "red";
         }
+        console.error("خطا: Supabase تعریف نشده است.");
+        return;
+        }
+
     }
 
     function loginAsGuest() {
