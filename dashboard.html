@@ -758,266 +758,123 @@
         </div>
     </div>
 </div>
-
 <script>
     const SUPABASE_URL = 'https://qmurpnbrnmyjdxqjhybz.supabase.co'; 
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFtdXJwbmJybm15amR4cWpoeWJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEyNTg1MTMsImV4cCI6MjA5NjgzNDUxM30.077KeCrlx5vyFE3YJtBWdadx6wfe_snxURbl2LZ7_ec';
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const ADMIN_PASSWORD = "RadmanAdmin2026"; 
+    // لیست پسوردهای مجاز (پسورد اصلی خودتان + پسورد نفر دوم)
+    const ALLOWED_PASSWORDS = ["RadmanAdmin2026", "Operator2026"]; 
 
     let db;
     let cachedLogs = [];
     let selectedCategories = [];
     let currentTxFilter = 'non-sales';
 
-    let finalProcessedRows = []; 
-    let reportCurrentPage = 1;
-    const ROWS_PER_PAGE = 100;
-
-    let schemaKeys = {
-        system: { barcode: 'Barcode', itemName: 'Item Name', itemCode: 'Item Code', category: 'Category', stock: 'Stock' },
-        showroom: { barcode: 'Barcode', qty: 'showroom_qty' }
-    };
-
-    document.addEventListener('click', function(e) {
-        const wrapper = document.querySelector('.dropdown-check-wrapper');
-        if (wrapper && !wrapper.contains(e.target)) {
-            document.getElementById('category-dropdown-content').classList.remove('show');
-        }
-    });
-
-    function toggleCategoryDropdown() {
-        document.getElementById('category-dropdown-content').classList.toggle('show');
-    }
-
-    function updateDropdownTriggerText() {
-        const btn = document.getElementById('category-dropdown-btn');
-        if (selectedCategories.length === 0) {
-            btn.textContent = "No Category Selected";
-        } else {
-            btn.textContent = `${selectedCategories.length} Categories Selected`;
-        }
-    }
-
-    function selectAllCategories(e) {
-        if(e) e.preventDefault();
-        const checkboxes = document.querySelectorAll('#category-options-container input[type="checkbox"]');
-        selectedCategories = [];
-        checkboxes.forEach(cb => {
-            cb.checked = true;
-            selectedCategories.push(cb.value);
-        });
-        updateDropdownTriggerText();
-    }
-
-    function clearAllCategories(e) {
-        if(e) e.preventDefault();
-        const checkboxes = document.querySelectorAll('#category-options-container input[type="checkbox"]');
-        checkboxes.forEach(cb => cb.checked = false);
-        selectedCategories = [];
-        updateDropdownTriggerText();
-    }
-
-    function handleCheckboxChange(cb) {
-        if (cb.checked) {
-            if (!selectedCategories.includes(cb.value)) selectedCategories.push(cb.value);
-        } else {
-            selectedCategories = selectedCategories.filter(c => c !== cb.value);
-        }
-        updateDropdownTriggerText();
-    }
-
-    function setTxFilter(type) {
-        currentTxFilter = type;
-        document.getElementById('tx-filter-non-sales').classList.remove('active');
-        document.getElementById('tx-filter-all').classList.remove('active');
-        
-        if(type === 'non-sales') {
-            document.getElementById('tx-filter-non-sales').classList.add('active');
-        } else {
-            document.getElementById('tx-filter-all').classList.add('active');
-        }
-    }
-
-    async function detectDatabaseSchema() {
-        if (!navigator.onLine) return;
-        try {
-            const { data: sysSample } = await _supabase.from('system_inventory').select('*').limit(1);
-            if (sysSample && sysSample.length > 0) {
-                const r = sysSample[0];
-                if ('barcode' in r) schemaKeys.system.barcode = 'barcode';
-                if ('item_name' in r) schemaKeys.system.itemName = 'item_name';
-                if ('item_code' in r) schemaKeys.system.itemCode = 'item_code';
-                if ('category' in r) schemaKeys.system.category = 'category';
-                if ('stock' in r) schemaKeys.system.stock = 'stock';
-            }
-
-            const { data: showSample } = await _supabase.from('showroom_inventory').select('*').limit(1);
-            if (showSample && showSample.length > 0) {
-                const r = showSample[0];
-                if ('barcode' in r) schemaKeys.showroom.barcode = 'barcode';
-                if ('showroom_quantity' in r) schemaKeys.showroom.qty = 'showroom_quantity';
-                else if ('showroom_qty' in r) schemaKeys.showroom.qty = 'showroom_qty';
-            }
-        } catch(e) {
-            console.error("Schema tracking error:", e);
-        }
-    }
-
-    async function fetchCategoriesFromServer() {
-        if (!navigator.onLine) return;
-        try {
-            const { data, error } = await _supabase.from('system_inventory').select('*');
-            if (!error && data) {
-                const uniqueCats = [...new Set(data.map(item => item[schemaKeys.system.category]).filter(Boolean))];
-                const container = document.getElementById('category-options-container');
-                container.innerHTML = '';
-                
-                selectedCategories = [];
-                uniqueCats.forEach(cat => {
-                    selectedCategories.push(cat);
-                    container.innerHTML += `
-                        <div class="dropdown-option-item">
-                            <input type="checkbox" value="${cat}" checked onchange="handleCheckboxChange(this)">
-                            <span>${cat}</span>
-                        </div>
-                    `;
-                });
-                updateDropdownTriggerText();
-            }
-        } catch(e) {
-            console.error("Error fetching categories:", e);
-        }
-    }
-
-    function filterReportTable() {
-        const valBarcode = document.getElementById('filter-barcode').value.toLowerCase().trim();
-        const valName = document.getElementById('filter-name').value.toLowerCase().trim();
-        const valOperator = document.getElementById('filter-operator').value.toLowerCase().trim();
-
-        const filtered = finalProcessedRows.filter(row => {
-            const matchBarcode = row.barcode.toLowerCase().includes(valBarcode);
-            const matchName = row.itemName.toLowerCase().includes(valName);
-            const matchOperator = row.worker.toLowerCase().includes(valOperator);
-            return matchBarcode && matchName && matchOperator;
-        });
-
-        reportCurrentPage = 1;
-        renderTableChunk(filtered);
-    }
-
-    function clearColumnFilterInputs() {
-        document.getElementById('filter-barcode').value = '';
-        document.getElementById('filter-name').value = '';
-        document.getElementById('filter-operator').value = '';
-    }
+    // ... (سایر متغیرهای شما مثل schemaKeys و بقیه توابع ثابت می‌مانند)
 
     async function handleCSVUpload() {
-    if (!navigator.onLine) {
-        alert("⛔ Sync operations require an active network connection. You cannot sync stock files while offline.");
-        return;
-    }
-
-    const fileInput = document.getElementById('retailx-csv-file');
-    const syncBtn = document.getElementById('sync-trigger-btn');
-    const errDisplay = document.getElementById('error-display');
-
-    if (!fileInput.files || fileInput.files.length === 0) {
-        alert("Please select a valid RetailX inventory CSV file first.");
-        return;
-    }
-
-    const file = fileInput.files[0];
-    const password = prompt("🔒 Admin Security Lock.\nEnter Master Password to commit live inventory overwrite:");
-    
-    if (password === null) return;
-    if (password !== ADMIN_PASSWORD) {
-        alert("⛔ Access Denied!");
-        return;
-    }
-
-    syncBtn.disabled = true;
-    syncBtn.textContent = "Processing & Syncing data...";
-    errDisplay.style.display = 'none';
-
-    Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: async function(results) {
-            const csvRows = results.data;
-            const formattedRows = [];
-
-            for (let row of csvRows) {
-                const barcode = row['Barcode'] || row['barcode'];
-                const itemName = row['Item Name'] || row['item name'] || row['ItemName'] || row['item_name'];
-                const itemCode = row['Item Code'] || row['item code'] || row['ItemCode'] || row['item_code'];
-                const category = row['Category'] || row['category'] || row['Category Name'] || row['category_name'];
-                
-               // ... درون حلقه for (let row of csvRows)
-// ۱. استخراج قیمت فروش (همانی که داشتید)
-const rawPrice = row['Selling Price (Inc VAT)'] || row['selling price (inc vat)'] || '0';
-const price = parseFloat(String(rawPrice).replace(/,/g, '')) || 0;
-
-// ۲. استخراج قیمت خرید (Cost) - این خط را اضافه کنید
-const rawCost = row['Cost (Inc VAT)'] || row['cost (inc vat)'] || '0';
-const costPrice = parseFloat(String(rawCost).replace(/,/g, '')) || 0;
-
-// ۳. استخراج موجودی
-let rawStock = row['Stock'] || row['stock'] || row['Quantity'] || row['quantity'] || '0';
-rawStock = String(rawStock).replace(/,/g, ''); 
-const stock = Math.round(parseFloat(rawStock) || 0);
-
-if (barcode) {
-    let payloadRow = {};
-    payloadRow[schemaKeys.system.barcode] = barcode.trim();
-    payloadRow[schemaKeys.system.itemName] = itemName ? itemName.trim() : 'System Product';
-    payloadRow[schemaKeys.system.itemCode] = itemCode ? itemCode.trim() : '';
-    payloadRow[schemaKeys.system.category] = category ? category.trim() : 'General';
-    payloadRow[schemaKeys.system.stock] = stock;
-    
-    // ۴. ثبت هر دو قیمت در دیتابیس
-    payloadRow['Selling Price (Inc VAT)'] = price;
-    payloadRow['Cost (Inc VAT)'] = costPrice; // <--- این خط مشکل شما را حل می‌کند
-    
-    formattedRows.push(payloadRow);
-}
-            }
-
-            if (formattedRows.length === 0) {
-                alert("❌ Parsing Failed: Could not identify rows with valid 'Barcode' keys.");
-                syncBtn.disabled = false;
-                syncBtn.textContent = "Upload & Sync Inventory";
-                return;
-            }
-
-            try {
-                const { error } = await _supabase
-                    .from('system_inventory')
-                    .upsert(formattedRows, { onConflict: schemaKeys.system.barcode });
-
-                if (error) throw error;
-
-                alert(`🎉 Successfully matched and updated [ ${formattedRows.length} ] products.`);
-                fileInput.value = ""; 
-                await fetchCategoriesFromServer();
-                loadManagerialReport();
-            } catch (err) {
-                console.error(err);
-                errDisplay.textContent = `🚨 Upsert Engine Error: ${err.message}`;
-                errDisplay.style.display = 'block';
-            } finally {
-                syncBtn.disabled = false;
-                syncBtn.textContent = "Upload & Sync Inventory";
-            }
-        },
-        error: function(parseError) {
-            alert(`CSV Format Read Error: ${parseError.message}`);
-            syncBtn.disabled = false;
-            syncBtn.textContent = "Upload & Sync Inventory";
+        if (!navigator.onLine) {
+            alert("⛔ Sync operations require an active network connection.");
+            return;
         }
-    });
-}
+
+        const fileInput = document.getElementById('retailx-csv-file');
+        const syncBtn = document.getElementById('sync-trigger-btn');
+        const errDisplay = document.getElementById('error-display');
+
+        if (!fileInput.files || fileInput.files.length === 0) {
+            alert("Please select a valid RetailX inventory CSV file first.");
+            return;
+        }
+
+        // سیستم بررسی چند پسوردی
+        const password = prompt("🔒 Security Lock. Enter authorized password to commit sync:");
+        if (password === null) return;
+        
+        if (!ALLOWED_PASSWORDS.includes(password)) {
+            alert("⛔ Access Denied! Invalid password.");
+            return;
+        }
+
+        const file = fileInput.files[0];
+        syncBtn.disabled = true;
+        syncBtn.textContent = "Processing & Syncing data...";
+        errDisplay.style.display = 'none';
+
+        Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: async function(results) {
+                const csvRows = results.data;
+                const formattedRows = [];
+
+                for (let row of csvRows) {
+                    const barcode = row['Barcode'] || row['barcode'];
+                    const itemName = row['Item Name'] || row['item name'] || row['ItemName'] || row['item_name'];
+                    const itemCode = row['Item Code'] || row['item code'] || row['ItemCode'] || row['item_code'];
+                    const category = row['Category'] || row['category'] || row['Category Name'] || row['category_name'];
+                    
+                    const rawPrice = row['Selling Price (Inc VAT)'] || row['selling price (inc vat)'] || '0';
+                    const price = parseFloat(String(rawPrice).replace(/,/g, '')) || 0;
+
+                    const rawCost = row['Cost (Inc VAT)'] || row['cost (inc vat)'] || '0';
+                    const costPrice = parseFloat(String(rawCost).replace(/,/g, '')) || 0;
+
+                    let rawStock = row['Stock'] || row['stock'] || row['Quantity'] || row['quantity'] || '0';
+                    rawStock = String(rawStock).replace(/,/g, ''); 
+                    const stock = Math.round(parseFloat(rawStock) || 0);
+
+                    if (barcode) {
+                        let payloadRow = {};
+                        payloadRow[schemaKeys.system.barcode] = barcode.trim();
+                        payloadRow[schemaKeys.system.itemName] = itemName ? itemName.trim() : 'System Product';
+                        payloadRow[schemaKeys.system.itemCode] = itemCode ? itemCode.trim() : '';
+                        payloadRow[schemaKeys.system.category] = category ? category.trim() : 'General';
+                        payloadRow[schemaKeys.system.stock] = stock;
+                        
+                        payloadRow['Selling Price (Inc VAT)'] = price;
+                        payloadRow['Cost (Inc VAT)'] = costPrice; 
+                        
+                        formattedRows.push(payloadRow);
+                    }
+                }
+
+                if (formattedRows.length === 0) {
+                    alert("❌ Parsing Failed: Could not identify rows.");
+                    syncBtn.disabled = false;
+                    syncBtn.textContent = "Upload & Sync Inventory";
+                    return;
+                }
+
+                try {
+                    const { error } = await _supabase
+                        .from('system_inventory')
+                        .upsert(formattedRows, { onConflict: schemaKeys.system.barcode });
+
+                    if (error) throw error;
+
+                    alert(`🎉 Successfully updated [ ${formattedRows.length} ] products.`);
+                    fileInput.value = ""; 
+                    await fetchCategoriesFromServer();
+                    loadManagerialReport();
+                } catch (err) {
+                    console.error(err);
+                    errDisplay.textContent = `🚨 Upsert Engine Error: ${err.message}`;
+                    errDisplay.style.display = 'block';
+                } finally {
+                    syncBtn.disabled = false;
+                    syncBtn.textContent = "Upload & Sync Inventory";
+                }
+            },
+            error: function(parseError) {
+                alert(`CSV Format Read Error: ${parseError.message}`);
+                syncBtn.disabled = false;
+                syncBtn.textContent = "Upload & Sync Inventory";
+            }
+        });
+    }
+</script>
 
     function initOfflineStorage() {
         const request = indexedDB.open("WarehouseOfflineDB", 1);
